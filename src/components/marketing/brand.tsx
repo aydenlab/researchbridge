@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/components/ui/cn";
 
@@ -16,32 +17,39 @@ export function BridgeMark({ className, tone = "ink" }: { className?: string; to
   );
 }
 
+export function Logo({ className, priority = false }: { className?: string; priority?: boolean }) {
+  return (
+    <Image
+      src="/logo.png"
+      alt="ResearchBridge"
+      width={240}
+      height={96}
+      priority={priority}
+      className={cn("h-8 w-auto sm:h-9", className)}
+    />
+  );
+}
+
 export function Wordmark({
-  tone = "ink",
-  withTagline = true,
+  withTagline = false,
   href = "/",
+  priority = false,
 }: {
   tone?: "ink" | "white";
   withTagline?: boolean;
   href?: string;
+  priority?: boolean;
 }) {
   return (
-    <Link
-      href={href}
-      className={cn(
-        "inline-flex items-center gap-2 transition-opacity hover:opacity-80",
-        tone === "white" ? "text-white" : "text-ink",
-      )}
-    >
-      <BridgeMark className="size-8 shrink-0 sm:size-9" tone={tone} />
-      <span className="flex flex-col leading-none">
-        <span className="font-mono text-[19px] font-semibold tracking-[-0.3px] sm:text-[21px]">ResearchBridge</span>
-        {withTagline ? (
-          <span className="mt-0.5 ml-0.5 font-mono text-[9px] font-normal tracking-[0.02em] opacity-60 sm:text-[10px]">
-            Research that is looking for you.
-          </span>
-        ) : null}
-      </span>
+    <Link href={href} className="inline-flex items-center transition-opacity hover:opacity-80">
+      <Logo priority={priority} className="h-9 w-auto sm:h-10" />
+      {withTagline ? (
+        <span className="ml-3 hidden border-l border-line pl-3 font-mono text-[10px] leading-4 text-muted lg:block">
+          Research that is
+          <br />
+          looking for you.
+        </span>
+      ) : null}
     </Link>
   );
 }

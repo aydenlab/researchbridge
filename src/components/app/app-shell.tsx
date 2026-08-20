@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Bell, ChevronDown, Menu, X } from "lucide-react";
-import { BridgeMark } from "@/components/marketing/brand";
+import { Logo } from "@/components/marketing/brand";
 import { cn } from "@/components/ui/cn";
 
 export type NavItem = { href: string; label: string };
@@ -40,10 +40,7 @@ export function AppHeader({
       <div className="mx-auto flex max-w-[1560px] items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
         <div className="flex min-w-0 items-center gap-6">
           <Link href={homeHref} className="inline-flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80">
-            <BridgeMark className="size-8" />
-            <span className="hidden font-mono text-[17px] font-semibold tracking-[-0.3px] text-ink sm:inline">
-              ResearchBridge
-            </span>
+            <Logo className="h-8 w-auto sm:h-9" priority />
           </Link>
 
           <nav aria-label="Application" className="hidden items-center gap-1 md:flex">

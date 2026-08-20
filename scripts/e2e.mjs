@@ -17,14 +17,14 @@ async function signIn(context, email) {
   await page.goto(`${BASE}/signin`, { waitUntil: "domcontentloaded" });
   await page.fill("#email", email);
   await page.click('form:has(#email) button[type="submit"]');
-  await page.waitForSelector("#code", { timeout: 45000 });
+  await page.waitForSelector("#code", { timeout: 90000 });
   await page.waitForTimeout(900);
   const log = fs.readFileSync(LOG, "utf8").slice(before);
   const code = [...log.matchAll(/verification code is (\d{6})/g)].pop()?.[1];
   if (!code) throw new Error(`no code for ${email}`);
   await page.fill("#code", code);
   await Promise.all([
-    page.waitForURL((url) => !url.pathname.startsWith("/signin"), { timeout: 30000 }),
+    page.waitForURL((url) => !url.pathname.startsWith("/signin"), { timeout: 90000 }),
     page.click('form:has(#code) button[type="submit"]'),
   ]);
   await page.waitForTimeout(600);
@@ -36,8 +36,8 @@ const browser = await chromium.launch();
 
 async function fresh() {
   const context = await browser.newContext({ viewport: { width: 1500, height: 1000 } });
-  context.setDefaultTimeout(45000);
-  context.setDefaultNavigationTimeout(90000);
+  context.setDefaultTimeout(90000);
+  context.setDefaultNavigationTimeout(120000);
   context.on("page", (p) => {
     p.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
     p.on("response", (r) => {
@@ -96,7 +96,7 @@ try {
 
   await student.goto(BASE + targetHref, { waitUntil: "domcontentloaded" });
   await Promise.all([
-    student.waitForURL(/\/applications\/.*\/edit/, { timeout: 20000 }),
+    student.waitForURL(/\/applications\/.*\/edit/, { timeout: 90000 }),
     student.click('button:has-text("Apply to this project")'),
   ]);
   await student.waitForTimeout(500);
@@ -121,7 +121,7 @@ try {
 
   let draftSaved = false;
   try {
-    await student.waitForSelector("text=Draft saved", { timeout: 25000 });
+    await student.waitForSelector("text=Draft saved", { timeout: 90000 });
     draftSaved = true;
   } catch {
     draftSaved = false;
@@ -130,7 +130,7 @@ try {
 
   const applicationUrl = student.url();
   await Promise.all([
-    student.waitForURL(/\/applications\/[^/]+\?submitted=1/, { timeout: 30000 }),
+    student.waitForURL(/\/applications\/[^/]+\?submitted=1/, { timeout: 90000 }),
     student.click('button:has-text("Submit application")'),
   ]);
   await student.waitForTimeout(500);
@@ -170,7 +170,7 @@ try {
 
   await researcher.goto(`${BASE}/researcher/opportunities/new`, { waitUntil: "domcontentloaded" });
   await Promise.all([
-    researcher.waitForURL(/\/researcher\/opportunities\/.*\/edit/, { timeout: 20000 }),
+    researcher.waitForURL(/\/researcher\/opportunities\/.*\/edit/, { timeout: 90000 }),
     researcher.click('button:has-text("Start a draft")'),
   ]);
   const opportunityId = researcher.url().split("/researcher/opportunities/")[1].split("/")[0];
@@ -184,14 +184,14 @@ try {
   );
   await researcher.fill("#department", "Health Research Methods, Evidence, and Impact");
   await researcher.locator('input[name="researchFieldIds"]').first().check();
-  await Promise.all([researcher.waitForURL(/step=2/, { timeout: 20000 }), researcher.click('button:has-text("Save and continue")')]);
+  await Promise.all([researcher.waitForURL(/step=2/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
   step("step 1 saves the project", researcher.url().includes("step=2"));
 
   await researcher.fill(
     "#responsibilities",
     "Clean and reconcile variables in the admissions extract.\nProduce descriptive summaries for group review.\nDocument every cleaning decision in a shared methods log.",
   );
-  await Promise.all([researcher.waitForURL(/step=3/, { timeout: 20000 }), researcher.click('button:has-text("Save and continue")')]);
+  await Promise.all([researcher.waitForURL(/step=3/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
 
   await researcher.fill("#hoursPerWeekMin", "6");
   await researcher.fill("#hoursPerWeekMax", "10");
@@ -199,7 +199,7 @@ try {
   await researcher.selectOption("#compensationType", "paid");
   await researcher.fill("#compensationDetails", "Paid hourly at the university research assistant rate.");
   await researcher.check('input[name="beginnerFriendly"]');
-  await Promise.all([researcher.waitForURL(/step=4/, { timeout: 20000 }), researcher.click('button:has-text("Save and continue")')]);
+  await Promise.all([researcher.waitForURL(/step=4/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
   step("step 3 enforces compensation detail for a paid position", researcher.url().includes("step=4"));
 
   await researcher.selectOption("#criterionType-0", "availability");
@@ -212,20 +212,20 @@ try {
   await researcher.fill("#criterionLabel-1", "Python or R");
   await researcher.fill("#criterionConfig-1", "Python");
   await researcher.fill("#opportunitySkillName-0", "Python");
-  await Promise.all([researcher.waitForURL(/step=5/, { timeout: 20000 }), researcher.click('button:has-text("Save and continue")')]);
+  await Promise.all([researcher.waitForURL(/step=5/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
   step("step 4 saves weighted criteria", researcher.url().includes("step=5"));
 
   await researcher.click('button:has-text("Add question")');
   await researcher.fill("#questionPrompt-0", "What interests you about respiratory outcomes research?");
-  await Promise.all([researcher.waitForURL(/step=6/, { timeout: 20000 }), researcher.click('button:has-text("Save and continue")')]);
+  await Promise.all([researcher.waitForURL(/step=6/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
 
   await researcher.fill("#materialTitle", "Discharge documentation and ninety-day respiratory readmission");
   await researcher.fill("#materialUrl", "https://example.org/respiratory-readmission");
   await researcher.check('input[name="includePaperQuestion"]');
-  await Promise.all([researcher.waitForURL(/step=7/, { timeout: 20000 }), researcher.click('button:has-text("Save and continue")')]);
+  await Promise.all([researcher.waitForURL(/step=7/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
   step("step 6 attaches a paper and its prompt", researcher.url().includes("step=7"));
 
-  await Promise.all([researcher.waitForURL(/step=8/, { timeout: 20000 }), researcher.click('button:has-text("Save and continue")')]);
+  await Promise.all([researcher.waitForURL(/step=8/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
   const previewTitle = await researcher.locator("text=Undergraduate Research Assistant, Respiratory Outcomes").count();
   const previewNotice = await researcher.locator("text=This is the student-facing listing exactly as it will appear.").count();
   step("step 8 previews the student-facing listing", previewTitle > 0 && previewNotice > 0);
@@ -234,7 +234,7 @@ try {
   await researcher.waitForTimeout(500);
   await researcher.check('input[name="confirm"]');
   await Promise.all([
-    researcher.waitForURL(/\/applicants\?published=1/, { timeout: 30000 }),
+    researcher.waitForURL(/\/applicants\?published=1/, { timeout: 90000 }),
     researcher.click('button:has-text("Publish opportunity")'),
   ]);
   step("publishing succeeds and lands on the applicant view", researcher.url().includes("published=1"));

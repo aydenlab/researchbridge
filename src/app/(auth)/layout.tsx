@@ -1,13 +1,12 @@
 import Link from "next/link";
-import { BridgeMark } from "@/components/marketing/brand";
+import { Logo } from "@/components/marketing/brand";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1fr_0.95fr]">
       <div className="flex flex-col px-5 py-8 sm:px-10 lg:px-14">
-        <Link href="/" className="inline-flex items-center gap-2 self-start transition-opacity hover:opacity-80">
-          <BridgeMark className="size-8" />
-          <span className="font-mono text-[18px] font-semibold tracking-[-0.3px] text-ink">ResearchBridge</span>
+        <Link href="/" className="inline-flex self-start transition-opacity hover:opacity-80">
+          <Logo priority />
         </Link>
 
         <div className="flex flex-1 items-center py-10">

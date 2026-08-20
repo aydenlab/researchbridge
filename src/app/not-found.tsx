@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { BridgeMark } from "@/components/marketing/brand";
+import { Logo } from "@/components/marketing/brand";
 
 export default function NotFound() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-shell px-5 py-16">
       <div className="w-full max-w-md text-center">
-        <BridgeMark className="mx-auto size-10" />
+        <Logo className="mx-auto h-10 w-auto" />
         <h1 className="mt-6 font-display text-[30px] text-ink" style={{ letterSpacing: "-0.5px" }}>
           That page does not exist
         </h1>

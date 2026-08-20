@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BridgeMark } from "./brand";
+import { Logo } from "./brand";
 
 const COLUMNS = [
   {
@@ -36,10 +36,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-[1280px] px-5 py-12 sm:px-6 sm:py-14">
         <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div className="max-w-xs">
-            <div className="flex items-center gap-2">
-              <BridgeMark className="size-8" />
-              <span className="font-mono text-[17px] font-semibold tracking-[-0.3px] text-ink">ResearchBridge</span>
-            </div>
+            <Logo className="h-9 w-auto" />
             <p className="mt-3 text-[13px] leading-6 text-muted">
               Open research positions at your university, in one place, with applications written for the specific
               project.

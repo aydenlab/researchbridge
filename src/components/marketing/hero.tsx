@@ -37,7 +37,7 @@ export function Hero() {
               }}
             >
               <span className="text-[13px] font-medium tracking-[0.14px] text-white">
-                Currently in development, launching with our first university partner
+                Currently piloting at one university
               </span>
             </span>
 

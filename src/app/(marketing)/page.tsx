@@ -348,8 +348,8 @@ export default function HomePage() {
                 Stop sending cold emails into the void.
               </h2>
               <p className="mx-auto mt-5 max-w-xl text-[15px] leading-7 text-white/80">
-                ResearchBridge is being built now and will launch with its first university partner in health and
-                life sciences. Students take part for free.
+                ResearchBridge is piloting at one university, in health and life sciences. Students take part for
+                free.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <ButtonLink href="/waitlist" size="lg" variant="onDark">
