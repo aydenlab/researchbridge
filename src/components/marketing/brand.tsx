@@ -1,32 +1,28 @@
-import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/components/ui/cn";
 
 export function BridgeMark({ className, tone = "ink" }: { className?: string; tone?: "ink" | "white" }) {
-  const stroke = tone === "white" ? "#ffffff" : "#14201a";
-  const accent = tone === "white" ? "#e0b855" : "#b08c33";
+  const fill = tone === "white" ? "#ffffff" : "#1d4436";
+  const accent = tone === "white" ? "#b8d6bd" : "#b8d6bd";
   return (
     <svg viewBox="0 0 40 40" className={className} role="img" aria-label="ResearchBridge mark">
-      <rect x="0.75" y="0.75" width="38.5" height="38.5" rx="9" fill="none" stroke={stroke} strokeOpacity="0.22" />
-      <path d="M8 26.5C8 18.5 13.6 13 20 13s12 5.5 12 13.5" fill="none" stroke={stroke} strokeWidth="2.1" strokeLinecap="round" />
-      <path d="M8 26.5h24" stroke={stroke} strokeWidth="2.1" strokeLinecap="round" />
-      <path d="M14 26.5v-5.2M20 26.5V13.4M26 26.5v-5.2" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.55" />
-      <circle cx="8" cy="26.5" r="2.6" fill={accent} />
-      <circle cx="32" cy="26.5" r="2.6" fill={accent} />
+      <rect width="40" height="40" rx="11" fill={fill} />
+      <path d="M8 27V18.5C8 14.36 11.36 11 15.5 11S23 14.36 23 18.5V27" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+      <path d="M17 27V18.5C17 14.36 20.36 11 24.5 11S32 14.36 32 18.5V27" fill="none" stroke={accent} strokeWidth="3" strokeLinecap="round" />
+      <path d="M6.5 27.5h27" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
     </svg>
   );
 }
 
 export function Logo({ className, priority = false }: { className?: string; priority?: boolean }) {
+  void priority;
   return (
-    <Image
-      src="/logo.png"
-      alt="ResearchBridge"
-      width={240}
-      height={96}
-      priority={priority}
-      className={cn("h-8 w-auto sm:h-9", className)}
-    />
+    <span className={cn("inline-flex items-center gap-2 text-ink", className)} role="img" aria-label="ResearchBridge">
+      <BridgeMark className="size-8 shrink-0 sm:size-9" />
+      <span className="whitespace-nowrap text-[17px] font-semibold leading-none tracking-[-0.01em] sm:text-[18px]">
+        Research<span className="text-forest">Bridge</span>
+      </span>
+    </span>
   );
 }
 
