@@ -1,0 +1,206 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), Georgia, serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+
+  --color-ink: #14201a;
+  --color-paper: #ffffff;
+  --color-shell: #faf9f6;
+  --color-cream: #f2efe6;
+  --color-line: #e4e1d8;
+  --color-line-strong: #d3cfc4;
+  --color-muted: #6d726c;
+  --color-subtle: #8c9089;
+  --color-forest: #1d4436;
+  --color-forest-deep: #123028;
+  --color-forest-light: #2f7a5c;
+  --color-moss: #eaf1ec;
+  --color-gold: #b08c33;
+  --color-gold-soft: #f4ecd7;
+  --color-clay: #b0553a;
+  --color-clay-soft: #f6e3dc;
+  --color-ok: #2f6a4e;
+  --color-warn: #8a6416;
+  --color-bad: #a24238;
+
+  --radius-card: 12px;
+}
+
+:root {
+  --rb-grid: rgba(20, 32, 26, 0.045);
+  --rb-focus: #1d4436;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.rb-grid-bg {
+  background-image: linear-gradient(to right, var(--rb-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rb-grid) 1px, transparent 1px);
+  background-size: 360px 360px;
+}
+
+.rb-drift {
+  animation: rb-drift 22s ease-in-out infinite alternate;
+}
+
+@keyframes rb-drift {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
+.rb-belt {
+  animation: rb-belt 50s linear infinite;
+}
+
+@keyframes rb-belt {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.rb-belt-wrap:hover .rb-belt {
+  animation-play-state: paused;
+}
+
+.rb-caret {
+  animation: rb-caret 1s step-end infinite;
+}
+
+@keyframes rb-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.rb-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.rb-reveal[data-shown="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.rb-fade-in {
+  animation: rb-fade-in 0.28s both;
+}
+
+@keyframes rb-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rb-skeleton {
+  background-color: var(--color-cream);
+  animation: rb-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes rb-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.rb-panel {
+  box-shadow:
+    rgba(20, 32, 26, 0.1) 0px 0px 0px 0.5px,
+    rgba(20, 32, 26, 0.16) 0px 18px 40px -12px;
+}
+
+.rb-panel-sm {
+  box-shadow:
+    rgba(20, 32, 26, 0.09) 0px 0px 0px 0.5px,
+    rgba(20, 32, 26, 0.1) 0px 8px 20px -10px;
+}
+
+.rb-measure {
+  max-width: 68ch;
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--rb-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background-color: #cfe3d6;
+  color: var(--color-forest-deep);
+}
+
+.rb-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.rb-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rb-scroll::-webkit-scrollbar-thumb {
+  background: #d6d2c7;
+  border-radius: 9999px;
+}
+
+.rb-scroll::-webkit-scrollbar-thumb:hover {
+  background: #bdb9ad;
+}
+
+.rb-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #d6d2c7 transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .rb-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

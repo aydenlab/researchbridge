@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+build
+.env
+.env.local
+.env*.local
+.pgdata
+.storage
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+coverage
+__pycache__
+
+__pycache__/
+scripts/.auth-*.json

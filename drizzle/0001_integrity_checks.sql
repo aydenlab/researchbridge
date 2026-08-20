@@ -1,0 +1,10 @@
+ALTER TABLE "criterion_evaluations" ADD CONSTRAINT "criterion_evaluations_score_nonnegative" CHECK ("criterion_evaluations"."score" is null or "criterion_evaluations"."score" >= 0);--> statement-breakpoint
+ALTER TABLE "opportunities" ADD CONSTRAINT "opportunities_openings_positive" CHECK ("opportunities"."number_of_openings" > 0);--> statement-breakpoint
+ALTER TABLE "opportunities" ADD CONSTRAINT "opportunities_hours_nonnegative" CHECK ("opportunities"."hours_per_week_min" is null or "opportunities"."hours_per_week_min" >= 0);--> statement-breakpoint
+ALTER TABLE "opportunities" ADD CONSTRAINT "opportunities_hours_ordered" CHECK ("opportunities"."hours_per_week_min" is null or "opportunities"."hours_per_week_max" is null or "opportunities"."hours_per_week_max" >= "opportunities"."hours_per_week_min");--> statement-breakpoint
+ALTER TABLE "stored_files" ADD CONSTRAINT "stored_files_size_positive" CHECK ("stored_files"."byte_size" > 0);--> statement-breakpoint
+ALTER TABLE "student_academic_records" ADD CONSTRAINT "student_academic_records_value_nonnegative" CHECK ("student_academic_records"."value" >= 0);--> statement-breakpoint
+ALTER TABLE "student_academic_records" ADD CONSTRAINT "student_academic_records_scale_positive" CHECK ("student_academic_records"."scale_max" is null or "student_academic_records"."scale_max" > 0);--> statement-breakpoint
+ALTER TABLE "student_profiles" ADD CONSTRAINT "student_profiles_weekly_hours_nonnegative" CHECK ("student_profiles"."weekly_hours" is null or "student_profiles"."weekly_hours" >= 0);--> statement-breakpoint
+ALTER TABLE "student_profiles" ADD CONSTRAINT "student_profiles_year_level_range" CHECK ("student_profiles"."year_level" is null or ("student_profiles"."year_level" >= 1 and "student_profiles"."year_level" <= 12));--> statement-breakpoint
+ALTER TABLE "student_profiles" ADD CONSTRAINT "student_profiles_completion_range" CHECK ("student_profiles"."profile_completion" >= 0 and "student_profiles"."profile_completion" <= 100);
