@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
-import { db } from "@/db";
+import { checkDatabase } from "@/lib/diagnostics";
 import { log } from "@/lib/log";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  try {
-    await db.execute(sql`select 1`);
-    return NextResponse.json({ status: "ok" });
-  } catch (error) {
-    log.error("health_check_failed", { error });
-    return NextResponse.json({ status: "degraded" }, { status: 503 });
+  const database = await checkDatabase();
+
+  if (!database.ok) {
+    log.error("health_database_unreachable", { detail: database.detail });
   }
+
+  return NextResponse.json({ status: "ok", database: database.ok ? "connected" : "unavailable" });
 }

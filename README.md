@@ -130,12 +130,14 @@ Coverage:
    - `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` when you want the evidence layer on
    - `EMAIL_PROVIDER=resend`, `EMAIL_API_KEY`, `EMAIL_FROM` for real email
    - `FILE_STORAGE_PROVIDER=s3` plus bucket settings before relying on uploads
-5. Deploy. `railway.json` runs `npm run db:migrate` as the pre-deploy command, then `npm run start`.
-6. Health check: `GET /api/health` returns `{"status":"ok"}` and nothing about the infrastructure. A `503` with `{"status":"degraded"}` means the database is unreachable; the reason is in the service logs.
+5. Deploy. `npm run start` applies any pending migrations, logs what it found, and then serves the app.
+6. Health check: `GET /api/health` is a liveness check. It returns `200` whenever the process is serving, with a `database` field of `connected` or `unavailable`, so a database problem is visible without preventing the deployment from going live.
+7. Diagnose with `GET /api/ready`. It returns `503` until the database is reachable and migrated, and the body names the specific problem, including the underlying connection error. Signed-in administrators also see a summary of what is configured.
 
 Notes:
 
 - The server binds to `PORT`, which Railway provides.
+- Migrations run at startup rather than as a separate step, so the schema always matches the running code. If they fail, the server still starts and says why, rather than leaving an unreachable deployment.
 - SSL is chosen from the connection string. Railway private networking (`*.railway.internal`) does not accept SSL and is connected without it; public hosts use SSL. An explicit `sslmode` in the URL always wins.
 - `tsx` is a runtime dependency because the pre-deploy migration runs through it.
 - No production URL is hardcoded anywhere. Everything derives from `APP_URL`.

@@ -385,8 +385,20 @@ try {
   step("signed out visitors are redirected away from the dashboard", anon.url().includes("/signin"), anon.url());
 
   const healthResponse = await anon.request.get(`${BASE}/api/health`);
-  const health = await healthResponse.json();
-  step("health endpoint reports ok without leaking infrastructure", health.status === "ok" && Object.keys(health).length === 1);
+  const healthBody = await healthResponse.text();
+  const health = JSON.parse(healthBody);
+  const leaks = /postgres|railway\.internal|password|sslmode|ENOTFOUND|ECONNREFUSED|at .*\.ts:|node_modules/i;
+  step(
+    "health endpoint stays up and reports database reachability",
+    healthResponse.status() === 200 && health.status === "ok" && health.database === "connected",
+    `${healthResponse.status()} ${healthBody}`,
+  );
+  step("health endpoint leaks no infrastructure detail", !leaks.test(healthBody), healthBody);
+
+  const readyResponse = await anon.request.get(`${BASE}/api/ready`);
+  const readyBody = await readyResponse.text();
+  step("readiness endpoint reports ready when the database is migrated", readyResponse.status() === 200, readyBody);
+  step("readiness endpoint leaks no infrastructure detail to anonymous callers", !leaks.test(readyBody), readyBody);
 
   const robots = await (await anon.request.get(`${BASE}/robots.txt`)).text();
   step("robots excludes authenticated areas", robots.includes("/admin") && robots.includes("/applications"));

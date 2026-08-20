@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/start.mjs",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
@@ -18,11 +18,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:studio": "drizzle-kit studio",
-    "check": "npm run typecheck && npm run test && npm run build"
+    "check": "npm run typecheck && npm run test && npm run build",
+    "start:next": "next start"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",
     "@electric-sql/pglite": "^0.3.16",
+    "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^0.544.0",
     "next": "^15.5.4",
@@ -38,7 +40,6 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "playwright": "^1.62.1",
     "tailwindcss": "^4.3.3",
