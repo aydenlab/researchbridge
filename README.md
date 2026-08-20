@@ -96,7 +96,7 @@ Integrity is enforced in the database as well as in application code: unique use
 ## Testing
 
 ```bash
-npm run test         # 112 tests
+npm run test         # 119 tests
 npm run typecheck
 npm run check        # typecheck, tests, and a production build
 ```
@@ -114,19 +114,28 @@ Coverage:
 ## Railway deployment
 
 1. Create a Railway project from this GitHub repository.
-2. Add the **PostgreSQL** plugin. Railway sets `DATABASE_URL` automatically.
-3. Set the remaining variables in the service:
+2. Add the **PostgreSQL** plugin.
+3. Link the database to the application. Railway creates the database as a **separate service**, and your application service does not inherit its variables. In the application service, open Variables and add a reference:
+
+   ```
+   DATABASE_URL = ${{Postgres.DATABASE_URL}}
+   ```
+
+   Replace `Postgres` with the exact name of your database service. Without this the pre-deploy migration stops with an explanatory error rather than starting against an embedded database.
+4. Set the remaining variables in the application service:
    - `APP_URL` (your Railway domain, no trailing slash)
    - `SESSION_SECRET` (generate with `openssl rand -base64 32`)
    - `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` when you want the evidence layer on
    - `EMAIL_PROVIDER=resend`, `EMAIL_API_KEY`, `EMAIL_FROM` for real email
    - `FILE_STORAGE_PROVIDER=s3` plus bucket settings before relying on uploads
-4. Deploy. `railway.json` runs `npm run db:migrate` as the pre-deploy command, then `npm run start`.
-5. Health check: `GET /api/health` returns `{"status":"ok"}` and nothing about the infrastructure.
+5. Deploy. `railway.json` runs `npm run db:migrate` as the pre-deploy command, then `npm run start`.
+6. Health check: `GET /api/health` returns `{"status":"ok"}` and nothing about the infrastructure. A `503` with `{"status":"degraded"}` means the database is unreachable; the reason is in the service logs.
 
 Notes:
 
 - The server binds to `PORT`, which Railway provides.
+- SSL is chosen from the connection string. Railway private networking (`*.railway.internal`) does not accept SSL and is connected without it; public hosts use SSL. An explicit `sslmode` in the URL always wins.
+- `tsx` is a runtime dependency because the pre-deploy migration runs through it.
 - No production URL is hardcoded anywhere. Everything derives from `APP_URL`.
 - Local file storage is not durable on Railway. Connect object storage before students upload resumes in production.
 - To load demo data into a fresh non-production environment, run `npm run db:seed` once from a Railway shell.

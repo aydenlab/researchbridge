@@ -38,23 +38,56 @@ function serialize(client: PGlite): PGlite {
   }) as PGlite;
 }
 
+export function sslFor(url: string): { rejectUnauthorized: boolean } | undefined {
+  let host = "";
+  let sslmode: string | null = null;
+
+  try {
+    const parsed = new URL(url);
+    host = parsed.hostname;
+    sslmode = parsed.searchParams.get("sslmode");
+  } catch {
+    return undefined;
+  }
+
+  if (sslmode === "disable") return undefined;
+  if (sslmode === "require" || sslmode === "prefer" || sslmode === "no-verify") {
+    return { rejectUnauthorized: false };
+  }
+  if (sslmode === "verify-ca" || sslmode === "verify-full") return { rejectUnauthorized: true };
+
+  const privateHost =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "::1" ||
+    host.endsWith(".internal") ||
+    host.endsWith(".local");
+
+  return privateHost ? undefined : { rejectUnauthorized: false };
+}
+
 function createDatabase(): Database {
   const url = process.env.DATABASE_URL?.trim();
 
   if (url) {
-    const local = url.includes("localhost") || url.includes("127.0.0.1") || url.includes("sslmode=disable");
-    const pool = new Pool({
-      connectionString: url,
-      max: 10,
-      ssl: local ? undefined : { rejectUnauthorized: false },
-    });
+    const pool = new Pool({ connectionString: url, max: 10, ssl: sslFor(url) });
     globalThis.__rbDriver = "postgres";
     return drizzlePg(pool, { schema }) as unknown as Database;
   }
 
   if (process.env.NODE_ENV === "production") {
     throw new Error(
-      "DATABASE_URL is required in production. The embedded PGlite database is a development convenience only: it is per-process, so a multi-worker production server would silently lose writes. Attach a PostgreSQL database and set DATABASE_URL.",
+      [
+        "DATABASE_URL is not set, and the embedded PGlite database cannot be used in production.",
+        "PGlite lives inside a single Node process, so a multi-worker server would give each worker its own database and silently lose writes.",
+        "",
+        "On Railway, adding the PostgreSQL plugin creates a separate service. Your application service does not inherit its variables automatically.",
+        "Open your application service, go to Variables, and add a reference to the database service:",
+        "",
+        "  DATABASE_URL = ${{Postgres.DATABASE_URL}}",
+        "",
+        "Replace Postgres with the exact name of your database service, then redeploy.",
+      ].join("\n"),
     );
   }
 
