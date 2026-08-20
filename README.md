@@ -55,6 +55,7 @@ Open http://localhost:3000.
 | `DATABASE_URL` | Production | PostgreSQL connection string. Empty in development falls back to PGlite. |
 | `APP_URL` | Yes | Public base URL. Used for metadata, sitemap, and links in email. |
 | `SESSION_SECRET` | Yes | At least 16 characters. Signs session tokens and verification code hashes. Rotating it invalidates all sessions and codes. |
+| `ADMIN_EMAILS` | First deploy | Comma-separated addresses that become ResearchBridge administrators on sign in, bypassing the institution domain check. Needed to bootstrap a fresh database, which has no institutions until an admin creates one. |
 | `ANTHROPIC_API_KEY` | No | Enables Claude evidence analysis. Server only, never prefixed with `NEXT_PUBLIC_`. |
 | `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-5`. Changing the model does not require a code change. |
 | `EMAIL_PROVIDER` | No | `console` (default), `resend`, or `smtp`. |
@@ -96,7 +97,7 @@ Integrity is enforced in the database as well as in application code: unique use
 ## Testing
 
 ```bash
-npm run test         # 119 tests
+npm run test         # 133 tests
 npm run typecheck
 npm run check        # typecheck, tests, and a production build
 ```
@@ -125,6 +126,7 @@ Coverage:
 4. Set the remaining variables in the application service:
    - `APP_URL` (your Railway domain, no trailing slash)
    - `SESSION_SECRET` (generate with `openssl rand -base64 32`)
+   - `ADMIN_EMAILS` (your own address, so you can sign in and configure the first institution)
    - `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` when you want the evidence layer on
    - `EMAIL_PROVIDER=resend`, `EMAIL_API_KEY`, `EMAIL_FROM` for real email
    - `FILE_STORAGE_PROVIDER=s3` plus bucket settings before relying on uploads
@@ -139,6 +141,19 @@ Notes:
 - No production URL is hardcoded anywhere. Everything derives from `APP_URL`.
 - Local file storage is not durable on Railway. Connect object storage before students upload resumes in production.
 - To load demo data into a fresh non-production environment, run `npm run db:seed` once from a Railway shell.
+
+---
+
+## First sign in on a new database
+
+A freshly migrated database has no institutions, and sign in requires an email domain that belongs to one. `ADMIN_EMAILS` breaks that circle.
+
+1. Set `ADMIN_EMAILS` to your own address before the first deploy.
+2. Go to `/signin` and enter that address. You are issued a code even though no institution matches it, and the account is created as an administrator. The promotion is written to the audit log.
+3. Open `/admin/institutions`, add the university, and list its email domains.
+4. Students and researchers with a matching address can now create accounts themselves at `/signin`.
+
+Removing an address from `ADMIN_EMAILS` does not demote an existing account. Change the role from `/admin/users`.
 
 ---
 

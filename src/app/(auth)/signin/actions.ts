@@ -12,6 +12,7 @@ import {
   resolveInstitutionForEmail,
 } from "@/lib/auth/codes";
 import { createSession } from "@/lib/auth/session";
+import { isBootstrapAdmin } from "@/lib/env";
 import { sendVerificationCode } from "@/lib/email";
 import { recordAudit, recordEvent } from "@/lib/events";
 import type { ActionResult } from "@/lib/errors";
@@ -42,7 +43,7 @@ export async function requestCodeAction(_prev: ActionResult<{ email: string }> |
       return { ok: false as const, error: "This account is not active. Contact hello@myresearchbridge.com." };
     }
 
-    if (!account) {
+    if (!account && !isBootstrapAdmin(email)) {
       const institution = await resolveInstitutionForEmail(email);
       if (!institution) {
         return {
@@ -93,6 +94,7 @@ export async function verifyCodeAction(_prev: ActionResult | null, formData: For
     }
 
     const normalized = normalizeEmail(email);
+    const bootstrapAdmin = isBootstrapAdmin(normalized);
     const existing = await db.select().from(users).where(eq(users.email, normalized)).limit(1);
     let account = existing[0];
 
@@ -105,10 +107,42 @@ export async function verifyCodeAction(_prev: ActionResult | null, formData: For
           institutionId: institution?.id ?? null,
           accountStatus: "active",
           emailVerifiedAt: new Date(),
+          role: bootstrapAdmin ? "admin" : null,
+          onboardingCompletedAt: bootstrapAdmin ? new Date() : null,
         })
         .returning();
       account = created;
+      if (bootstrapAdmin) {
+        await recordAudit({
+          actorId: account.id,
+          action: "bootstrap_admin_created",
+          subjectType: "user",
+          subjectId: account.id,
+        });
+        log.warn("bootstrap_admin_created", { userId: account.id });
+      }
       await recordEvent({ name: "account_verified", userId: account.id, institutionId: account.institutionId });
+    } else if (bootstrapAdmin && account.role !== "admin") {
+      const [promoted] = await db
+        .update(users)
+        .set({
+          role: "admin",
+          accountStatus: "active",
+          onboardingCompletedAt: account.onboardingCompletedAt ?? new Date(),
+          emailVerifiedAt: account.emailVerifiedAt ?? new Date(),
+          lastLoginAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, account.id))
+        .returning();
+      account = promoted;
+      await recordAudit({
+        actorId: account.id,
+        action: "bootstrap_admin_promoted",
+        subjectType: "user",
+        subjectId: account.id,
+      });
+      log.warn("bootstrap_admin_promoted", { userId: account.id });
     } else {
       await db
         .update(users)

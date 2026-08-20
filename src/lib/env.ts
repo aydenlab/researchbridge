@@ -10,6 +10,7 @@ const schema = z.object({
   DATABASE_URL: z.string().optional(),
   APP_URL: z.string().default("http://localhost:3000"),
   SESSION_SECRET: z.string().min(16).default("researchbridge_local_development_secret"),
+  ADMIN_EMAILS: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-5"),
   EMAIL_PROVIDER: z.enum(["console", "resend", "smtp"]).default("console"),
@@ -35,6 +36,17 @@ if (!parsed.success) {
 export const env = parsed.data;
 
 export const isProduction = env.NODE_ENV === "production";
+
+export const adminEmails: ReadonlySet<string> = new Set(
+  (env.ADMIN_EMAILS ?? "")
+    .split(/[,\s]+/)
+    .map((value) => value.trim().toLowerCase())
+    .filter((value) => value.includes("@")),
+);
+
+export function isBootstrapAdmin(email: string): boolean {
+  return adminEmails.has(email.trim().toLowerCase());
+}
 
 export const featureDefaults = {
   AI_ANALYSIS_ENABLED: env.AI_ANALYSIS_ENABLED ?? true,

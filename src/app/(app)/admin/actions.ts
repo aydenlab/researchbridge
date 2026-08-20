@@ -188,14 +188,27 @@ export async function moderateOpportunityAction(_prev: ActionResult | null, form
   }
 }
 
+const blankToNull = (max: number, min = 0) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : null))
+    .refine((value) => value === null || value.length >= min, {
+      message: `Use at least ${min} characters, or leave this blank.`,
+    });
+
 const institutionSchema = z.object({
-  name: z.string().trim().min(2).max(160),
-  slug: z.string().trim().min(2).max(80).optional(),
-  shortName: z.string().trim().max(80).optional(),
-  location: z.string().trim().max(160).optional(),
-  gpaScaleName: z.string().trim().max(80).optional(),
-  gpaScaleMax: z.string().trim().max(10).optional(),
-  domains: z.string().trim().max(600).optional(),
+  name: z.string().trim().min(2, "Enter the institution name.").max(160),
+  slug: blankToNull(80, 2),
+  shortName: blankToNull(80),
+  location: blankToNull(160),
+  gpaScaleName: blankToNull(80),
+  gpaScaleMax: blankToNull(10).refine((value) => value === null || Number.isFinite(Number(value)), {
+    message: "Enter a number, for example 12, or leave this blank.",
+  }),
+  domains: blankToNull(600),
   active: z.coerce.boolean().default(true),
   isPilot: z.coerce.boolean().default(false),
 });
@@ -211,10 +224,10 @@ export async function upsertInstitutionAction(_prev: ActionResult | null, formDa
     const values = {
       name: parsed.data.name,
       slug,
-      shortName: parsed.data.shortName ?? null,
-      location: parsed.data.location ?? null,
-      gpaScaleName: parsed.data.gpaScaleName ?? null,
-      gpaScaleMax: parsed.data.gpaScaleMax ?? null,
+      shortName: parsed.data.shortName,
+      location: parsed.data.location,
+      gpaScaleName: parsed.data.gpaScaleName,
+      gpaScaleMax: parsed.data.gpaScaleMax,
       active: parsed.data.active,
       isPilot: parsed.data.isPilot,
       updatedAt: new Date(),
