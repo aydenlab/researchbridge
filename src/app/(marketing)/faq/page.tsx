@@ -5,8 +5,8 @@ import { FaqList } from "@/components/marketing/faq";
 import { Reveal } from "@/components/marketing/reveal";
 
 export const metadata: Metadata = {
-  title: "FAQ",
-  description: "Common questions about applying to research on ResearchBridge, evaluation, compensation, and the McMaster pilot.",
+  title: "Common questions",
+  description: "Common questions about applying to research on ResearchBridge, evaluation, compensation, and the pilot.",
   alternates: { canonical: "/faq" },
 };
 
@@ -14,7 +14,7 @@ export default function FaqPage() {
   return (
     <>
       <PageHero
-        eyebrow="FAQ"
+        eyebrow="Common questions"
         title="Questions students and researchers ask first."
         gradient="gradient-sand"
       />

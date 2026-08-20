@@ -169,7 +169,7 @@ export default async function OpportunitiesPage({
               <p className="mx-auto mt-2 max-w-md text-[14px] leading-6 text-muted">
                 {activeCount > 0 || filters.q
                   ? "Try removing one or two filters. Broadening the research field or the compensation type usually surfaces the most."
-                  : "New positions appear here as researchers publish them. The McMaster pilot opens in September 2026."}
+                  : "New positions appear here as researchers publish them. The Example University pilot opens in September 2026."}
               </p>
               {activeCount > 0 || filters.q ? (
                 <div className="mt-6">

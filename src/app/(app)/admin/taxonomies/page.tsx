@@ -47,7 +47,7 @@ export default async function AdminTaxonomiesPage() {
                 <div className="min-w-0">
                   <p className="text-[13.5px] text-ink">{skill.name}</p>
                   <p className="mt-0.5 text-[11.5px] text-subtle">
-                    {skill.category ?? "Uncategorized"} · used by {usageMap.get(skill.id) ?? 0}{" "}
+                    {skill.category ?? "Uncategorized"}, used by {usageMap.get(skill.id) ?? 0}{" "}
                     {(usageMap.get(skill.id) ?? 0) === 1 ? "student" : "students"}
                   </p>
                 </div>

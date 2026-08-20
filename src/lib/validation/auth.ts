@@ -5,7 +5,7 @@ export const emailSchema = z
   .trim()
   .min(1, "Enter your institutional email address.")
   .max(254, "That email address is too long.")
-  .email("Enter a valid email address, for example name@mcmaster.ca.")
+  .email("Enter a valid email address, for example name@example.edu.")
   .transform((value) => value.toLowerCase());
 
 export const requestCodeSchema = z.object({

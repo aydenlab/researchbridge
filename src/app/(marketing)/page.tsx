@@ -8,19 +8,19 @@ import { Reveal } from "@/components/marketing/reveal";
 
 const SWITCH_BLOCKS = [
   {
-    eyebrow: "COLD EMAILS",
+    eyebrow: "Cold emails",
     headline: "0",
     trailing: "cold emails needed to find an opening that exists",
     body: "Students stop guessing which labs are recruiting. Every listing on ResearchBridge is a position a researcher opened on purpose, with the requirements, time commitment, and compensation stated before anyone applies.",
   },
   {
-    eyebrow: "PROJECT FIT",
+    eyebrow: "Project fit",
     headline: "Per project",
     trailing: "criteria, written by the researcher who runs it",
     body: "Different projects need different students. A researcher decides what matters for their own position, marks each item required or preferred, and sets how much weight it carries. Nothing is hidden from applicants.",
   },
   {
-    eyebrow: "EVIDENCE",
+    eyebrow: "Evidence",
     headline: "Evidence",
     trailing: "instead of a score you cannot interrogate",
     body: "Applications arrive organized around the criteria that were set. Availability and coursework are checked in code. Written responses are summarized with the passages they came from. The researcher makes every decision.",
@@ -56,7 +56,7 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-5xl items-start gap-12 lg:grid-cols-2 lg:gap-20">
           <div>
             <Reveal>
-              <p className="mb-6 text-[13px] font-medium tracking-[0.14px] text-subtle">WHAT RESEARCHBRIDGE IS</p>
+              <p className="mb-6 text-[13px] font-medium tracking-[0.14px] text-subtle">What ResearchBridge is</p>
             </Reveal>
             <Reveal delay={80}>
               <h2
@@ -95,7 +95,7 @@ export default function HomePage() {
       <section className="px-5 py-16 sm:px-6 sm:py-20 lg:py-28">
         <div className="mx-auto max-w-5xl">
           <Reveal>
-            <p className="mb-6 text-[13px] font-medium tracking-[0.14px] text-subtle">THE PROBLEM TODAY</p>
+            <p className="mb-6 text-[13px] font-medium tracking-[0.14px] text-subtle">The problem today</p>
           </Reveal>
           <Reveal delay={60}>
             <h2
@@ -132,7 +132,7 @@ export default function HomePage() {
       <section className="px-5 py-16 sm:px-6 sm:py-20 lg:py-28">
         <div className="mx-auto max-w-5xl">
           <Reveal>
-            <p className="mb-6 text-[13px] font-medium tracking-[0.14px] text-subtle">WHY TEAMS USE IT</p>
+            <p className="mb-6 text-[13px] font-medium tracking-[0.14px] text-subtle">Why teams use it</p>
           </Reveal>
           <Reveal delay={60}>
             <h2
@@ -148,7 +148,7 @@ export default function HomePage() {
               <Reveal key={block.eyebrow} delay={index * 80}>
                 <div className="grid gap-6 border-t border-line pt-8 lg:grid-cols-[1fr_1fr] lg:gap-16">
                   <div>
-                    <p className="mb-4 text-[12px] font-medium uppercase tracking-[0.14em] text-subtle">
+                    <p className="mb-4 text-[12px] font-medium text-subtle">
                       {block.eyebrow}
                     </p>
                     <p
@@ -176,7 +176,7 @@ export default function HomePage() {
             >
               <div className="grid items-center gap-8 lg:grid-cols-[0.85fr_1fr] lg:gap-14">
                 <div>
-                  <p className="mb-5 text-[12px] font-medium uppercase tracking-[0.14em] text-white/75">
+                  <p className="mb-5 text-[12px] font-medium text-white/75">
                     The researcher view
                   </p>
                   <h2
@@ -215,7 +215,7 @@ export default function HomePage() {
 
           <div className="order-1 lg:order-2">
             <Reveal>
-              <p className="mb-6 text-[13px] font-medium tracking-[0.14px] text-subtle">FOR RESEARCHERS</p>
+              <p className="mb-6 text-[13px] font-medium tracking-[0.14px] text-subtle">For researchers</p>
             </Reveal>
             <Reveal delay={60}>
               <h2
@@ -256,7 +256,7 @@ export default function HomePage() {
       <section className="px-5 py-16 sm:px-6 sm:py-20 lg:py-28">
         <div className="mx-auto max-w-5xl">
           <Reveal>
-            <p className="mb-6 text-[13px] font-medium tracking-[0.14px] text-subtle">HOW IT WORKS</p>
+            <p className="mb-6 text-[13px] font-medium tracking-[0.14px] text-subtle">How it works</p>
           </Reveal>
 
           <div className="grid gap-14 lg:grid-cols-2 lg:gap-20">
@@ -310,7 +310,7 @@ export default function HomePage() {
           <Reveal>
             <div className="grid gap-8 rounded-2xl border border-line bg-cream/70 p-7 sm:p-10 lg:grid-cols-[1fr_1fr] lg:gap-14">
               <div>
-                <p className="mb-4 text-[12px] font-medium uppercase tracking-[0.14em] text-subtle">Beginners</p>
+                <p className="mb-4 text-[12px] font-medium text-subtle">Beginners</p>
                 <h2
                   className="font-display text-[28px] text-ink sm:text-[34px]"
                   style={{ fontWeight: 400, lineHeight: 1.12, letterSpacing: "-0.5px" }}
@@ -348,12 +348,12 @@ export default function HomePage() {
                 Stop sending cold emails into the void.
               </h2>
               <p className="mx-auto mt-5 max-w-xl text-[15px] leading-7 text-white/80">
-                The first ResearchBridge pilot runs at McMaster University in September 2026, starting with Health
-                Sciences and Life Sciences. Students take part for free.
+                ResearchBridge is being built now and will launch with its first university partner in health and
+                life sciences. Students take part for free.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <ButtonLink href="/waitlist" size="lg" variant="onDark">
-                  Join the McMaster pilot
+                  Join the student waitlist
                 </ButtonLink>
                 <ButtonLink
                   href="/researchers/interest"
@@ -375,7 +375,7 @@ export default function HomePage() {
               className="mb-8 font-display text-3xl text-ink sm:text-4xl"
               style={{ fontWeight: 400, letterSpacing: "-0.5px" }}
             >
-              FAQs
+              Common questions
             </h2>
           </Reveal>
           <Reveal delay={60}>

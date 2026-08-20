@@ -23,7 +23,7 @@ export function PageHero({
         <div className="mx-auto max-w-3xl">
           <p
             className={cn(
-              "mb-5 text-[12px] font-medium uppercase tracking-[0.14em]",
+              "mb-5 text-[12px] font-medium",
               onSand ? "text-ink/60" : "text-white/75",
             )}
           >

@@ -14,7 +14,7 @@ import { RateLimitError } from "@/lib/errors";
 import { ensureInstitution } from "../fixtures";
 
 function uniqueEmail() {
-  return `verify-${Math.random().toString(36).slice(2, 10)}@mcmaster.ca`;
+  return `verify-${Math.random().toString(36).slice(2, 10)}@example.edu`;
 }
 
 beforeEach(async () => {
@@ -23,21 +23,21 @@ beforeEach(async () => {
 
 describe("email normalization", () => {
   it("lowercases and trims addresses", () => {
-    expect(normalizeEmail("  Jordan.Adeyemi@McMaster.CA ")).toBe("jordan.adeyemi@mcmaster.ca");
-    expect(emailDomain("Jordan@McMaster.ca")).toBe("mcmaster.ca");
+    expect(normalizeEmail("  Jordan.Adeyemi@Example.EDU ")).toBe("jordan.adeyemi@example.edu");
+    expect(emailDomain("Jordan@Example.EDU")).toBe("example.edu");
   });
 
   it("rejects malformed addresses", () => {
     expect(() => assertVerifiableEmail("not-an-email")).toThrow();
     expect(() => assertVerifiableEmail("missing@domain")).toThrow();
-    expect(() => assertVerifiableEmail("fine@mcmaster.ca")).not.toThrow();
+    expect(() => assertVerifiableEmail("fine@example.edu")).not.toThrow();
   });
 });
 
 describe("institution resolution", () => {
   it("resolves a configured institutional domain", async () => {
-    const institution = await resolveInstitutionForEmail("someone@mcmaster.ca");
-    expect(institution?.name).toBe("McMaster University");
+    const institution = await resolveInstitutionForEmail("someone@example.edu");
+    expect(institution?.name).toBe("Example University");
   });
 
   it("returns null for a domain that is not part of the pilot", async () => {

@@ -27,7 +27,7 @@ export function OnboardingShell({
     <div className="mx-auto max-w-[1180px] px-4 py-8 sm:px-6 sm:py-12">
       <div className="grid gap-8 lg:grid-cols-[260px_1fr] lg:gap-12">
         <aside>
-          <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-subtle">{title}</p>
+          <p className="text-[12px] font-medium text-subtle">{title}</p>
           <p className="mt-2 text-[13.5px] leading-6 text-muted">{intro}</p>
 
           <ol className="mt-6 flex gap-1.5 overflow-x-auto pb-2 lg:mt-8 lg:flex-col lg:gap-0 lg:overflow-visible lg:pb-0">
@@ -82,7 +82,7 @@ export function OnboardingShell({
         <div className="min-w-0">
           <div className="rounded-[12px] border border-line bg-white">
             <div className="border-b border-line px-5 py-5 sm:px-7 sm:py-6">
-              <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-subtle">
+              <p className="text-[12px] font-medium text-subtle">
                 Step {active.number} of {steps.length}
               </p>
               <h1 className="mt-2 font-display text-[26px] text-ink" style={{ letterSpacing: "-0.5px" }}>

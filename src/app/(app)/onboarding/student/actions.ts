@@ -120,7 +120,15 @@ export async function saveAcademicsAction(_prev: ActionResult | null, formData: 
     await db.delete(studentCourses).where(eq(studentCourses.studentId, user.id));
     const institutionId = user.institutionId;
     if (institutionId && parsed.data.courseCodes.length > 0) {
-      const unique = [...new Set(parsed.data.courseCodes.map((code) => code.toUpperCase()).filter(Boolean))];
+      const seenCodes = new Set<string>();
+      const unique = parsed.data.courseCodes
+        .map((code) => code.trim())
+        .filter((code) => {
+          const key = code.toLowerCase();
+          if (!code || seenCodes.has(key)) return false;
+          seenCodes.add(key);
+          return true;
+        });
       const rows: { studentId: string; courseId: string; status: "completed" }[] = [];
       for (const code of unique) {
         rows.push({ studentId: user.id, courseId: await ensureCourse(institutionId, code), status: "completed" });

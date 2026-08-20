@@ -246,27 +246,27 @@ export default async function EditOpportunityPage({
 
             {detail.opportunity.description ? (
               <div className="mt-4">
-                <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Research overview</p>
+                <p className="text-[12px] font-medium text-subtle">Research overview</p>
                 <p className="mt-1.5 whitespace-pre-line text-[14px] leading-7 text-muted">{detail.opportunity.description}</p>
               </div>
             ) : null}
 
             {detail.opportunity.responsibilities ? (
               <div className="mt-4">
-                <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">What the student would do</p>
+                <p className="text-[12px] font-medium text-subtle">What the student would do</p>
                 <p className="mt-1.5 whitespace-pre-line text-[14px] leading-7 text-muted">{detail.opportunity.responsibilities}</p>
               </div>
             ) : null}
 
             {required.length > 0 || preferred.length > 0 ? (
               <div className="mt-5">
-                <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Criteria students will see</p>
+                <p className="text-[12px] font-medium text-subtle">Criteria students will see</p>
                 <ul className="mt-2 flex flex-col gap-1.5">
                   {[...required, ...preferred].map((criterion) => (
                     <li key={criterion.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-line px-3 py-2">
                       <span className="text-[13.5px] text-ink">{criterion.label}</span>
                       <span className="flex items-center gap-2">
-                        <span className="text-[11px] uppercase tracking-[0.08em] text-subtle">
+                        <span className="text-[11px] text-subtle">
                           {labelOr(CRITERION_TYPE_LABELS, criterion.type)}
                         </span>
                         <Badge tone={criterion.required ? "forest" : "outline"}>
@@ -285,7 +285,7 @@ export default async function EditOpportunityPage({
 
             {detail.questions.length > 0 ? (
               <div className="mt-5">
-                <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Application questions</p>
+                <p className="text-[12px] font-medium text-subtle">Application questions</p>
                 <ol className="mt-2 flex flex-col gap-1.5">
                   {detail.questions.map((question, index) => (
                     <li key={question.id} className="rounded-[8px] border border-line px-3 py-2">
@@ -293,7 +293,7 @@ export default async function EditOpportunityPage({
                         <span className="mr-2 font-mono text-[11.5px] text-subtle">{String(index + 1).padStart(2, "0")}</span>
                         {question.prompt}
                       </p>
-                      <p className="mt-1 pl-7 text-[11px] uppercase tracking-[0.08em] text-subtle">
+                      <p className="mt-1 pl-7 text-[11px] text-subtle">
                         {labelOr(QUESTION_TYPE_LABELS, question.type)}, {question.required ? "required" : "optional"}
                       </p>
                     </li>

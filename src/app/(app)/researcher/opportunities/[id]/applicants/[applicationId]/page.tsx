@@ -142,12 +142,12 @@ export default async function CandidateReviewPage({
             </h1>
             <p className="mt-1 text-[13.5px] text-muted">
               {bundle.student.program ?? "Program not set"}
-              {bundle.student.yearLevel ? `, year ${bundle.student.yearLevel}` : ""} ·{" "}
-              {labelOr(DEGREE_LABELS, bundle.student.degreeLevel)}
+              {bundle.student.yearLevel ? `, year ${bundle.student.yearLevel}` : ""}
+              {`, ${labelOr(DEGREE_LABELS, bundle.student.degreeLevel).toLowerCase()}`}
             </p>
             <p className="mt-0.5 text-[12.5px] text-subtle">
-              Submitted {formatDate(bundle.application.submittedAt)} · Profile {bundle.student.profileCompletion} percent
-              complete
+              Submitted {formatDate(bundle.application.submittedAt)}. Profile is{" "}
+              {bundle.student.profileCompletion} percent complete.
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -194,7 +194,7 @@ export default async function CandidateReviewPage({
                         <span className="mr-2 font-mono text-[12px] text-subtle">{String(position + 1).padStart(2, "0")}</span>
                         {question.prompt}
                       </p>
-                      <p className="mt-1 pl-8 text-[11.5px] uppercase tracking-[0.08em] text-subtle">
+                      <p className="mt-1 pl-8 text-[11.5px] text-subtle">
                         {labelOr(QUESTION_TYPE_LABELS, question.type)}
                       </p>
                       <div className="mt-2 pl-8">
@@ -234,10 +234,10 @@ export default async function CandidateReviewPage({
             {profile ? (
               <div className="flex flex-col gap-5">
                 <div>
-                  <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Availability</p>
+                  <p className="text-[12px] font-medium text-subtle">Availability</p>
                   <p className="mt-1.5 text-[14px] leading-6 text-ink">
-                    {profile.profile.weeklyHours !== null ? `${profile.profile.weeklyHours} hours per week` : "Not stated"} ·{" "}
-                    {labelOr(LOCATION_LABELS, profile.profile.locationPreference)} · From{" "}
+                    {profile.profile.weeklyHours !== null ? `${profile.profile.weeklyHours} hours per week` : "Not stated"}{" "}
+                    {labelOr(LOCATION_LABELS, profile.profile.locationPreference)}, From{" "}
                     {formatDate(profile.profile.desiredStartDate)}
                   </p>
                   {profile.profile.scheduleNotes ? (
@@ -246,7 +246,7 @@ export default async function CandidateReviewPage({
                 </div>
 
                 <div className="border-t border-line pt-4">
-                  <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Research interests</p>
+                  <p className="text-[12px] font-medium text-subtle">Research interests</p>
                   {profile.fields.length === 0 ? (
                     <p className="mt-1.5 text-[13.5px] text-muted">None listed.</p>
                   ) : (
@@ -264,7 +264,7 @@ export default async function CandidateReviewPage({
                 </div>
 
                 <div className="border-t border-line pt-4">
-                  <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Relevant coursework</p>
+                  <p className="text-[12px] font-medium text-subtle">Relevant coursework</p>
                   {profile.courses.length === 0 ? (
                     <p className="mt-1.5 text-[13.5px] text-muted">None listed.</p>
                   ) : (
@@ -280,7 +280,7 @@ export default async function CandidateReviewPage({
                 </div>
 
                 <div className="border-t border-line pt-4">
-                  <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Skills</p>
+                  <p className="text-[12px] font-medium text-subtle">Skills</p>
                   {profile.skills.length === 0 ? (
                     <p className="mt-1.5 text-[13.5px] text-muted">None listed.</p>
                   ) : (
@@ -299,7 +299,7 @@ export default async function CandidateReviewPage({
                 </div>
 
                 <div className="border-t border-line pt-4">
-                  <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Research experience</p>
+                  <p className="text-[12px] font-medium text-subtle">Research experience</p>
                   {profile.experiences.length === 0 ? (
                     <p className="mt-1.5 text-[13.5px] leading-6 text-muted">
                       None listed. This position states that prior research is{" "}
@@ -333,7 +333,7 @@ export default async function CandidateReviewPage({
                 </div>
 
                 <div className="border-t border-line pt-4">
-                  <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Academic standing</p>
+                  <p className="text-[12px] font-medium text-subtle">Academic standing</p>
                   {metrics.length === 0 ? (
                     <p className="mt-1.5 text-[13.5px] leading-6 text-muted">
                       Not shared. Sharing an average is optional on ResearchBridge.
@@ -350,7 +350,7 @@ export default async function CandidateReviewPage({
                 </div>
 
                 <div className="border-t border-line pt-4">
-                  <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Resume</p>
+                  <p className="text-[12px] font-medium text-subtle">Resume</p>
                   {profile.profile.resumeFileId ? (
                     <a
                       href={`/api/files/by-id/${profile.profile.resumeFileId}`}

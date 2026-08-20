@@ -62,7 +62,7 @@ export default async function AdminResearchersPage() {
                         {row.labName ? ` (${row.labName})` : ""}
                       </p>
                       <p className="mt-0.5 text-[12.5px] text-subtle">
-                        {row.email} · {row.institutionName ?? "No institution linked"} · Submitted{" "}
+                        {row.email}, {row.institutionName ?? "no institution linked"}, submitted{" "}
                         {formatShortDate(row.createdAt)}
                       </p>
                       {row.labWebsite ? (
@@ -102,7 +102,7 @@ export default async function AdminResearchersPage() {
                       {row.firstName} {row.lastName}
                     </p>
                     <p className="mt-0.5 text-[12.5px] text-muted">
-                      {row.department ?? "Department not set"} · {row.email}
+                      {row.department ?? "Department not set"}, {row.email}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

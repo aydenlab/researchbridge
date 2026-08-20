@@ -12,7 +12,6 @@ export function TokenField({
   placeholder,
   suggestions = [],
   initial = [],
-  uppercase = false,
   max = 40,
 }: {
   name: string;
@@ -21,7 +20,6 @@ export function TokenField({
   placeholder?: string;
   suggestions?: string[];
   initial?: string[];
-  uppercase?: boolean;
   max?: number;
 }) {
   const [values, setValues] = useState<string[]>(initial);
@@ -35,7 +33,7 @@ export function TokenField({
   );
 
   function add(raw: string) {
-    const value = uppercase ? raw.trim().toUpperCase() : raw.trim();
+    const value = raw.trim();
     if (!value) return;
     if (values.length >= max) return;
     if (values.some((existing) => existing.toLowerCase() === value.toLowerCase())) return;
@@ -236,7 +234,7 @@ export function ExperienceRows({ initial }: { initial: ExperienceRow[] }) {
 
       {rows.map((row, index) => (
         <fieldset key={index} className="rounded-[10px] border border-line bg-shell/50 p-4">
-          <legend className="px-1 text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">
+          <legend className="px-1 text-[12px] font-medium text-subtle">
             Experience {index + 1}
           </legend>
 

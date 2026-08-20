@@ -29,8 +29,8 @@ function Success({ message, kind }: { message: string; kind: "student" | "resear
           </p>
           <p className="mt-2 text-[14.5px] leading-7 text-forest/85">
             {kind === "student"
-              ? "We will email you before the McMaster pilot opens in September 2026. Nothing else is needed from you right now, and there is no account to create yet."
-              : "Someone from the team will get in touch to talk through the positions you might post. We are recruiting roughly fifteen researchers for the first cohort."}
+              ? "We will email you before the first cohort opens. Nothing else is needed from you right now, and there is no account to create yet."
+              : "Someone from the team will get in touch to talk through the positions you might post."}
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
@@ -76,9 +76,9 @@ export function StudentWaitlistForm() {
         htmlFor="email"
         required
         error={errors?.email?.[0]}
-        hint="McMaster students use an mcmaster.ca address. Other institutions are welcome to register interest."
+        hint="Use the email address your university issued you. Any institution is welcome to register interest."
       >
-        <Input id="email" name="email" type="email" autoComplete="email" placeholder="name@mcmaster.ca" required />
+        <Input id="email" name="email" type="email" autoComplete="email" placeholder="name@university.ca" required />
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -108,7 +108,7 @@ export function StudentWaitlistForm() {
       <label className="flex cursor-pointer items-start gap-2.5 rounded-[8px] border border-line bg-white px-3 py-2.5">
         <input type="checkbox" name="willingToPilot" value="true" defaultChecked className="mt-0.5 size-4 accent-[#1d4436]" />
         <span className="text-[13.5px] leading-6 text-ink">
-          I would like to take part in the pilot at McMaster in September 2026
+          I would like to take part in the first pilot cohort
         </span>
       </label>
 
@@ -158,7 +158,7 @@ export function ResearcherInterestForm() {
       </div>
 
       <Field label="Institutional email" htmlFor="email" required error={errors?.email?.[0]}>
-        <Input id="email" name="email" type="email" autoComplete="email" placeholder="name@mcmaster.ca" required />
+        <Input id="email" name="email" type="email" autoComplete="email" placeholder="name@university.ca" required />
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">

@@ -14,7 +14,7 @@ export function CardBody({ className, children }: { className?: string; children
 
 export function SectionTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={cn("text-[12px] font-medium uppercase tracking-[0.14em] text-subtle", className)}>{children}</p>
+    <p className={cn("text-[12px] font-medium text-subtle", className)}>{children}</p>
   );
 }
 

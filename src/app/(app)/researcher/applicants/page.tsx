@@ -104,11 +104,11 @@ export default async function AllApplicantsPage({
               <caption className="sr-only">Applicants to your positions</caption>
               <thead>
                 <tr className="border-b border-line bg-shell/60">
-                  <th scope="col" className="px-4 py-2.5 text-[12px] font-medium uppercase tracking-[0.08em] text-subtle">Student</th>
-                  <th scope="col" className="px-4 py-2.5 text-[12px] font-medium uppercase tracking-[0.08em] text-subtle">Position</th>
-                  <th scope="col" className="px-4 py-2.5 text-[12px] font-medium uppercase tracking-[0.08em] text-subtle">Availability</th>
-                  <th scope="col" className="px-4 py-2.5 text-[12px] font-medium uppercase tracking-[0.08em] text-subtle">Submitted</th>
-                  <th scope="col" className="px-4 py-2.5 text-[12px] font-medium uppercase tracking-[0.08em] text-subtle">Status</th>
+                  <th scope="col" className="px-4 py-2.5 text-[12px] font-medium text-subtle">Student</th>
+                  <th scope="col" className="px-4 py-2.5 text-[12px] font-medium text-subtle">Position</th>
+                  <th scope="col" className="px-4 py-2.5 text-[12px] font-medium text-subtle">Availability</th>
+                  <th scope="col" className="px-4 py-2.5 text-[12px] font-medium text-subtle">Submitted</th>
+                  <th scope="col" className="px-4 py-2.5 text-[12px] font-medium text-subtle">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -163,8 +163,8 @@ export default async function AllApplicantsPage({
                 </div>
                 <p className="mt-2 text-[13px] text-muted">{row.opportunityTitle}</p>
                 <p className="mt-1.5 text-[12px] text-subtle">
-                  {row.weeklyHours !== null ? `${row.weeklyHours} hours per week` : "Availability not stated"} ·{" "}
-                  {formatShortDate(row.submittedAt)}
+                  {row.weeklyHours !== null ? `${row.weeklyHours} hours per week` : "Availability not stated"}
+                  {`, submitted ${formatShortDate(row.submittedAt)}`}
                 </p>
               </li>
             ))}

@@ -97,7 +97,7 @@ export async function sendPilotInvite(to: string, firstName: string, token: stri
     to,
     subject: "Your ResearchBridge pilot invitation",
     text: [
-      `${firstName}, the ResearchBridge pilot at McMaster University is open to you.`,
+      `${firstName}, the ResearchBridge pilot at Example University is open to you.`,
       "",
       `Create your account here: ${env.APP_URL}/signin?invite=${token}`,
       "",

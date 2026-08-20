@@ -10,11 +10,11 @@ import {
   type AcademicMetric,
 } from "@/lib/gpa";
 
-const mcmaster: AcademicMetric = {
+const institutionScale: AcademicMetric = {
   type: "institution_scale",
   value: 10.5,
   scaleMax: 12,
-  institutionScaleName: "McMaster 12 point",
+  institutionScaleName: "12 point",
 };
 
 const fourPoint: AcademicMetric = { type: "gpa", value: 3.8, scaleMax: 4, institutionScaleName: null };
@@ -27,25 +27,25 @@ describe("grading scales", () => {
     expect(GRADE_SCALES.map((scale) => scale.max)).toEqual(expect.arrayContaining([12, 4, 4.3, 9, 100]));
   });
 
-  it("supports the McMaster 12 point scale explicitly", () => {
-    const scale = scaleById("mcmaster_12");
+  it("supports the 12 point scale explicitly", () => {
+    const scale = scaleById("institution_12");
     expect(scale?.max).toBe(12);
-    expect(scale?.institutionScaleName).toBe("McMaster 12 point");
+    expect(scale?.institutionScaleName).toBe("12 point");
   });
 
   it("resolves the scale for a stored metric by its institution scale name", () => {
-    expect(scaleForMetric(mcmaster)?.id).toBe("mcmaster_12");
+    expect(scaleForMetric(institutionScale)?.id).toBe("institution_12");
     expect(scaleForMetric(fourPoint)?.id).toBe("gpa_4");
   });
 });
 
 describe("metric validation", () => {
   it("accepts a value at the top of its own scale", () => {
-    expect(isValidMetric({ ...mcmaster, value: 12 })).toBe(true);
+    expect(isValidMetric({ ...institutionScale, value: 12 })).toBe(true);
   });
 
   it("rejects a value above its own scale", () => {
-    expect(isValidMetric({ ...mcmaster, value: 12.1 })).toBe(false);
+    expect(isValidMetric({ ...institutionScale, value: 12.1 })).toBe(false);
     expect(isValidMetric({ ...fourPoint, value: 4.5 })).toBe(false);
   });
 
@@ -60,13 +60,13 @@ describe("metric validation", () => {
 
 describe("metric presentation", () => {
   it("names the institution scale rather than implying a 4.0", () => {
-    expect(formatMetric(mcmaster)).toBe("10.5 on the McMaster 12 point scale");
+    expect(formatMetric(institutionScale)).toBe("10.5 on the 12 point scale");
     expect(formatMetric(fourPoint)).toBe("3.8 on a 4 scale");
     expect(formatMetric(percentage)).toBe("84 percent");
   });
 
   it("computes the fraction relative to the correct maximum", () => {
-    expect(fractionOfScale(mcmaster)).toBeCloseTo(10.5 / 12);
+    expect(fractionOfScale(institutionScale)).toBeCloseTo(10.5 / 12);
     expect(fractionOfScale(fourPoint)).toBeCloseTo(0.95);
     expect(fractionOfScale(percentage)).toBeCloseTo(0.84);
   });
@@ -74,8 +74,8 @@ describe("metric presentation", () => {
 
 describe("thresholds", () => {
   it("compares only within the same scale", () => {
-    expect(meetsThreshold(mcmaster, { value: 9, scaleMax: 12, type: "institution_scale" })).toBe(true);
-    expect(meetsThreshold(mcmaster, { value: 11, scaleMax: 12, type: "institution_scale" })).toBe(false);
+    expect(meetsThreshold(institutionScale, { value: 9, scaleMax: 12, type: "institution_scale" })).toBe(true);
+    expect(meetsThreshold(institutionScale, { value: 11, scaleMax: 12, type: "institution_scale" })).toBe(false);
   });
 
   it("returns unknown rather than converting between scales", () => {

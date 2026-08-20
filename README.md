@@ -4,7 +4,7 @@ ResearchBridge connects students with open research opportunities at their unive
 
 Students build one profile, browse positions that are actively recruiting, and apply to the projects that interest them. Researchers post a real opening, state the criteria that matter for that project, and review applications organised around those criteria.
 
-The first pilot runs at **McMaster University in September 2026**, starting with Health Sciences and Life Sciences.
+The first pilot runs at **Example University in September 2026**, starting with Health Sciences and Life Sciences.
 
 ---
 
@@ -41,10 +41,10 @@ Open http://localhost:3000.
 | Role | Email |
 | --- | --- |
 | Admin | `admin@myresearchbridge.com` |
-| Researcher (verified) | `okonjoa@mcmaster.ca` |
-| Researcher (awaiting approval) | `p.vasquez@mcmaster.ca` |
-| Student with applications | `adeyemij@mcmaster.ca` |
-| First-year student, no experience | `obrienk@mcmaster.ca` |
+| Researcher (verified) | `okonjoa@example.edu` |
+| Researcher (awaiting approval) | `p.vasquez@example.edu` |
+| Student with applications | `adeyemij@example.edu` |
+| First-year student, no experience | `obrienk@example.edu` |
 
 ---
 
@@ -190,7 +190,7 @@ Every server action and every page calls one of these. Hidden buttons are never 
 
 Passwordless email codes. A six-digit code is generated with `crypto.randomInt`, stored as an HMAC keyed by `SESSION_SECRET`, expires in ten minutes, is single use, allows five wrong attempts, and is rate limited to five sends per address per hour. Comparison is constant time. Sessions are opaque random tokens stored as hashes, delivered in an HTTP-only, SameSite=Lax, Secure-in-production cookie.
 
-Institution email domains live in the database. There is no `if (school === "McMaster")` anywhere in the codebase.
+Institution email domains live in the database. There is no `if (school === "Example University")` anywhere in the codebase.
 
 ### Claude integration
 

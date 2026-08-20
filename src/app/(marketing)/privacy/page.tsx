@@ -4,7 +4,7 @@ import { LegalNotice, LegalSection } from "@/components/marketing/legal";
 
 export const metadata: Metadata = {
   title: "Privacy",
-  description: "How ResearchBridge handles student and researcher information during the McMaster pilot.",
+  description: "How ResearchBridge handles student and researcher information during the pilot.",
   alternates: { canonical: "/privacy" },
 };
 

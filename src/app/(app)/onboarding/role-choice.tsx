@@ -37,7 +37,7 @@ export function RoleChoice({ email, institutionName }: { email: string; institut
 
   return (
     <div className="mx-auto w-full max-w-2xl px-5 py-14 sm:px-6">
-      <p className="text-[12px] font-medium uppercase tracking-[0.14em] text-subtle">Step 1 of 2</p>
+      <p className="text-[12px] font-medium text-subtle">Step 1 of 2</p>
       <h1 className="mt-3 font-display text-[32px] text-ink" style={{ letterSpacing: "-0.6px", lineHeight: 1.15 }}>
         How will you use ResearchBridge?
       </h1>

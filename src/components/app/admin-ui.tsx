@@ -12,13 +12,13 @@ export function MetricGrid({ metrics, columns = 4 }: { metrics: PilotMetric[]; c
     >
       {metrics.map((metric) => (
         <div key={metric.label} className="rounded-[10px] border border-line bg-white px-4 py-3.5">
-          <p className="text-[12px] uppercase tracking-[0.1em] text-subtle">{metric.label}</p>
+          <p className="text-[12px] text-subtle">{metric.label}</p>
           <p className={cn("mt-1.5 font-display text-[24px] leading-none", metric.known ? "text-ink" : "text-subtle")}>
             {metric.value}
           </p>
           {metric.detail ? <p className="mt-1.5 text-[12px] leading-5 text-muted">{metric.detail}</p> : null}
           {!metric.known ? (
-            <p className="mt-1.5 text-[11px] uppercase tracking-[0.08em] text-subtle">Not yet measurable</p>
+            <p className="mt-1.5 text-[11px] text-subtle">Not yet measurable</p>
           ) : null}
         </div>
       ))}
@@ -75,7 +75,7 @@ export function DataTable({
         <thead>
           <tr className="border-b border-line bg-shell/60">
             {columns.map((column) => (
-              <th key={column} scope="col" className="px-4 py-2.5 text-[11.5px] font-medium uppercase tracking-[0.08em] text-subtle">
+              <th key={column} scope="col" className="px-4 py-2.5 text-[11.5px] font-medium text-subtle">
                 {column}
               </th>
             ))}

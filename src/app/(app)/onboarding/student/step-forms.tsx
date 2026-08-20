@@ -207,7 +207,6 @@ export function AcademicsForm({
         placeholder="BIOLOGY 2B03"
         suggestions={courseSuggestions}
         initial={selectedCourses}
-        uppercase
         max={60}
       />
 

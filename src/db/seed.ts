@@ -122,14 +122,14 @@ async function main() {
   console.log("seeding ResearchBridge");
   await reset();
 
-  const [mcmaster] = await db
+  const [pilotInstitution] = await db
     .insert(s.institutions)
     .values({
-      name: "McMaster University",
-      slug: "mcmaster",
-      shortName: "McMaster",
+      name: "Example University",
+      slug: "example-university",
+      shortName: "Example University",
       location: "Hamilton, Ontario",
-      gpaScaleName: "McMaster 12 point",
+      gpaScaleName: "12 point",
       gpaScaleMax: "12",
       active: true,
       isPilot: true,
@@ -150,20 +150,20 @@ async function main() {
     .returning();
 
   await db.insert(s.institutionEmailDomains).values([
-    { institutionId: mcmaster.id, domain: "mcmaster.ca" },
-    { institutionId: mcmaster.id, domain: "learnlink.mcmaster.ca" },
+    { institutionId: pilotInstitution.id, domain: "example.edu" },
+    { institutionId: pilotInstitution.id, domain: "alumni.example.edu" },
     { institutionId: western.id, domain: "uwo.ca" },
   ]);
 
   const facultyRows = await db
     .insert(s.institutionFaculties)
-    .values(FACULTIES.map((name, index) => ({ institutionId: mcmaster.id, name, sortOrder: index })))
+    .values(FACULTIES.map((name, index) => ({ institutionId: pilotInstitution.id, name, sortOrder: index })))
     .returning();
   const facultyIds: Ids = Object.fromEntries(facultyRows.map((row) => [row.name, row.id]));
 
   await db.insert(s.institutionDepartments).values(
     DEPARTMENTS.map(([name, faculty]) => ({
-      institutionId: mcmaster.id,
+      institutionId: pilotInstitution.id,
       facultyId: facultyIds[faculty],
       name,
     })),
@@ -185,7 +185,7 @@ async function main() {
     .insert(s.courses)
     .values(
       COURSES.map(([courseCode, courseName, department]) => ({
-        institutionId: mcmaster.id,
+        institutionId: pilotInstitution.id,
         courseCode,
         courseName,
         department,
@@ -212,7 +212,7 @@ async function main() {
       email: "admin@myresearchbridge.com",
       role: "admin",
       accountStatus: "active",
-      institutionId: mcmaster.id,
+      institutionId: pilotInstitution.id,
       emailVerifiedAt: now,
       onboardingCompletedAt: now,
     })
@@ -220,7 +220,7 @@ async function main() {
 
   const researcherSeeds = [
     {
-      email: "okonjoa@mcmaster.ca",
+      email: "okonjoa@example.edu",
       firstName: "Amara",
       lastName: "Okonjo",
       title: "Associate Professor",
@@ -228,14 +228,14 @@ async function main() {
       department: "Health Research Methods, Evidence, and Impact",
       faculty: "Faculty of Health Sciences",
       labName: "Cardiovascular Outcomes Group",
-      labWebsite: "https://example.mcmaster.ca/cardiovascular-outcomes",
+      labWebsite: "https://lab.example.edu/cardiovascular-outcomes",
       biography:
         "I study how routinely collected clinical data can explain differences in cardiovascular readmission. My group works with retrospective hospital records and spends a lot of time on data quality, which is where most new students start.",
       verificationStatus: "verified" as const,
       fields: ["Cardiology", "Epidemiology", "Public Health"],
     },
     {
-      email: "haldenr@mcmaster.ca",
+      email: "haldenr@example.edu",
       firstName: "Rosalind",
       lastName: "Halden",
       title: "Assistant Professor",
@@ -243,14 +243,14 @@ async function main() {
       department: "Department of Psychiatry and Behavioural Neurosciences",
       faculty: "Faculty of Health Sciences",
       labName: "Developmental Neuroimaging Lab",
-      labWebsite: "https://example.mcmaster.ca/dev-neuroimaging",
+      labWebsite: "https://lab.example.edu/dev-neuroimaging",
       biography:
         "Our lab uses structural and functional imaging to study how attention networks develop through adolescence. Students on the team learn preprocessing pipelines and quality control before touching analysis.",
       verificationStatus: "verified" as const,
       fields: ["Neuroscience", "Psychology"],
     },
     {
-      email: "tanjiro.sano@mcmaster.ca",
+      email: "tanjiro.sano@example.edu",
       firstName: "Jiro",
       lastName: "Sano",
       title: "Postdoctoral Fellow",
@@ -265,7 +265,7 @@ async function main() {
       fields: ["Oncology", "Immunology"],
     },
     {
-      email: "delacruzm@mcmaster.ca",
+      email: "delacruzm@example.edu",
       firstName: "Marisol",
       lastName: "De la Cruz",
       title: "Associate Professor",
@@ -273,14 +273,14 @@ async function main() {
       department: "School of Rehabilitation Science",
       faculty: "Faculty of Health Sciences",
       labName: "Mobility and Aging Lab",
-      labWebsite: "https://example.mcmaster.ca/mobility-aging",
+      labWebsite: "https://lab.example.edu/mobility-aging",
       biography:
         "My work looks at how community exercise programs affect mobility outcomes for older adults. Students help with data collection sessions and participant scheduling.",
       verificationStatus: "verified" as const,
       fields: ["Rehabilitation Science", "Kinesiology", "Public Health"],
     },
     {
-      email: "n.abubakar@mcmaster.ca",
+      email: "n.abubakar@example.edu",
       firstName: "Nadia",
       lastName: "Abubakar",
       title: "PhD Candidate",
@@ -295,7 +295,7 @@ async function main() {
       fields: ["Microbiology", "Nutrition", "Bioinformatics"],
     },
     {
-      email: "p.vasquez@mcmaster.ca",
+      email: "p.vasquez@example.edu",
       firstName: "Paulo",
       lastName: "Vasquez",
       title: "Lab Manager",
@@ -319,7 +319,7 @@ async function main() {
         email: seed.email,
         role: "researcher",
         accountStatus: "active",
-        institutionId: mcmaster.id,
+        institutionId: pilotInstitution.id,
         emailVerifiedAt: now,
         onboardingCompletedAt: now,
       })
@@ -352,7 +352,7 @@ async function main() {
 
   const studentSeeds = [
     {
-      email: "adeyemij@mcmaster.ca",
+      email: "adeyemij@example.edu",
       firstName: "Jordan",
       lastName: "Adeyemi",
       program: "Bachelor of Health Sciences",
@@ -367,10 +367,10 @@ async function main() {
       skills: [["Python", "working"], ["Data analysis", "working"], ["Statistics", "exposure"], ["Literature reviews", "working"]],
       courses: ["BIOLOGY 2B03", "HTHSCI 2G03", "STATS 2B03", "COMPSCI 1MD3"],
       fields: ["Cardiology", "Epidemiology", "Public Health"],
-      gpa: { type: "institution_scale" as const, value: "10.50", scaleMax: "12", scaleName: "McMaster 12 point" },
+      gpa: { type: "institution_scale" as const, value: "10.50", scaleMax: "12", scaleName: "12 point" },
       experiences: [
         {
-          organization: "McMaster Genomics Reading Group",
+          organization: "Campus Genomics Reading Group",
           supervisor: "Dr. Elena Petrov",
           title: "Student volunteer",
           startDate: "2025-09-01",
@@ -383,7 +383,7 @@ async function main() {
       ],
     },
     {
-      email: "chenwei@mcmaster.ca",
+      email: "chenwei@example.edu",
       firstName: "Wei",
       lastName: "Chen",
       program: "Honours Biology",
@@ -398,7 +398,7 @@ async function main() {
       skills: [["Cell culture", "working"], ["PCR", "proficient"], ["Western blot", "working"], ["Wet lab", "proficient"], ["Microscopy", "exposure"]],
       courses: ["BIOLOGY 2B03", "BIOLOGY 2C03", "BIOCHEM 2EE3", "CHEM 2OA3"],
       fields: ["Oncology", "Immunology", "Genetics"],
-      gpa: { type: "institution_scale" as const, value: "11.00", scaleMax: "12", scaleName: "McMaster 12 point" },
+      gpa: { type: "institution_scale" as const, value: "11.00", scaleMax: "12", scaleName: "12 point" },
       experiences: [
         {
           organization: "Undergraduate Teaching Laboratory",
@@ -414,7 +414,7 @@ async function main() {
       ],
     },
     {
-      email: "obrienk@mcmaster.ca",
+      email: "obrienk@example.edu",
       firstName: "Keira",
       lastName: "O'Brien",
       program: "Bachelor of Health Sciences",
@@ -433,7 +433,7 @@ async function main() {
       experiences: [],
     },
     {
-      email: "npatel@mcmaster.ca",
+      email: "npatel@example.edu",
       firstName: "Nikhil",
       lastName: "Patel",
       program: "Computer Science and Biology",
@@ -475,7 +475,7 @@ async function main() {
       ],
     },
     {
-      email: "l.rossi@mcmaster.ca",
+      email: "l.rossi@example.edu",
       firstName: "Luca",
       lastName: "Rossi",
       program: "Kinesiology",
@@ -490,11 +490,11 @@ async function main() {
       skills: [["Data analysis", "exposure"], ["Patient recruitment", "working"], ["Presentation", "proficient"], ["SPSS", "exposure"]],
       courses: ["KINESIOL 2CC3", "STATS 2B03", "PSYCH 2H03"],
       fields: ["Rehabilitation Science", "Kinesiology"],
-      gpa: { type: "institution_scale" as const, value: "9.30", scaleMax: "12", scaleName: "McMaster 12 point" },
+      gpa: { type: "institution_scale" as const, value: "9.30", scaleMax: "12", scaleName: "12 point" },
       experiences: [],
     },
     {
-      email: "s.mwangi@mcmaster.ca",
+      email: "s.mwangi@example.edu",
       firstName: "Sila",
       lastName: "Mwangi",
       program: "Honours Psychology, Neuroscience and Behaviour",
@@ -509,7 +509,7 @@ async function main() {
       skills: [["MATLAB", "working"], ["Python", "working"], ["Statistics", "working"], ["Neuroimaging analysis", "exposure"]],
       courses: ["PSYCH 2H03", "PSYCH 3M03", "STATS 2B03", "MEDPHYS 3B03"],
       fields: ["Neuroscience", "Psychology"],
-      gpa: { type: "institution_scale" as const, value: "10.10", scaleMax: "12", scaleName: "McMaster 12 point" },
+      gpa: { type: "institution_scale" as const, value: "10.10", scaleMax: "12", scaleName: "12 point" },
       experiences: [
         {
           organization: "Perception and Action Laboratory",
@@ -525,7 +525,7 @@ async function main() {
       ],
     },
     {
-      email: "gagnona@mcmaster.ca",
+      email: "gagnona@example.edu",
       firstName: "Amelie",
       lastName: "Gagnon",
       program: "Nursing",
@@ -544,7 +544,7 @@ async function main() {
       experiences: [],
     },
     {
-      email: "h.kowalski@mcmaster.ca",
+      email: "h.kowalski@example.edu",
       firstName: "Hania",
       lastName: "Kowalski",
       program: "Master of Public Health",
@@ -575,7 +575,7 @@ async function main() {
       ],
     },
     {
-      email: "d.osei@mcmaster.ca",
+      email: "d.osei@example.edu",
       firstName: "Daniel",
       lastName: "Osei",
       program: "Biochemistry",
@@ -590,11 +590,11 @@ async function main() {
       skills: [["Wet lab", "exposure"], ["Scientific writing", "exposure"]],
       courses: ["BIOCHEM 2EE3", "CHEM 2OA3", "BIOLOGY 1A03"],
       fields: ["Oncology", "Genetics"],
-      gpa: { type: "institution_scale" as const, value: "8.70", scaleMax: "12", scaleName: "McMaster 12 point" },
+      gpa: { type: "institution_scale" as const, value: "8.70", scaleMax: "12", scaleName: "12 point" },
       experiences: [],
     },
     {
-      email: "t.nakamura@mcmaster.ca",
+      email: "t.nakamura@example.edu",
       firstName: "Tomo",
       lastName: "Nakamura",
       program: "Integrated Science",
@@ -609,7 +609,7 @@ async function main() {
       skills: [["Literature reviews", "proficient"], ["Systematic reviews", "working"], ["Scientific writing", "proficient"], ["R", "exposure"], ["Wet lab", "working"]],
       courses: ["BIOLOGY 2C03", "BIOLOGY 1A03", "STATS 2B03"],
       fields: ["Microbiology", "Nutrition", "Bioinformatics"],
-      gpa: { type: "institution_scale" as const, value: "9.80", scaleMax: "12", scaleName: "McMaster 12 point" },
+      gpa: { type: "institution_scale" as const, value: "9.80", scaleMax: "12", scaleName: "12 point" },
       experiences: [
         {
           organization: "Integrated Science Thesis Project",
@@ -634,7 +634,7 @@ async function main() {
         email: seed.email,
         role: "student",
         accountStatus: "active",
-        institutionId: mcmaster.id,
+        institutionId: pilotInstitution.id,
         emailVerifiedAt: now,
         onboardingCompletedAt: now,
       })
@@ -712,7 +712,7 @@ async function main() {
   const opportunitySeeds = [
     {
       key: "cardio",
-      researcher: "okonjoa@mcmaster.ca",
+      researcher: "okonjoa@example.edu",
       title: "Undergraduate Research Assistant, Cardiovascular Outcomes",
       summary:
         "Analyze retrospective clinical data to understand factors associated with cardiovascular readmission.",
@@ -835,7 +835,7 @@ async function main() {
     },
     {
       key: "neuro",
-      researcher: "haldenr@mcmaster.ca",
+      researcher: "haldenr@example.edu",
       title: "Neuroimaging Research Assistant, Adolescent Attention Networks",
       summary:
         "Support preprocessing and quality control for a structural and functional imaging study of adolescent attention.",
@@ -927,7 +927,7 @@ async function main() {
     },
     {
       key: "cancer",
-      researcher: "tanjiro.sano@mcmaster.ca",
+      researcher: "tanjiro.sano@example.edu",
       title: "Cancer Cell Biology Laboratory Assistant",
       summary: "Support cell culture and protein work in a tumour microenvironment lab.",
       description:
@@ -1019,7 +1019,7 @@ async function main() {
     },
     {
       key: "rehab",
-      researcher: "delacruzm@mcmaster.ca",
+      researcher: "delacruzm@example.edu",
       title: "Rehabilitation Science Data Collection Assistant",
       summary: "Help run mobility assessment sessions with older adults in a community exercise study.",
       description:
@@ -1041,7 +1041,7 @@ async function main() {
       hoursMax: 8,
       deadlineDays: 12,
       compensationType: "work_study" as const,
-      compensationDetails: "Work study funded. You must be eligible for the McMaster work study program.",
+      compensationDetails: "Work study funded. You must be eligible for the university work study program.",
       credit: false,
       beginnerFriendly: true,
       priorRequired: false,
@@ -1102,7 +1102,7 @@ async function main() {
     },
     {
       key: "microbiome",
-      researcher: "n.abubakar@mcmaster.ca",
+      researcher: "n.abubakar@example.edu",
       title: "Microbiome Literature Review Assistant",
       summary: "Help build and screen a literature corpus on diet-associated shifts in gut microbial communities.",
       description:
@@ -1189,7 +1189,7 @@ async function main() {
     },
     {
       key: "chart",
-      researcher: "okonjoa@mcmaster.ca",
+      researcher: "okonjoa@example.edu",
       title: "Clinical Chart Review Project Assistant",
       summary: "Extract structured variables from de-identified clinical charts for an outcomes study.",
       description:
@@ -1272,7 +1272,7 @@ async function main() {
     },
     {
       key: "bioinf",
-      researcher: "n.abubakar@mcmaster.ca",
+      researcher: "n.abubakar@example.edu",
       title: "Bioinformatics Research Assistant, Metagenomic Pipelines",
       summary: "Benchmark and document metagenomic classification pipelines on an existing sample set.",
       description:
@@ -1363,7 +1363,7 @@ async function main() {
     },
     {
       key: "publichealth",
-      researcher: "delacruzm@mcmaster.ca",
+      researcher: "delacruzm@example.edu",
       title: "Systematic Review Assistant, Community Health Programs",
       summary: "Screen and extract studies for a systematic review of community-based health programs.",
       description:
@@ -1439,7 +1439,7 @@ async function main() {
     },
     {
       key: "draftgenomics",
-      researcher: "okonjoa@mcmaster.ca",
+      researcher: "okonjoa@example.edu",
       title: "Summer Research Student, Health Data Visualization",
       summary: "Build a small internal dashboard summarizing study recruitment and data completeness.",
       description:
@@ -1498,7 +1498,7 @@ async function main() {
     const [opportunity] = await db
       .insert(s.opportunities)
       .values({
-        institutionId: mcmaster.id,
+        institutionId: pilotInstitution.id,
         researcherId: researcherIds[seed.researcher],
         title: seed.title,
         slug: `${slugify(seed.title)}-${seed.key}`,
@@ -1594,7 +1594,7 @@ async function main() {
       await db.insert(s.analyticsEvents).values({
         name: "opportunity_published",
         userId: researcherIds[seed.researcher],
-        institutionId: mcmaster.id,
+        institutionId: pilotInstitution.id,
         subjectType: "opportunity",
         subjectId: opportunity.id,
       });
@@ -1604,7 +1604,7 @@ async function main() {
   const applicationSeeds = [
     {
       opportunity: "cardio",
-      student: "adeyemij@mcmaster.ca",
+      student: "adeyemij@example.edu",
       status: "under_review" as const,
       daysAgo: 5,
       answers: [
@@ -1615,7 +1615,7 @@ async function main() {
     },
     {
       opportunity: "cardio",
-      student: "obrienk@mcmaster.ca",
+      student: "obrienk@example.edu",
       status: "submitted" as const,
       daysAgo: 2,
       answers: [
@@ -1626,7 +1626,7 @@ async function main() {
     },
     {
       opportunity: "cardio",
-      student: "npatel@mcmaster.ca",
+      student: "npatel@example.edu",
       status: "shortlisted" as const,
       daysAgo: 8,
       answers: [
@@ -1637,7 +1637,7 @@ async function main() {
     },
     {
       opportunity: "neuro",
-      student: "s.mwangi@mcmaster.ca",
+      student: "s.mwangi@example.edu",
       status: "researcher_contacted" as const,
       daysAgo: 11,
       answers: [
@@ -1647,7 +1647,7 @@ async function main() {
     },
     {
       opportunity: "neuro",
-      student: "npatel@mcmaster.ca",
+      student: "npatel@example.edu",
       status: "declined" as const,
       daysAgo: 13,
       answers: [
@@ -1657,7 +1657,7 @@ async function main() {
     },
     {
       opportunity: "cancer",
-      student: "chenwei@mcmaster.ca",
+      student: "chenwei@example.edu",
       status: "shortlisted" as const,
       daysAgo: 6,
       answers: [
@@ -1667,7 +1667,7 @@ async function main() {
     },
     {
       opportunity: "cancer",
-      student: "d.osei@mcmaster.ca",
+      student: "d.osei@example.edu",
       status: "submitted" as const,
       daysAgo: 3,
       answers: [
@@ -1677,7 +1677,7 @@ async function main() {
     },
     {
       opportunity: "microbiome",
-      student: "t.nakamura@mcmaster.ca",
+      student: "t.nakamura@example.edu",
       status: "accepted" as const,
       daysAgo: 20,
       answers: [
@@ -1686,7 +1686,7 @@ async function main() {
     },
     {
       opportunity: "microbiome",
-      student: "h.kowalski@mcmaster.ca",
+      student: "h.kowalski@example.edu",
       status: "under_review" as const,
       daysAgo: 4,
       answers: [
@@ -1695,7 +1695,7 @@ async function main() {
     },
     {
       opportunity: "rehab",
-      student: "l.rossi@mcmaster.ca",
+      student: "l.rossi@example.edu",
       status: "submitted" as const,
       daysAgo: 1,
       answers: [
@@ -1705,7 +1705,7 @@ async function main() {
     },
     {
       opportunity: "rehab",
-      student: "gagnona@mcmaster.ca",
+      student: "gagnona@example.edu",
       status: "under_review" as const,
       daysAgo: 7,
       answers: [
@@ -1715,7 +1715,7 @@ async function main() {
     },
     {
       opportunity: "publichealth",
-      student: "h.kowalski@mcmaster.ca",
+      student: "h.kowalski@example.edu",
       status: "shortlisted" as const,
       daysAgo: 9,
       answers: [
@@ -1724,7 +1724,7 @@ async function main() {
     },
     {
       opportunity: "bioinf",
-      student: "npatel@mcmaster.ca",
+      student: "npatel@example.edu",
       status: "submitted" as const,
       daysAgo: 2,
       answers: [
@@ -1791,7 +1791,7 @@ async function main() {
     await db.insert(s.analyticsEvents).values({
       name: "application_submitted",
       userId: studentId,
-      institutionId: mcmaster.id,
+      institutionId: pilotInstitution.id,
       subjectType: "application",
       subjectId: application.id,
       createdAt: submittedAt,
@@ -1838,7 +1838,7 @@ async function main() {
       await db.insert(s.analyticsEvents).values({
         name: "placement_confirmed",
         userId: studentId,
-        institutionId: mcmaster.id,
+        institutionId: pilotInstitution.id,
         subjectType: "application",
         subjectId: application.id,
       });
@@ -1850,16 +1850,16 @@ async function main() {
       applicationId: (
         await db.select({ id: s.applications.id }).from(s.applications).limit(1)
       )[0].id,
-      researcherId: researcherIds["okonjoa@mcmaster.ca"],
+      researcherId: researcherIds["okonjoa@example.edu"],
       note: "Strong on the missingness question. Ask about availability around the Wednesday meeting before deciding.",
     },
   ]);
 
   await db.insert(s.savedOpportunities).values([
-    { studentId: studentIds["obrienk@mcmaster.ca"], opportunityId: opportunityIds.microbiome },
-    { studentId: studentIds["obrienk@mcmaster.ca"], opportunityId: opportunityIds.publichealth },
-    { studentId: studentIds["adeyemij@mcmaster.ca"], opportunityId: opportunityIds.chart },
-    { studentId: studentIds["d.osei@mcmaster.ca"], opportunityId: opportunityIds.cancer },
+    { studentId: studentIds["obrienk@example.edu"], opportunityId: opportunityIds.microbiome },
+    { studentId: studentIds["obrienk@example.edu"], opportunityId: opportunityIds.publichealth },
+    { studentId: studentIds["adeyemij@example.edu"], opportunityId: opportunityIds.chart },
+    { studentId: studentIds["d.osei@example.edu"], opportunityId: opportunityIds.cancer },
   ]);
 
   await db.insert(s.waitlistEntries).values([
@@ -1867,8 +1867,8 @@ async function main() {
       kind: "student",
       firstName: "Priya",
       lastName: "Raghunathan",
-      email: "raghup@mcmaster.ca",
-      institutionId: mcmaster.id,
+      email: "raghup@example.edu",
+      institutionId: pilotInstitution.id,
       program: "Bachelor of Health Sciences",
       yearLevel: "Year 1",
       researchInterests: "Global health, infectious disease, health equity",
@@ -1879,8 +1879,8 @@ async function main() {
       kind: "student",
       firstName: "Marcus",
       lastName: "Idowu",
-      email: "idowum@mcmaster.ca",
-      institutionId: mcmaster.id,
+      email: "idowum@example.edu",
+      institutionId: pilotInstitution.id,
       program: "Life Sciences",
       yearLevel: "Year 2",
       researchInterests: "Immunology, vaccine development",
@@ -1891,8 +1891,8 @@ async function main() {
       kind: "student",
       firstName: "Yuki",
       lastName: "Tanabe",
-      email: "tanabey@mcmaster.ca",
-      institutionId: mcmaster.id,
+      email: "tanabey@example.edu",
+      institutionId: pilotInstitution.id,
       program: "Integrated Biomedical Engineering and Health Sciences",
       yearLevel: "Year 3",
       researchInterests: "Medical devices, rehabilitation engineering",
@@ -1903,8 +1903,8 @@ async function main() {
       kind: "researcher",
       firstName: "Elena",
       lastName: "Petrov",
-      email: "petrove@mcmaster.ca",
-      institutionId: mcmaster.id,
+      email: "petrove@example.edu",
+      institutionId: pilotInstitution.id,
       title: "Assistant Professor",
       department: "Department of Medicine",
       labName: "Respiratory Outcomes Group",
@@ -1918,8 +1918,8 @@ async function main() {
       kind: "researcher",
       firstName: "Idris",
       lastName: "Bello",
-      email: "belloi@mcmaster.ca",
-      institutionId: mcmaster.id,
+      email: "belloi@example.edu",
+      institutionId: pilotInstitution.id,
       title: "Associate Professor",
       department: "Department of Biology",
       labName: "Microbial Evolution Lab",
@@ -1934,21 +1934,21 @@ async function main() {
 
   await db.insert(s.notifications).values([
     {
-      userId: studentIds["adeyemij@mcmaster.ca"],
+      userId: studentIds["adeyemij@example.edu"],
       type: "application_status_changed",
       title: "Your application is under review",
       body: "Dr. Amara Okonjo has opened your application to Undergraduate Research Assistant, Cardiovascular Outcomes.",
       link: "/applications",
     },
     {
-      userId: studentIds["s.mwangi@mcmaster.ca"],
+      userId: studentIds["s.mwangi@example.edu"],
       type: "researcher_contacted",
       title: "Dr. Rosalind Halden would like to speak with you",
       body: "About Neuroimaging Research Assistant, Adolescent Attention Networks.",
       link: "/applications",
     },
     {
-      userId: researcherIds["okonjoa@mcmaster.ca"],
+      userId: researcherIds["okonjoa@example.edu"],
       type: "new_application",
       title: "New application received",
       body: "Undergraduate Research Assistant, Cardiovascular Outcomes has a new applicant.",

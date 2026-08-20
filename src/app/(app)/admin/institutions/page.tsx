@@ -38,7 +38,7 @@ export default async function AdminInstitutionsPage() {
           <AdminPanel
             key={institution.id}
             title={institution.name}
-            description={`${institution.location ?? "Location not set"} · ${institution.gpaScaleName ?? "No default grading scale"}`}
+            description={`${institution.location ?? "Location not set"}, ${institution.gpaScaleName ?? "No default grading scale"}`}
             action={
               <div className="flex items-center gap-2">
                 {institution.isPilot ? <Badge tone="forest">Pilot institution</Badge> : null}

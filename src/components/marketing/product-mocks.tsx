@@ -188,7 +188,7 @@ export function EvidenceMock() {
                 {row.status}
               </span>
             </div>
-            <p className="mt-0.5 text-[11px] uppercase tracking-[0.1em] text-subtle">Requested: {row.requested}</p>
+            <p className="mt-0.5 text-[11px] text-subtle">Requested: {row.requested}</p>
             <p className="mt-1 text-[12px] leading-5 text-muted">{row.detail}</p>
           </li>
         ))}

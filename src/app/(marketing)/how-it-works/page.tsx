@@ -54,7 +54,7 @@ export default function HowItWorksPage() {
         gradient="gradient-slate"
       />
 
-      <ContentSection eyebrow="STUDENTS" title="Five steps from profile to a conversation.">
+      <ContentSection eyebrow="Students" title="Five steps from profile to a conversation.">
         <ol className="border-t border-line">
           {STUDENT_STEPS.map((item, index) => (
             <Reveal key={item.title} delay={index * 55} as="li">
@@ -70,7 +70,7 @@ export default function HowItWorksPage() {
         </ol>
       </ContentSection>
 
-      <ContentSection eyebrow="RESEARCHERS" title="Seven steps from a project to a placement.">
+      <ContentSection eyebrow="Researchers" title="Seven steps from a project to a placement.">
         <ol className="border-t border-line">
           {RESEARCHER_STEPS.map((item, index) => (
             <Reveal key={item.title} delay={index * 45} as="li">
@@ -86,7 +86,7 @@ export default function HowItWorksPage() {
         </ol>
       </ContentSection>
 
-      <ContentSection eyebrow="EVALUATION" title="What a researcher actually sees.">
+      <ContentSection eyebrow="Evaluation" title="What a researcher actually sees.">
         <div className="grid items-start gap-10 lg:grid-cols-[1fr_1fr] lg:gap-16">
           <Reveal>
             <Prose>
@@ -120,7 +120,7 @@ export default function HowItWorksPage() {
       <ContentSection>
         <Reveal>
           <div className="flex flex-wrap gap-3">
-            <ButtonLink href="/waitlist">Join the McMaster pilot</ButtonLink>
+            <ButtonLink href="/waitlist">Join the student waitlist</ButtonLink>
             <ButtonLink href="/opportunities" variant="outline">
               Explore opportunities
             </ButtonLink>

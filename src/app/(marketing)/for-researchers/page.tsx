@@ -65,7 +65,7 @@ export default function ForResearchersPage() {
         </div>
       </PageHero>
 
-      <ContentSection eyebrow="WHAT YOU GET" title="Five things that replace an inbox.">
+      <ContentSection eyebrow="What you get" title="Five things that replace an inbox.">
         <div className="grid gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
           <div className="border-t border-line">
             {OFFERS.map((item, index) => (
@@ -88,7 +88,7 @@ export default function ForResearchersPage() {
         </div>
       </ContentSection>
 
-      <ContentSection eyebrow="CRITERIA" title="You decide what matters, and applicants can see it.">
+      <ContentSection eyebrow="Criteria" title="You decide what matters, and applicants can see it.">
         <Reveal>
           <Prose>
             <p>
@@ -110,7 +110,7 @@ export default function ForResearchersPage() {
         </Reveal>
       </ContentSection>
 
-      <ContentSection eyebrow="WHO CAN POST" title="Researcher accounts are reviewed before positions go live.">
+      <ContentSection eyebrow="Who can post" title="Researcher accounts are reviewed before positions go live.">
         <Reveal>
           <ul className="grid gap-2.5 sm:grid-cols-2">
             {WHO.map((item) => (

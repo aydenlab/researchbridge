@@ -48,7 +48,7 @@ export async function requestCodeAction(_prev: ActionResult<{ email: string }> |
         return {
           ok: false as const,
           error:
-            "That email domain is not part of the pilot yet. The McMaster pilot uses mcmaster.ca addresses. Join the waitlist and we will contact you when your institution is added.",
+            "That email domain is not part of the pilot yet. Join the waitlist and we will contact you when your institution is added.",
           fieldErrors: { email: ["Institution not recognized for this address."] },
         };
       }

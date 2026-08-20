@@ -140,7 +140,7 @@ export function ApplicationForm({
 
       {materials.length > 0 ? (
         <section className="rounded-[12px] border border-line bg-white p-5">
-          <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-subtle">Research material</p>
+          <p className="text-[12px] font-medium text-subtle">Research material</p>
           <h2 className="mt-2 font-display text-[20px] text-ink" style={{ letterSpacing: "-0.4px" }}>
             This researcher has asked applicants to review a recent paper before applying
           </h2>

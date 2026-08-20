@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 
-const email = process.argv[2] ?? "adeyemij@mcmaster.ca";
+const email = process.argv[2] ?? "adeyemij@example.edu";
 const statePath = process.argv[3] ?? "scripts/.auth-student.json";
 const logPath = process.argv[4] ?? "/tmp/rbdev.log";
 

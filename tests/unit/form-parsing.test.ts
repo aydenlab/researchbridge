@@ -104,7 +104,7 @@ describe("researcher profile step", () => {
   it("rejects a lab website that is not a full web address", () => {
     const parsed = parseForm(
       researcherProfileSchema,
-      form([...base, ["researchFieldIds", uuid], ["labWebsite", "example.mcmaster.ca"]]),
+      form([...base, ["researchFieldIds", uuid], ["labWebsite", "lab.example.edu"]]),
     );
     expect(parsed.ok).toBe(false);
     if (parsed.ok || parsed.result.ok) return;

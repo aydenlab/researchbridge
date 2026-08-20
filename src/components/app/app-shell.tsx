@@ -98,7 +98,7 @@ export function AppHeader({
                 <div className="border-b border-line px-3 py-2">
                   <p className="truncate text-[13px] font-medium text-ink">{displayName ?? "Your account"}</p>
                   <p className="truncate text-[12px] text-muted">{email}</p>
-                  <p className="mt-1 text-[11px] uppercase tracking-[0.1em] text-subtle">{roleLabel}</p>
+                  <p className="mt-1 text-[11px] text-subtle">{roleLabel}</p>
                 </div>
                 <Link href="/profile" className="block rounded-md px-3 py-2 text-[13.5px] text-ink hover:bg-cream">
                   Profile

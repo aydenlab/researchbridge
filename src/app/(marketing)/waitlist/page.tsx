@@ -5,9 +5,9 @@ import { Reveal } from "@/components/marketing/reveal";
 import { StudentWaitlistForm } from "./waitlist-forms";
 
 export const metadata: Metadata = {
-  title: "Join the McMaster pilot",
+  title: "Join the student waitlist",
   description:
-    "Join the ResearchBridge student waitlist for the McMaster University pilot launching in September 2026. Students take part for free.",
+    "Join the ResearchBridge student waitlist for the first pilot cohort. Students take part for free.",
   alternates: { canonical: "/waitlist" },
 };
 
@@ -23,8 +23,8 @@ export default function WaitlistPage() {
     <>
       <PageHero
         eyebrow="Student pilot"
-        title="Join the McMaster pilot."
-        lede="The first ResearchBridge cohort runs in Health Sciences and Life Sciences from September 2026. Joining takes under a minute and does not create an account."
+        title="Join the student waitlist."
+        lede="The first ResearchBridge cohort will run in health and life sciences. Joining takes under a minute and does not create an account."
         gradient="gradient-hero"
       />
 
@@ -47,7 +47,7 @@ export default function WaitlistPage() {
           <Reveal delay={80}>
             <aside className="flex flex-col gap-5">
               <div className="rounded-[12px] border border-line bg-cream/60 p-5">
-                <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-subtle">What to expect</p>
+                <p className="text-[12px] font-medium text-subtle">What to expect</p>
                 <ul className="mt-3 flex flex-col gap-3">
                   {POINTS.map((point) => (
                     <li key={point} className="text-[13.5px] leading-6 text-muted">
@@ -58,7 +58,7 @@ export default function WaitlistPage() {
               </div>
 
               <div className="rounded-[12px] border border-line bg-white p-5">
-                <p className="text-[14px] font-medium text-ink">Already have a McMaster address?</p>
+                <p className="text-[14px] font-medium text-ink">Already at a participating university?</p>
                 <p className="mt-1.5 text-[13.5px] leading-6 text-muted">
                   You can{" "}
                   <Link href="/signin" className="text-forest underline decoration-line-strong underline-offset-4">

@@ -61,7 +61,7 @@ export default function AboutPage() {
         </Reveal>
       </ContentSection>
 
-      <ContentSection eyebrow="WHAT WE HOLD TO" title="Four commitments that shape the product.">
+      <ContentSection eyebrow="What we hold to" title="Four commitments that shape the product.">
         <div className="border-t border-line">
           {PRINCIPLES.map((item, index) => (
             <Reveal key={item.title} delay={index * 60}>
@@ -74,17 +74,18 @@ export default function AboutPage() {
         </div>
       </ContentSection>
 
-      <ContentSection eyebrow="THE PILOT" title="McMaster University, September 2026.">
+      <ContentSection eyebrow="The pilot" title="Starting with one university, then expanding.">
         <Reveal>
           <Prose>
             <p>
-              The first pilot runs in Health Sciences and Life Sciences, with roughly fifteen researchers and sixty to
-              eighty students. Undergraduate and graduate students can both take part, and students use ResearchBridge
-              for free.
+              The first pilot will run in health and life sciences, with a small number of researchers and students at
+              a single university. Undergraduate and graduate students can both take part, and students use
+              ResearchBridge for free.
             </p>
             <p>
-              ResearchBridge is an independent product. The pilot is being arranged with individual researchers and
-              does not represent an official endorsement by McMaster University.
+              ResearchBridge is an independent product. Partner institutions and research groups are not yet
+              confirmed, so none are named here. Nothing on this site should be read as an endorsement by any
+              university.
             </p>
             <p>
               The architecture already models institutions, email domains, faculties, departments, and grading scales
@@ -95,7 +96,7 @@ export default function AboutPage() {
         </Reveal>
         <Reveal delay={80}>
           <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink href="/waitlist">Join the McMaster pilot</ButtonLink>
+            <ButtonLink href="/waitlist">Join the student waitlist</ButtonLink>
             <ButtonLink href="/contact" variant="outline">
               Contact the team
             </ButtonLink>

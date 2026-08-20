@@ -13,7 +13,7 @@ export function PageHeader({
     <header className="mb-7 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         {eyebrow ? (
-          <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-subtle">{eyebrow}</p>
+          <p className="text-[12px] font-medium text-subtle">{eyebrow}</p>
         ) : null}
         <h1 className="mt-1.5 font-display text-[28px] text-ink sm:text-[32px]" style={{ letterSpacing: "-0.6px" }}>
           {title}
@@ -30,7 +30,7 @@ export function StatGrid({ stats }: { stats: { label: string; value: string; hin
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => (
         <div key={stat.label} className="rounded-[10px] border border-line bg-white px-4 py-3.5">
-          <p className="text-[12px] uppercase tracking-[0.1em] text-subtle">{stat.label}</p>
+          <p className="text-[12px] text-subtle">{stat.label}</p>
           <p className="mt-1.5 font-display text-[26px] leading-none text-ink">{stat.value}</p>
           {stat.hint ? <p className="mt-1.5 text-[12.5px] leading-5 text-muted">{stat.hint}</p> : null}
         </div>

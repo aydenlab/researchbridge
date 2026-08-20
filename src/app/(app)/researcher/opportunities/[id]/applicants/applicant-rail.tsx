@@ -104,7 +104,9 @@ export function ApplicantRail({ opportunityId, applicants }: { opportunityId: st
                         {applicant.preferredName ?? applicant.firstName} {applicant.lastName}
                       </p>
                       {applicant.status === "submitted" ? (
-                        <span className="mt-1 size-1.5 shrink-0 rounded-full bg-clay" aria-hidden="true" />
+                        <span className="mt-0.5 shrink-0 rounded-full border border-[#eccdc2] bg-clay-soft px-2 py-0.5 text-[10.5px] font-medium text-clay">
+                          New
+                        </span>
                       ) : null}
                     </div>
                     <p className="mt-0.5 text-[12.5px] text-muted">
@@ -113,7 +115,7 @@ export function ApplicantRail({ opportunityId, applicants }: { opportunityId: st
                     </p>
                     <p className="mt-0.5 text-[12px] text-subtle">
                       {applicant.weeklyHours !== null ? `${applicant.weeklyHours} hours per week` : "Availability not set"}
-                      {applicant.submittedAt ? ` · ${formatShortDate(applicant.submittedAt)}` : ""}
+                      {applicant.submittedAt ? `, ${formatShortDate(applicant.submittedAt)}` : ""}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <StatusPill status={applicant.status as ApplicationStatus} />

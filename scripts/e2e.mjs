@@ -49,7 +49,7 @@ async function fresh() {
 
 try {
   const studentCtx = await fresh();
-  const student = await signIn(studentCtx, "obrienk@mcmaster.ca");
+  const student = await signIn(studentCtx, "obrienk@example.edu");
   step("student signs in and lands on the dashboard", student.url().includes("/dashboard"), student.url());
 
   await student.goto(`${BASE}/opportunities`, { waitUntil: "domcontentloaded" });
@@ -165,7 +165,7 @@ try {
   await studentCtx.close();
 
   const researcherCtx = await fresh();
-  const researcher = await signIn(researcherCtx, "okonjoa@mcmaster.ca");
+  const researcher = await signIn(researcherCtx, "okonjoa@example.edu");
   step("researcher signs in and lands on their dashboard", researcher.url().includes("/researcher"), researcher.url());
 
   await researcher.goto(`${BASE}/researcher/opportunities/new`, { waitUntil: "domcontentloaded" });
@@ -373,7 +373,7 @@ try {
   await anon.goto(`${BASE}/waitlist`, { waitUntil: "domcontentloaded" });
   await anon.fill("#firstName", "Priya");
   await anon.fill("#lastName", "Raghunathan");
-  await anon.fill("#email", `waitlist-${Date.now()}@mcmaster.ca`);
+  await anon.fill("#email", `waitlist-${Date.now()}@example.edu`);
   await anon.fill("#program", "Bachelor of Health Sciences");
   await anon.check('input[name="contactConsent"]');
   await anon.click('button:has-text("Join the pilot waitlist")');

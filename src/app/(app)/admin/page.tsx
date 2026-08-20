@@ -32,7 +32,7 @@ export default async function AdminOverviewPage() {
       <PageHeader
         eyebrow="ResearchBridge admin"
         title="Pilot overview"
-        lede="McMaster University, September 2026. Signup count is not the goal here. Confirmed research placements are."
+        lede="Signup count is not the goal here. Confirmed research placements are."
         actions={
           <>
             <ButtonLink href="/admin/system" variant="outline">

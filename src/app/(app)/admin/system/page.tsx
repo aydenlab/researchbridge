@@ -175,7 +175,8 @@ export default async function AdminSystemPage() {
                   <div className="min-w-0">
                     <p className="font-mono text-[12.5px] text-ink">{row.type}</p>
                     <p className="mt-0.5 text-[11.5px] text-subtle">
-                      {row.model ?? "no model"} · prompt {row.promptVersion} · {formatShortDate(row.createdAt)}
+                      {row.model ?? "no model"}, prompt version {row.promptVersion}, run{" "}
+                      {formatShortDate(row.createdAt)}
                     </p>
                   </div>
                   <Badge tone={row.status === "ok" ? "ok" : "warn"}>{row.errorCode ?? row.status}</Badge>
@@ -195,7 +196,7 @@ export default async function AdminSystemPage() {
                   <div className="min-w-0">
                     <p className="font-mono text-[12.5px] text-ink">{row.action}</p>
                     <p className="mt-0.5 text-[11.5px] text-subtle">
-                      {row.subjectType ?? "system"} · {formatShortDate(row.createdAt)}
+                      {row.subjectType ?? "system"}, {formatShortDate(row.createdAt)}
                     </p>
                   </div>
                 </li>

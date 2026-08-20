@@ -48,7 +48,7 @@ export function SignInForm() {
             label="Institutional email"
             htmlFor="email"
             required
-            hint="McMaster students and researchers use an mcmaster.ca address."
+            hint="Use the email address your university issued you."
             error={emailState?.ok === false ? emailState.fieldErrors?.email?.[0] : undefined}
           >
             <Input
@@ -58,7 +58,7 @@ export function SignInForm() {
               autoComplete="email"
               inputMode="email"
               required
-              placeholder="name@mcmaster.ca"
+              placeholder="name@university.ca"
               aria-describedby="email-hint"
             />
           </Field>

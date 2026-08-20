@@ -86,7 +86,7 @@ export default async function EditApplicationPage({ params }: { params: Promise<
       </nav>
 
       <header className="mb-7">
-        <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-subtle">Application draft</p>
+        <p className="text-[12px] font-medium text-subtle">Application draft</p>
         <h1 className="mt-2 font-display text-[28px] leading-tight text-ink sm:text-[32px]" style={{ letterSpacing: "-0.6px" }}>
           {bundle.opportunity.title}
         </h1>

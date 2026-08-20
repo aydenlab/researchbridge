@@ -6,7 +6,7 @@ import { formatDate } from "@/lib/format";
 import { GRADE_SCALES, scaleForMetric } from "@/lib/gpa";
 import { DEGREE_LABELS, LOCATION_LABELS, labelOr } from "@/lib/labels";
 import { computeProfileCompletion, loadStudentProfile, missingProfileItems, toAcademicMetrics } from "@/lib/queries/student";
-import { listCourses, listFaculties, listResearchFields, listSkills } from "@/lib/queries/taxonomy";
+import { listCourses, listFaculties, listResearchFields, listSkills, loadInstitution } from "@/lib/queries/taxonomy";
 import {
   AcademicsForm,
   AvailabilityForm,
@@ -51,11 +51,12 @@ export default async function StudentOnboardingPage({
   const step = Number.isFinite(requested) ? Math.min(Math.max(Math.round(requested), 1), STEPS.length) : furthest;
 
   const institutionId = user.institutionId;
-  const [fields, allSkills, courses, faculties] = await Promise.all([
+  const [fields, allSkills, courses, faculties, institution] = await Promise.all([
     listResearchFields(),
     listSkills(),
     institutionId ? listCourses(institutionId) : Promise.resolve([]),
     institutionId ? listFaculties(institutionId) : Promise.resolve([]),
+    institutionId ? loadInstitution(institutionId) : Promise.resolve(null),
   ]);
 
   const profile = {
@@ -129,7 +130,7 @@ export default async function StudentOnboardingPage({
           courseSuggestions={courses.map((course) => course.courseCode)}
           selectedCourses={bundle.courses.map((course) => course.courseCode)}
           metric={metric}
-          institutionScaleName={user.institutionSlug === "mcmaster" ? "McMaster 12 point" : null}
+          institutionScaleName={institution?.gpaScaleName ?? null}
         />
       ) : null}
       {step === 3 ? (

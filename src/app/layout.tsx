@@ -37,7 +37,6 @@ export const metadata: Metadata = {
     "university research",
     "undergraduate research",
     "research assistant",
-    "McMaster research",
     "research opportunities",
   ],
   alternates: { canonical: "/" },

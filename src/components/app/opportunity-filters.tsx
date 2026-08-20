@@ -110,7 +110,7 @@ export function OpportunityFilters({
 
       <div className={cn("mt-4 flex-col gap-6", open ? "flex" : "hidden lg:flex")}>
         <div>
-          <label htmlFor="sort" className="mb-1.5 block text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">
+          <label htmlFor="sort" className="mb-1.5 block text-[12px] font-medium text-subtle">
             Sort by
           </label>
           <Select id="sort" value={params.get("sort") ?? "recent"} onChange={(event) => setSingle("sort", event.target.value)}>
@@ -121,7 +121,7 @@ export function OpportunityFilters({
         </div>
 
         <div>
-          <label htmlFor="maxHours" className="mb-1.5 block text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">
+          <label htmlFor="maxHours" className="mb-1.5 block text-[12px] font-medium text-subtle">
             Maximum hours per week
           </label>
           <Select id="maxHours" value={params.get("maxHours") ?? ""} onChange={(event) => setSingle("maxHours", event.target.value)}>
@@ -135,7 +135,7 @@ export function OpportunityFilters({
 
         {groups.map((group) => (
           <fieldset key={group.key}>
-            <legend className="mb-2 text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">{group.label}</legend>
+            <legend className="mb-2 text-[12px] font-medium text-subtle">{group.label}</legend>
             <div className="flex flex-col gap-1.5">
               {group.options.map((option) => {
                 const checked = current(group.key).includes(option.value);

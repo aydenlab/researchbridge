@@ -101,7 +101,7 @@ export default async function ApplicationDetailPage({
                         <span className="mr-2 font-mono text-[12px] text-subtle">{String(index + 1).padStart(2, "0")}</span>
                         {question.prompt}
                       </p>
-                      <p className="mt-1 pl-8 text-[11.5px] uppercase tracking-[0.08em] text-subtle">
+                      <p className="mt-1 pl-8 text-[11.5px] text-subtle">
                         {labelOr(QUESTION_TYPE_LABELS, question.type)}
                       </p>
                       <div className="mt-2 pl-8">
@@ -157,7 +157,7 @@ export default async function ApplicationDetailPage({
 
         <aside className="lg:sticky lg:top-[76px] lg:self-start">
           <div className="rounded-[12px] border border-line bg-white p-5">
-            <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-subtle">Position</p>
+            <p className="text-[12px] font-medium text-subtle">Position</p>
             <Link
               href={`/opportunities/${bundle.opportunity.slug}`}
               className="mt-2 block text-[14.5px] font-medium leading-6 text-ink underline decoration-line-strong underline-offset-4"
@@ -192,7 +192,7 @@ export default async function ApplicationDetailPage({
           </div>
 
           <div className="mt-4 rounded-[12px] border border-line bg-white p-5">
-            <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-subtle">History</p>
+            <p className="text-[12px] font-medium text-subtle">History</p>
             <ol className="mt-3 flex flex-col gap-3">
               {bundle.history.map((entry) => (
                 <li key={entry.id} className="text-[12.5px] leading-5">

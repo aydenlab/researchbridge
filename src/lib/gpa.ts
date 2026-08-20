@@ -18,11 +18,11 @@ export type GradeScale = {
 
 export const GRADE_SCALES: GradeScale[] = [
   {
-    id: "mcmaster_12",
-    label: "McMaster 12 point scale",
+    id: "institution_12",
+    label: "12 point scale",
     metricType: "institution_scale",
     max: 12,
-    institutionScaleName: "McMaster 12 point",
+    institutionScaleName: "12 point",
     step: 0.01,
   },
   { id: "gpa_4", label: "4.0 scale", metricType: "gpa", max: 4, institutionScaleName: null, step: 0.01 },

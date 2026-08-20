@@ -7,7 +7,7 @@ import { ResearcherInterestForm } from "../../waitlist/waitlist-forms";
 export const metadata: Metadata = {
   title: "Recruit students",
   description:
-    "Register interest in recruiting students through ResearchBridge for the McMaster University pilot in September 2026.",
+    "Register interest in recruiting students through ResearchBridge for the first pilot cohort.",
   alternates: { canonical: "/researchers/interest" },
 };
 
@@ -55,7 +55,7 @@ export default function ResearcherInterestPage() {
           <Reveal delay={80}>
             <aside className="flex flex-col gap-5">
               <div className="rounded-[12px] border border-line bg-cream/60 p-5">
-                <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-subtle">The first cohort</p>
+                <p className="text-[12px] font-medium text-subtle">The first cohort</p>
                 <ul className="mt-3 flex flex-col gap-3">
                   {POINTS.map((point) => (
                     <li key={point} className="text-[13.5px] leading-6 text-muted">
@@ -66,7 +66,7 @@ export default function ResearcherInterestPage() {
               </div>
 
               <div className="rounded-[12px] border border-line bg-white p-5">
-                <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-subtle">Who can post</p>
+                <p className="text-[12px] font-medium text-subtle">Who can post</p>
                 <ul className="mt-3 flex flex-col gap-2">
                   {WHO.map((item) => (
                     <li key={item} className="text-[13.5px] leading-6 text-muted">

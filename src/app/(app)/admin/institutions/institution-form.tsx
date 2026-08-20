@@ -57,7 +57,7 @@ export function InstitutionForm({ institution }: { institution: Institution | nu
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Default grading scale" htmlFor={`${prefix}-scale`} hint="For example, McMaster 12 point.">
+        <Field label="Default grading scale" htmlFor={`${prefix}-scale`} hint="For example, 12 point.">
           <Input id={`${prefix}-scale`} name="gpaScaleName" defaultValue={institution?.gpaScaleName ?? ""} />
         </Field>
         <Field label="Scale maximum" htmlFor={`${prefix}-scale-max`} hint="Never assumed to be 4.0.">
@@ -70,7 +70,7 @@ export function InstitutionForm({ institution }: { institution: Institution | nu
         htmlFor={`${prefix}-domains`}
         hint="Separate with commas. Anyone with a matching address can verify and create an account."
       >
-        <Input id={`${prefix}-domains`} name="domains" defaultValue={institution?.domains ?? ""} placeholder="mcmaster.ca, learnlink.mcmaster.ca" />
+        <Input id={`${prefix}-domains`} name="domains" defaultValue={institution?.domains ?? ""} placeholder="example.edu, alumni.example.edu" />
       </Field>
 
       <div className="flex flex-wrap gap-3">

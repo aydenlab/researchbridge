@@ -4,7 +4,7 @@ import { LegalNotice, LegalSection } from "@/components/marketing/legal";
 
 export const metadata: Metadata = {
   title: "Terms",
-  description: "The terms under which ResearchBridge is offered during the McMaster pilot.",
+  description: "The terms under which ResearchBridge is offered during the pilot.",
   alternates: { canonical: "/terms" },
 };
 
@@ -23,8 +23,8 @@ export default function TermsPage() {
 
         <LegalSection title="Who may use ResearchBridge">
           <p>
-            Accounts are created with an institutional email address belonging to a participating institution. During
-            the pilot that means McMaster University. Researcher accounts are reviewed by a ResearchBridge
+            Accounts are created with an institutional email address belonging to a participating institution.
+            Participating institutions are configured by ResearchBridge, and researcher accounts are reviewed by an
             administrator before positions can be published.
           </p>
         </LegalSection>

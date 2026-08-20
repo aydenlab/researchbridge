@@ -18,7 +18,6 @@ function Toggle({ enabled }: { enabled: boolean }) {
         enabled ? "border-[#c2dccc] bg-moss text-ok" : "border-line-strong bg-white text-muted",
       )}
     >
-      <span className={cn("size-2 rounded-full", enabled ? "bg-ok" : "bg-subtle")} aria-hidden="true" />
       {pending ? "Saving" : enabled ? "Enabled" : "Disabled"}
     </button>
   );

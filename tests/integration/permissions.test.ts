@@ -6,7 +6,7 @@ import { createApplicationGraph, createOpportunity, createResearcher, createStud
 function session(id: string, role: SessionUser["role"]): SessionUser {
   return {
     id,
-    email: `${id}@mcmaster.ca`,
+    email: `${id}@example.edu`,
     role,
     accountStatus: "active",
     institutionId: null,

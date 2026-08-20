@@ -14,7 +14,7 @@ const CONFIG_HINTS: Record<string, { label: string; placeholder: string; hint: s
   prior_research: { label: "Minimum experiences", placeholder: "1", hint: "Leave at 1 unless you need more than one prior role." },
   research_interest: { label: "Research fields", placeholder: "Epidemiology, Cardiology", hint: "Separate with commas." },
   technique: { label: "Keywords", placeholder: "MRI, preprocessing, EEG", hint: "Used to find related descriptions in written answers." },
-  academic_metric: { label: "Minimum value", placeholder: "9", hint: "On the McMaster 12 point scale. Students on other scales are marked as not enough information." },
+  academic_metric: { label: "Minimum value", placeholder: "9", hint: "On the institution scale configured for your university. Students on other scales are marked as not enough information." },
   written_response: { label: "Not applicable", placeholder: "", hint: "Assessed from written answers rather than a stored field." },
   custom: { label: "Not applicable", placeholder: "", hint: "Assessed from written answers rather than a stored field." },
 };
@@ -43,7 +43,7 @@ function CriterionRow({ index, draft, onRemove }: { index: number; draft: Criter
 
   return (
     <fieldset className="rounded-[10px] border border-line bg-shell/50 p-4">
-      <legend className="px-1 text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">
+      <legend className="px-1 text-[12px] font-medium text-subtle">
         Criterion {index + 1}
       </legend>
 
@@ -252,7 +252,7 @@ function QuestionRow({ index, draft, onRemove }: { index: number; draft: Questio
 
   return (
     <fieldset className="rounded-[10px] border border-line bg-shell/50 p-4">
-      <legend className="px-1 text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">
+      <legend className="px-1 text-[12px] font-medium text-subtle">
         Question {index + 1}
       </legend>
 

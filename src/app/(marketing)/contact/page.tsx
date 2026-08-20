@@ -4,14 +4,14 @@ import { Reveal } from "@/components/marketing/reveal";
 
 export const metadata: Metadata = {
   title: "Contact",
-  description: "Reach the ResearchBridge team about the McMaster pilot, recruiting students, or joining as a researcher.",
+  description: "Reach the ResearchBridge team about the pilot, recruiting students, or joining as a researcher.",
   alternates: { canonical: "/contact" },
 };
 
 const ROUTES = [
   { title: "Students", body: "Questions about the pilot, your profile, or an application you submitted." },
   { title: "Researchers", body: "Posting a position, researcher account review, or reviewing applicants." },
-  { title: "Universities", body: "Bringing ResearchBridge to another institution after the McMaster pilot." },
+  { title: "Universities", body: "Bringing ResearchBridge to your institution." },
 ];
 
 export default function ContactPage() {

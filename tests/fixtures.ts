@@ -19,17 +19,17 @@ export async function ensureInstitution(): Promise<string> {
   const [row] = await db
     .insert(institutions)
     .values({
-      name: "McMaster University",
-      slug: `mcmaster-${randomUUID().slice(0, 8)}`,
-      location: "Hamilton, Ontario",
-      gpaScaleName: "McMaster 12 point",
+      name: "Example University",
+      slug: `example-university-${randomUUID().slice(0, 8)}`,
+      location: "Springfield",
+      gpaScaleName: "12 point",
       gpaScaleMax: "12",
       active: true,
       isPilot: true,
     })
     .returning({ id: institutions.id });
   institutionId = row.id;
-  await db.insert(institutionEmailDomains).values({ institutionId: row.id, domain: "mcmaster.ca" });
+  await db.insert(institutionEmailDomains).values({ institutionId: row.id, domain: "example.edu" });
   return row.id;
 }
 
@@ -38,7 +38,7 @@ export async function createStudent(overrides: Partial<typeof studentProfiles.$i
   const [user] = await db
     .insert(users)
     .values({
-      email: `student-${randomUUID().slice(0, 12)}@mcmaster.ca`,
+      email: `student-${randomUUID().slice(0, 12)}@example.edu`,
       role: "student",
       accountStatus: "active",
       institutionId: institution,
@@ -69,7 +69,7 @@ export async function createResearcher(verified = true) {
   const [user] = await db
     .insert(users)
     .values({
-      email: `researcher-${randomUUID().slice(0, 12)}@mcmaster.ca`,
+      email: `researcher-${randomUUID().slice(0, 12)}@example.edu`,
       role: "researcher",
       accountStatus: "active",
       institutionId: institution,

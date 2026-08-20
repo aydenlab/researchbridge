@@ -35,7 +35,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             One profile. Real openings. Project-specific applications.
           </p>
           <p className="mt-4 max-w-sm text-[14px] leading-6 text-white/80">
-            The pilot runs at McMaster University from September 2026, starting with Health Sciences and Life Sciences.
+            The first pilot runs in health and life sciences at a single university, with students taking part for free.
           </p>
         </div>
       </div>

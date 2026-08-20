@@ -1,5 +1,4 @@
 import { ButtonLink } from "@/components/ui/button";
-import { PartnerBelt } from "./partner-belt";
 import { RotatingPhrase } from "./rotating-phrase";
 
 const PHRASES = [
@@ -9,6 +8,12 @@ const PHRASES = [
   "cancer cell biology",
   "health policy",
   "rehabilitation science",
+];
+
+const ASSURANCES = [
+  "Free for students",
+  "No research experience required to start",
+  "Compensation stated before you apply",
 ];
 
 export function Hero() {
@@ -31,9 +36,8 @@ export function Hero() {
                 boxShadow: "rgba(0,0,0,0.08) 0px 0px 0px 0.5px inset",
               }}
             >
-              <span className="size-1.5 rounded-full bg-[#e0b855]" aria-hidden="true" />
               <span className="text-[13px] font-medium tracking-[0.14px] text-white">
-                Pilot launching at McMaster University in September 2026
+                Currently in development, launching with our first university partner
               </span>
             </span>
 
@@ -60,7 +64,7 @@ export function Hero() {
 
             <div className="flex flex-wrap items-center justify-center gap-3">
               <ButtonLink href="/waitlist" size="lg" variant="onDark">
-                Join the McMaster pilot
+                Join the student waitlist
               </ButtonLink>
               <ButtonLink
                 href="/researchers/interest"
@@ -73,7 +77,15 @@ export function Hero() {
           </div>
         </div>
 
-        <PartnerBelt />
+        <div className="relative z-10 pb-12 sm:pb-16">
+          <ul className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 px-6 sm:gap-x-16">
+            {ASSURANCES.map((item) => (
+              <li key={item} className="text-[14px] font-medium tracking-[0.14px] text-white/80 sm:text-[15px]">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   );

@@ -98,7 +98,7 @@ function Section({
 }) {
   return (
     <section id={id} className="border-t border-line py-7 first-of-type:border-t-0 first-of-type:pt-0">
-      {eyebrow ? <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.12em] text-subtle">{eyebrow}</p> : null}
+      {eyebrow ? <p className="mb-2 text-[12px] font-medium text-subtle">{eyebrow}</p> : null}
       <h2 className="font-display text-[22px] text-ink" style={{ letterSpacing: "-0.4px" }}>
         {title}
       </h2>
@@ -246,7 +246,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
               </div>
               {detail.opportunity.projectGoals ? (
                 <div className="mt-5 rounded-[10px] border border-line bg-shell/70 px-4 py-3.5">
-                  <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Project goal</p>
+                  <p className="text-[12px] font-medium text-subtle">Project goal</p>
                   <p className="mt-1.5 text-[14.5px] leading-7 text-muted">{detail.opportunity.projectGoals}</p>
                 </div>
               ) : null}
@@ -282,7 +282,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
 
               {required.length > 0 ? (
                 <div className="mt-5">
-                  <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Required</p>
+                  <p className="text-[12px] font-medium text-subtle">Required</p>
                   <ul className="mt-2.5 flex flex-col gap-2">
                     {required.map((criterion) => (
                       <li key={criterion.id} className="rounded-[10px] border border-line bg-white px-4 py-3">
@@ -293,7 +293,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
                         {criterion.description ? (
                           <p className="mt-1 text-[13.5px] leading-6 text-muted">{criterion.description}</p>
                         ) : null}
-                        <p className="mt-1 text-[11.5px] uppercase tracking-[0.08em] text-subtle">
+                        <p className="mt-1 text-[11.5px] text-subtle">
                           {labelOr(CRITERION_TYPE_LABELS, criterion.type)}
                         </p>
                       </li>
@@ -304,7 +304,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
 
               {preferred.length > 0 ? (
                 <div className="mt-6">
-                  <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Preferred</p>
+                  <p className="text-[12px] font-medium text-subtle">Preferred</p>
                   <ul className="mt-2.5 flex flex-col gap-2">
                     {preferred.map((criterion) => (
                       <li key={criterion.id} className="rounded-[10px] border border-line bg-white px-4 py-3">
@@ -315,7 +315,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
                         {criterion.description ? (
                           <p className="mt-1 text-[13.5px] leading-6 text-muted">{criterion.description}</p>
                         ) : null}
-                        <p className="mt-1 text-[11.5px] uppercase tracking-[0.08em] text-subtle">
+                        <p className="mt-1 text-[11.5px] text-subtle">
                           {labelOr(CRITERION_TYPE_LABELS, criterion.type)}
                         </p>
                       </li>
@@ -442,7 +442,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
                             {question.required ? "Required" : "Optional"}
                           </Badge>
                         </div>
-                        <p className="mt-1.5 pl-8 text-[11.5px] uppercase tracking-[0.08em] text-subtle">
+                        <p className="mt-1.5 pl-8 text-[11.5px] text-subtle">
                           {labelOr(QUESTION_TYPE_LABELS, question.type)}
                         </p>
                         {question.helpText ? (
@@ -559,7 +559,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
 
               {overlaps.length > 0 ? (
                 <div className="mt-4">
-                  <p className="text-[11.5px] font-medium uppercase tracking-[0.1em] text-ok">Strong overlap</p>
+                  <p className="text-[11.5px] font-medium text-ok">Strong overlap</p>
                   <ul className="mt-2 flex flex-col gap-2">
                     {overlaps.map((item) => (
                       <li key={item.label} className="text-[13px] leading-5">
@@ -573,7 +573,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
 
               {gaps.length > 0 ? (
                 <div className="mt-4 border-t border-line pt-4">
-                  <p className="text-[11.5px] font-medium uppercase tracking-[0.1em] text-subtle">Possible gap</p>
+                  <p className="text-[11.5px] font-medium text-subtle">Possible gap</p>
                   <ul className="mt-2 flex flex-col gap-2">
                     {gaps.map((item) => (
                       <li key={item.label} className="text-[13px] leading-5">

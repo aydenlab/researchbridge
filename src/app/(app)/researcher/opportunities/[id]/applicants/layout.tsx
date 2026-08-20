@@ -56,15 +56,15 @@ export default async function ApplicantsLayout({
 
           <dl className="flex flex-wrap gap-x-8 gap-y-2">
             <div>
-              <dt className="text-[12px] uppercase tracking-[0.1em] text-subtle">Submitted</dt>
+              <dt className="text-[12px] text-subtle">Submitted</dt>
               <dd className="font-display text-[22px] leading-tight text-ink">{applicants.length}</dd>
             </div>
             <div>
-              <dt className="text-[12px] uppercase tracking-[0.1em] text-subtle">Reviewed</dt>
+              <dt className="text-[12px] text-subtle">Reviewed</dt>
               <dd className="font-display text-[22px] leading-tight text-ink">{reviewed}</dd>
             </div>
             <div>
-              <dt className="text-[12px] uppercase tracking-[0.1em] text-subtle">Openings</dt>
+              <dt className="text-[12px] text-subtle">Openings</dt>
               <dd className="font-display text-[22px] leading-tight text-ink">{detail.opportunity.numberOfOpenings}</dd>
             </div>
           </dl>

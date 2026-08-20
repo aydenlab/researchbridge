@@ -67,9 +67,9 @@ export function CriteriaEvidence({
           </span>
         </div>
 
-        <p className="mt-1 text-[11.5px] uppercase tracking-[0.08em] text-subtle">
-          Requested: {criterion.required ? "Required" : IMPORTANCE_LABEL[criterion.importance]} ·{" "}
-          {labelOr(CRITERION_TYPE_LABELS, criterion.type)}
+        <p className="mt-1 text-[11.5px] text-subtle">
+          Requested: {criterion.required ? "Required" : IMPORTANCE_LABEL[criterion.importance]}. Type:{" "}
+          {labelOr(CRITERION_TYPE_LABELS, criterion.type).toLowerCase()}
         </p>
 
         {criterion.description ? (
@@ -88,7 +88,7 @@ export function CriteriaEvidence({
 
         {assisted && assisted.evidence.length > 0 ? (
           <div className="mt-3 rounded-[8px] border border-line bg-shell/70 px-3 py-2.5">
-            <p className="inline-flex items-center gap-1.5 text-[11.5px] font-medium uppercase tracking-[0.08em] text-subtle">
+            <p className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-subtle">
               <Sparkles className="size-3" aria-hidden="true" />
               From the written application
             </p>
@@ -129,7 +129,7 @@ export function CriteriaEvidence({
       <div className="border-b border-line bg-shell/50 px-5 py-4">
         <div className="flex flex-wrap gap-x-8 gap-y-3">
           <div>
-            <p className="text-[11.5px] uppercase tracking-[0.1em] text-subtle">Required conditions</p>
+            <p className="text-[11.5px] text-subtle">Required conditions</p>
             <p className="mt-1 text-[15px] text-ink">
               {summary.requiredTotal === 0
                 ? "None set"
@@ -138,7 +138,7 @@ export function CriteriaEvidence({
             </p>
           </div>
           <div>
-            <p className="text-[11.5px] uppercase tracking-[0.1em] text-subtle">Preference coverage</p>
+            <p className="text-[11.5px] text-subtle">Preference coverage</p>
             <p className="mt-1 text-[15px] text-ink">
               {summary.preferencePercent === null
                 ? "No preferred criteria scored"
@@ -147,7 +147,7 @@ export function CriteriaEvidence({
           </div>
           {summary.unscoredPreferences > 0 ? (
             <div>
-              <p className="text-[11.5px] uppercase tracking-[0.1em] text-subtle">Not scored</p>
+              <p className="text-[11.5px] text-subtle">Not scored</p>
               <p className="mt-1 text-[15px] text-ink">
                 {summary.unscoredPreferences} criteria had no information either way
               </p>
@@ -186,7 +186,7 @@ export function CriteriaEvidence({
           <>
             {required.length > 0 ? (
               <div>
-                <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Required</p>
+                <p className="mb-2 text-[12px] font-medium text-subtle">Required</p>
                 <ul className="flex flex-col gap-2.5">
                   {required.map((criterion) => (
                     <Row key={criterion.id} criterion={criterion} />
@@ -197,7 +197,7 @@ export function CriteriaEvidence({
 
             {preferred.length > 0 ? (
               <div className={required.length > 0 ? "mt-5" : ""}>
-                <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.1em] text-subtle">Preferred</p>
+                <p className="mb-2 text-[12px] font-medium text-subtle">Preferred</p>
                 <ul className="flex flex-col gap-2.5">
                   {preferred.map((criterion) => (
                     <Row key={criterion.id} criterion={criterion} />

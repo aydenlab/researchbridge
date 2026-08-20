@@ -61,7 +61,7 @@ export default async function NotificationsPage() {
                 <div className="shrink-0 text-right">
                   <p className="text-[12px] text-subtle">{formatShortDate(row.createdAt)}</p>
                   {row.readAt === null ? (
-                    <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.1em] text-forest">Unread</p>
+                    <p className="mt-1 text-[11px] font-medium text-forest">Unread</p>
                   ) : null}
                 </div>
               </div>
