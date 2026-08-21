@@ -3,9 +3,8 @@ import type { z } from "zod";
 import { aiCostControls, env } from "@/lib/env";
 import { log } from "@/lib/log";
 import { breakerOpen, recordBreakerFailure, recordBreakerSuccess } from "./circuit-breaker";
-import { estimateTokens } from "./pricing";
-import { consumeRateLimit, pruneRateLimits, releaseRateLimit, type RateWindow } from "./rate-limit";
-import { budgetStatus, recordUsage } from "./spend";
+import { consumeRateLimit, releaseRateLimit, type RateWindow } from "./rate-limit";
+import { recordUsage, spendSummary } from "./spend";
 
 let client: Anthropic | null = null;
 let cachedKey: string | undefined;
@@ -127,54 +126,22 @@ function failureFor(error: unknown): StructuredFailure {
 }
 
 export async function structuredCall<T>(input: StructuredCallInput<T>): Promise<StructuredResult<T>> {
+  const blocked = (failure: StructuredFailure, detail: Record<string, unknown> = {}) => {
+    log.warn("ai_call_blocked", { feature: input.feature, reason: failure, ...detail });
+    return { ok: false as const, failure };
+  };
+
   const anthropic = getClient();
-  if (!anthropic) {
-    log.warn("ai_call_skipped", { feature: input.feature, reason: "missing_api_key" });
-    return { ok: false, failure: "missing_api_key" };
-  }
+  if (!anthropic) return blocked("missing_api_key");
+  if (breakerOpen(input.feature)) return blocked("provider_unavailable");
 
-  if (breakerOpen(input.feature)) {
-    log.warn("ai_call_skipped", { feature: input.feature, reason: "provider_unavailable" });
-    await recordUsage({
-      feature: input.feature,
-      model: env.ANTHROPIC_MODEL,
-      outcome: "blocked",
-      errorCode: "provider_unavailable",
-      subjectKey: input.subjectKey,
-    });
-    return { ok: false, failure: "provider_unavailable" };
-  }
-
-  const budget = await budgetStatus();
-  if (budget.exceeded) {
-    log.warn("ai_budget_exceeded", {
-      feature: input.feature,
-      scope: budget.exceeded,
-      dayUsd: budget.dayUsd,
-      monthUsd: budget.monthUsd,
-    });
-    await recordUsage({
-      feature: input.feature,
-      model: env.ANTHROPIC_MODEL,
-      outcome: "blocked",
-      errorCode: "budget_exceeded",
-      subjectKey: input.subjectKey,
-    });
-    return { ok: false, failure: "budget_exceeded" };
+  const spend = await spendSummary();
+  if (spend.exceeded) {
+    return blocked("budget_exceeded", { scope: spend.exceeded, dayUsd: spend.dayUsd, monthUsd: spend.monthUsd });
   }
 
   const windows = rateWindowsFor(input.feature, input.subjectKey);
-  const decision = await consumeRateLimit(windows);
-  if (!decision.allowed) {
-    await recordUsage({
-      feature: input.feature,
-      model: env.ANTHROPIC_MODEL,
-      outcome: "blocked",
-      errorCode: "throttled",
-      subjectKey: input.subjectKey,
-    });
-    return { ok: false, failure: "throttled" };
-  }
+  if (!(await consumeRateLimit(windows)).allowed) return blocked("throttled");
 
   const sharedContent = input.sharedContent ? clampWhole(input.sharedContent) : undefined;
   const userContent = clampWhole(input.userContent);
@@ -190,32 +157,15 @@ export async function structuredCall<T>(input: StructuredCallInput<T>): Promise<
       },
     ];
 
+    const cached = (text: string): Anthropic.TextBlockParam =>
+      cacheEnabled ? { type: "text", text, cache_control: { type: "ephemeral" } } : { type: "text", text };
+
     // Rendering order is tools, then system, then messages. A breakpoint on the
     // system block therefore caches the tool schema with it.
-    const system: Anthropic.TextBlockParam[] = [
-      {
-        type: "text",
-        text: input.system,
-        ...(cacheEnabled ? { cache_control: { type: "ephemeral" as const } } : {}),
-      },
-    ];
-
+    const system = [cached(input.system)];
     const content: Anthropic.TextBlockParam[] = sharedContent
-      ? [
-          {
-            type: "text",
-            text: sharedContent,
-            ...(cacheEnabled ? { cache_control: { type: "ephemeral" as const } } : {}),
-          },
-          { type: "text", text: userContent },
-        ]
+      ? [cached(sharedContent), { type: "text", text: userContent }]
       : [{ type: "text", text: userContent }];
-
-    log.debug("ai_call_started", {
-      feature: input.feature,
-      estimatedInputTokens: estimateTokens([input.system, sharedContent ?? "", userContent].join("\n")),
-      promptCache: cacheEnabled,
-    });
 
     const response = await anthropic.messages.create({
       model: env.ANTHROPIC_MODEL,
@@ -233,56 +183,26 @@ export async function structuredCall<T>(input: StructuredCallInput<T>): Promise<
       cacheReadInputTokens: response.usage?.cache_read_input_tokens ?? 0,
     };
 
-    const block = response.content.find((item) => item.type === "tool_use");
-    if (!block || block.type !== "tool_use") {
-      log.warn("ai_call_empty", { feature: input.feature });
-      recordBreakerSuccess(input.feature);
-      await recordUsage({
-        feature: input.feature,
-        model: response.model,
-        outcome: "ok",
-        errorCode: "empty_output",
-        subjectKey: input.subjectKey,
-        usage,
-        latencyMs: Date.now() - startedAt,
-      });
-      return { ok: false, failure: "empty_output" };
-    }
-
-    const parsed = input.parser.safeParse(block.input);
-    if (!parsed.success) {
-      log.warn("ai_output_invalid", { feature: input.feature, issues: parsed.error.issues.length });
-      recordBreakerSuccess(input.feature);
-      await recordUsage({
-        feature: input.feature,
-        model: response.model,
-        outcome: "ok",
-        errorCode: "invalid_output",
-        subjectKey: input.subjectKey,
-        usage,
-        latencyMs: Date.now() - startedAt,
-      });
-      return { ok: false, failure: "invalid_output" };
-    }
-
+    // The provider answered, so the call is billed and the breaker is satisfied
+    // even when the answer turns out to be unusable.
     recordBreakerSuccess(input.feature);
+    const block = response.content.find((item) => item.type === "tool_use");
+    const parsed = block?.type === "tool_use" ? input.parser.safeParse(block.input) : null;
+    const failure: StructuredFailure | null = !block ? "empty_output" : parsed?.success ? null : "invalid_output";
+
     const costUsd = await recordUsage({
       feature: input.feature,
       model: response.model,
       outcome: "ok",
+      errorCode: failure ?? undefined,
       subjectKey: input.subjectKey,
       usage,
       latencyMs: Date.now() - startedAt,
     });
 
-    log.info("ai_call_completed", {
-      feature: input.feature,
-      model: response.model,
-      costUsd,
-      cacheReadInputTokens: usage.cacheReadInputTokens,
-      cacheCreationInputTokens: usage.cacheCreationInputTokens,
-    });
+    log.info("ai_call_completed", { feature: input.feature, model: response.model, costUsd, failure, ...usage });
 
+    if (failure || !parsed?.success) return { ok: false, failure: failure ?? "invalid_output" };
     return { ok: true, data: parsed.data, model: response.model, costUsd, ...usage };
   } catch (error) {
     const failure = failureFor(error);
@@ -300,10 +220,6 @@ export async function structuredCall<T>(input: StructuredCallInput<T>): Promise<
       latencyMs: Date.now() - startedAt,
     });
     return { ok: false, failure };
-  } finally {
-    if (Math.random() < 0.02) {
-      await pruneRateLimits().catch((caught) => log.warn("ai_rate_limit_prune_failed", { error: caught }));
-    }
   }
 }
 

@@ -18,18 +18,6 @@ CREATE TABLE "ai_response_cache" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "ai_spend_daily" (
-	"day" date PRIMARY KEY NOT NULL,
-	"calls" integer DEFAULT 0 NOT NULL,
-	"input_tokens" integer DEFAULT 0 NOT NULL,
-	"output_tokens" integer DEFAULT 0 NOT NULL,
-	"cache_creation_input_tokens" integer DEFAULT 0 NOT NULL,
-	"cache_read_input_tokens" integer DEFAULT 0 NOT NULL,
-	"cost_usd" numeric(12, 6) DEFAULT '0' NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "ai_spend_daily_cost_nonnegative" CHECK ("ai_spend_daily"."cost_usd" >= 0)
-);
---> statement-breakpoint
 CREATE TABLE "ai_usage_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"feature" text NOT NULL,

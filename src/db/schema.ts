@@ -858,21 +858,6 @@ export const aiUsageEvents = pgTable(
   ],
 );
 
-export const aiSpendDaily = pgTable(
-  "ai_spend_daily",
-  {
-    day: date("day").primaryKey(),
-    calls: integer("calls").notNull().default(0),
-    inputTokens: integer("input_tokens").notNull().default(0),
-    outputTokens: integer("output_tokens").notNull().default(0),
-    cacheCreationInputTokens: integer("cache_creation_input_tokens").notNull().default(0),
-    cacheReadInputTokens: integer("cache_read_input_tokens").notNull().default(0),
-    costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [check("ai_spend_daily_cost_nonnegative", sql`"ai_spend_daily"."cost_usd" >= 0`)],
-);
-
 export const aiRateLimits = pgTable(
   "ai_rate_limits",
   {

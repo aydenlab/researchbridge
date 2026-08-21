@@ -1,5 +1,5 @@
 {
-  "id": "a5de6021-b742-4d40-92df-611dba5394a2",
+  "id": "cccccfec-268e-4a58-8308-023da498d7c4",
   "prevId": "70fc110c-d050-4fb9-aa4b-7d091e3396f2",
   "version": "7",
   "dialect": "postgresql",
@@ -309,79 +309,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ai_spend_daily": {
-      "name": "ai_spend_daily",
-      "schema": "",
-      "columns": {
-        "day": {
-          "name": "day",
-          "type": "date",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "calls": {
-          "name": "calls",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "input_tokens": {
-          "name": "input_tokens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "output_tokens": {
-          "name": "output_tokens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "cache_creation_input_tokens": {
-          "name": "cache_creation_input_tokens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "cache_read_input_tokens": {
-          "name": "cache_read_input_tokens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "cost_usd": {
-          "name": "cost_usd",
-          "type": "numeric(12, 6)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'0'"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "ai_spend_daily_cost_nonnegative": {
-          "name": "ai_spend_daily_cost_nonnegative",
-          "value": "\"ai_spend_daily\".\"cost_usd\" >= 0"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.ai_usage_events": {

@@ -1,5 +1,3 @@
-import { log } from "@/lib/log";
-
 const inFlight = new Map<string, Promise<unknown>>();
 
 /**
@@ -10,22 +8,12 @@ const inFlight = new Map<string, Promise<unknown>>();
  * spans one process; the database cache covers the cross-worker case.
  */
 export async function singleFlight<T>(key: string, work: () => Promise<T>): Promise<T> {
-  const existing = inFlight.get(key);
-  if (existing) {
-    log.debug("ai_call_joined_in_flight", { key });
-    return existing as Promise<T>;
-  }
+  const existing = inFlight.get(key) as Promise<T> | undefined;
+  if (existing) return existing;
 
-  const pending = work().finally(() => {
-    inFlight.delete(key);
-  });
-
+  const pending = work().finally(() => inFlight.delete(key));
   inFlight.set(key, pending);
   return pending;
-}
-
-export function inFlightCount(): number {
-  return inFlight.size;
 }
 
 export function resetSingleFlight(): void {

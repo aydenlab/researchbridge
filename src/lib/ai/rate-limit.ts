@@ -2,16 +2,7 @@ import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { aiRateLimits, db } from "@/db";
 import { log } from "@/lib/log";
 
-export type RateWindow = {
-  /** Stable identity for the thing being limited, for example `global` or `subject:<id>`. */
-  bucket: string;
-  limit: number;
-  windowMs: number;
-};
-
-export type RateDecision =
-  | { allowed: true }
-  | { allowed: false; bucket: string; limit: number; retryAfterMs: number };
+export type RateWindow = { bucket: string; limit: number; windowMs: number };
 
 const PRUNE_AFTER_MS = 2 * 24 * 60 * 60 * 1000;
 
@@ -26,33 +17,24 @@ function windowStartFor(now: number, windowMs: number): Date {
  * line is rejected without consuming a slot, so a rejected caller does not push
  * the window further out of reach.
  */
-export async function consumeRateLimit(windows: RateWindow[]): Promise<RateDecision> {
+export async function consumeRateLimit(windows: RateWindow[]): Promise<{ allowed: boolean }> {
   if (windows.length === 0) return { allowed: true };
 
   const now = Date.now();
-  const rows = windows.map((window) => ({
-    ...window,
-    windowStart: windowStartFor(now, window.windowMs),
-  }));
+  const rows = windows.map((window) => ({ ...window, windowStart: windowStartFor(now, window.windowMs) }));
 
   const existing = await db
     .select({ bucket: aiRateLimits.bucket, windowStart: aiRateLimits.windowStart, count: aiRateLimits.count })
     .from(aiRateLimits)
-    .where(
-      inArray(
-        aiRateLimits.bucket,
-        rows.map((row) => row.bucket),
-      ),
-    );
+    .where(inArray(aiRateLimits.bucket, rows.map((row) => row.bucket)));
 
   const counts = new Map(existing.map((row) => [`${row.bucket}@${row.windowStart.getTime()}`, row.count]));
 
   for (const row of rows) {
     const used = counts.get(`${row.bucket}@${row.windowStart.getTime()}`) ?? 0;
     if (used >= row.limit) {
-      const retryAfterMs = row.windowStart.getTime() + row.windowMs - now;
       log.warn("ai_rate_limited", { bucket: row.bucket, limit: row.limit, used });
-      return { allowed: false, bucket: row.bucket, limit: row.limit, retryAfterMs: Math.max(retryAfterMs, 0) };
+      return { allowed: false };
     }
   }
 
@@ -64,6 +46,15 @@ export async function consumeRateLimit(windows: RateWindow[]): Promise<RateDecis
         target: [aiRateLimits.bucket, aiRateLimits.windowStart],
         set: { count: sql`${aiRateLimits.count} + 1` },
       });
+  }
+
+  // Windows that have rolled over are dead weight. Clearing them occasionally
+  // keeps the table at roughly the number of live buckets.
+  if (Math.random() < 0.02) {
+    await db
+      .delete(aiRateLimits)
+      .where(lt(aiRateLimits.windowStart, new Date(now - PRUNE_AFTER_MS)))
+      .catch((caught) => log.warn("ai_rate_limit_prune_failed", { error: caught }));
   }
 
   return { allowed: true };
@@ -80,8 +71,4 @@ export async function releaseRateLimit(windows: RateWindow[]): Promise<void> {
         and(eq(aiRateLimits.bucket, window.bucket), eq(aiRateLimits.windowStart, windowStartFor(now, window.windowMs))),
       );
   }
-}
-
-export async function pruneRateLimits(): Promise<void> {
-  await db.delete(aiRateLimits).where(lt(aiRateLimits.windowStart, new Date(Date.now() - PRUNE_AFTER_MS)));
 }

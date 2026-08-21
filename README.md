@@ -245,11 +245,11 @@ Every provider call passes through `lib/ai/anthropic.ts`, which is the only plac
 
 **Bound how many requests can happen.** Fixed-window counters in `ai_rate_limits` limit calls per minute, per day, and per application per hour. They live in the database so every worker shares one allowance. A request that is already over the line is refused without consuming a slot, and a call that fails before reaching the provider gives its slot back.
 
-**Bound total spend.** Token counts from each response are priced against the published list rates in `lib/ai/pricing.ts` and rolled into `ai_spend_daily`. When the daily or monthly budget is reached, calls stop until the next period. Deterministic criteria keep working throughout, so the product degrades rather than breaking.
+**Bound total spend.** Token counts from each response are priced against the published list rates in `lib/ai/pricing.ts` and written to `ai_usage_events`. The budget check is one indexed pass over that table; the daily call ceiling bounds how many rows a month can hold, so a rollup table would only duplicate it. When the daily or monthly budget is reached, calls stop until the next period. Deterministic criteria keep working throughout, so the product degrades rather than breaking.
 
 **Stop paying for a provider that is down.** Four consecutive failures open a circuit breaker for two minutes, after which one call is allowed through to test recovery. A transient failure is remembered for thirty minutes so it is not retried in a loop, while a rejected response schema is remembered as authoritative, because resending identical bytes would fail identically.
 
-Blocked and failed calls are written to `ai_usage_events` with the reason, so `/admin/system` distinguishes a rate limit from an outage from an exhausted budget.
+Calls that reached the provider are recorded with their outcome, so `/admin/system` shows spend against budget and the prompt cache hit rate. Calls refused before that point are logged as `ai_call_blocked` with the reason, rather than stored, so a hammering client cannot inflate the table it is being measured against.
 
 Not implemented, and worth revisiting if volume grows: the Message Batches API halves the price of work that does not need an immediate answer, which describes analysis on submission. It needs a worker to poll batch results, so it was left out of the pilot.
 
