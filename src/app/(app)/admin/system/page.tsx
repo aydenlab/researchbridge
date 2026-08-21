@@ -8,6 +8,8 @@ import { ButtonLink } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/auth/permissions";
 import { activeDriver } from "@/db";
 import { anthropicAvailable } from "@/lib/ai/anthropic";
+import { formatUsd, isPricedModel } from "@/lib/ai/pricing";
+import { spendSummary } from "@/lib/ai/spend";
 import { env } from "@/lib/env";
 import { allFlags } from "@/lib/flags";
 import { formatShortDate } from "@/lib/format";
@@ -30,7 +32,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
 export default async function AdminSystemPage() {
   await requireAdmin();
 
-  const [flags, aiRows, auditRows, waitlist, aiStats] = await Promise.all([
+  const [flags, aiRows, auditRows, waitlist, aiStats, spend] = await Promise.all([
     allFlags(),
     db.select().from(aiAnalyses).orderBy(desc(aiAnalyses.createdAt)).limit(12),
     db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(20),
@@ -43,6 +45,7 @@ export default async function AdminSystemPage() {
         outputTokens: sql<number>`coalesce(sum(${aiAnalyses.outputTokens}), 0)::int`,
       })
       .from(aiAnalyses),
+    spendSummary(),
   ]);
 
   const stats = aiStats[0];
@@ -122,7 +125,39 @@ export default async function AdminSystemPage() {
                 {stats.inputTokens} in, {stats.outputTokens} out
               </dd>
             </div>
+            <div className="flex items-center justify-between gap-3 px-5 py-3">
+              <dt className="text-[13.5px] text-ink">Spend today</dt>
+              <dd className="text-[13px] text-muted">
+                {formatUsd(spend.dayUsd)} of {formatUsd(spend.dailyLimitUsd)}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-5 py-3">
+              <dt className="text-[13.5px] text-ink">Spend this month</dt>
+              <dd className="text-[13px] text-muted">
+                {formatUsd(spend.monthUsd)} of {formatUsd(spend.monthlyLimitUsd)}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-5 py-3">
+              <dt className="text-[13.5px] text-ink">Prompt cache hit rate</dt>
+              <dd className="text-[13px] text-muted">
+                {Math.round(spend.cacheHitRate * 100)} percent of prompt tokens this month
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-5 py-3">
+              <dt className="text-[13.5px] text-ink">Budget</dt>
+              <dd>
+                <Badge tone={spend.exceeded ? "warn" : "ok"}>
+                  {spend.exceeded ? `${spend.exceeded} limit reached` : "Within limits"}
+                </Badge>
+              </dd>
+            </div>
           </dl>
+          <p className="border-t border-line px-5 py-3 text-[12px] leading-5 text-subtle">
+            {isPricedModel(env.ANTHROPIC_MODEL)
+              ? "Spend is estimated from published list prices and the token counts the provider reports."
+              : `Spend for ${env.ANTHROPIC_MODEL} is estimated at Opus list prices because it is not in the price table.`}{" "}
+            When a budget is reached, analysis stops until the next period and the deterministic criteria keep running.
+          </p>
           <p className="border-t border-line px-5 py-3 text-[12px] leading-5 text-subtle">
             When the email provider is console, verification codes are printed to the server log rather than sent. Local
             file storage is not durable on Railway, so connect object storage before relying on uploads in production.

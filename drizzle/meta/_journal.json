@@ -15,6 +15,13 @@
       "when": 1787186466355,
       "tag": "0001_integrity_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787295588021,
+      "tag": "0002_ai_cost_controls",
+      "breakpoints": true
     }
   ]
 }

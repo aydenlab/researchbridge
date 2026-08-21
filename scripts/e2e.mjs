@@ -353,6 +353,18 @@ try {
   const flagCount = await admin.locator('input[name="key"]').count();
   step("admin can see and toggle feature flags", flagCount >= 5, `${flagCount} flags`);
 
+  const systemText = await admin.locator("body").innerText();
+  step(
+    "admin can see Claude spend against its budget",
+    /Spend today[\s\S]*?\$/.test(systemText) && /Spend this month[\s\S]*?\$/.test(systemText),
+    systemText.match(/Spend today\s*\S+ of \S+/)?.[0] ?? "not found",
+  );
+  step(
+    "admin can see the prompt cache hit rate and budget state",
+    /Prompt cache hit rate/.test(systemText) && /(Within limits|limit reached)/.test(systemText),
+    systemText.match(/Prompt cache hit rate\s*[^\n]+/)?.[0] ?? "not found",
+  );
+
   const exportResponse = await admin.request.get(`${BASE}/api/admin/export?dataset=applications`);
   const csv = await exportResponse.text();
   step(

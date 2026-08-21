@@ -58,6 +58,18 @@ Open http://localhost:3000.
 | `ADMIN_EMAILS` | First deploy | Comma-separated addresses that become ResearchBridge administrators on sign in, bypassing the institution domain check. Needed to bootstrap a fresh database, which has no institutions until an admin creates one. |
 | `ANTHROPIC_API_KEY` | No | Enables Claude evidence analysis. Server only, never prefixed with `NEXT_PUBLIC_`. |
 | `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-5`. Changing the model does not require a code change. |
+| `ANTHROPIC_PROMPT_CACHE_ENABLED` | No | Marks the stable part of each prompt as cacheable. On by default. |
+| `AI_DAILY_BUDGET_USD` | No | Estimated spend allowed per UTC day before analysis stops. Defaults to 5. |
+| `AI_MONTHLY_BUDGET_USD` | No | Estimated spend allowed per UTC month. Defaults to 50. |
+| `AI_MAX_CALLS_PER_MINUTE` | No | Provider calls allowed across the deployment per minute. Defaults to 20. |
+| `AI_MAX_CALLS_PER_DAY` | No | Provider calls allowed across the deployment per day. Defaults to 500. |
+| `AI_MAX_CALLS_PER_SUBJECT_PER_HOUR` | No | Calls allowed for one application per hour, which bounds refresh clicking. Defaults to 5. |
+| `AI_MAX_SECTION_CHARS` | No | Longest single block of student text sent to the model. Defaults to 8000. |
+| `AI_MAX_INPUT_CHARS` | No | Longest whole request sent to the model. Defaults to 24000. |
+| `AI_RESPONSE_CACHE_TTL_HOURS` | No | How long a successful cached result is reused. Defaults to 168. |
+| `AI_NEGATIVE_CACHE_TTL_MINUTES` | No | How long a transient failure is remembered before a retry. Defaults to 30. |
+| `AI_BREAKER_FAILURE_THRESHOLD` | No | Consecutive provider failures that pause calls. Defaults to 4. |
+| `AI_BREAKER_COOLDOWN_SECONDS` | No | How long calls stay paused after that. Defaults to 120. |
 | `EMAIL_PROVIDER` | No | `console` (default), `resend`, or `smtp`. |
 | `EMAIL_FROM` | No | From address on transactional email. |
 | `EMAIL_API_KEY` | No | Provider key when `EMAIL_PROVIDER=resend`. |
@@ -220,6 +232,26 @@ Institution email domains live in the database. There is no `if (school === "Exa
 - Every run stores model, prompt version, schema version, input hash, result, and token counts in `ai_analyses` for audit and cost visibility.
 - Results are cached by input hash. Claude is re-run on submission, on relevant changes, or when a researcher asks for a refresh.
 - When the key is missing or the provider fails, applications still submit, deterministic criteria still evaluate, and the panel shows an understated unavailable state.
+
+### Keeping Claude spend predictable
+
+Every provider call passes through `lib/ai/anthropic.ts`, which is the only place the SDK is used. The controls below run in order, and each one is measured rather than assumed.
+
+**Answer without calling.** A completed analysis is stored under a hash of the exact prompt inputs, so reopening an applicant costs nothing. The student alignment panel, which sits on a page anyone can reload, is cached the same way in `ai_response_cache` under a hash of the listing and the profile. Two concurrent requests for the same work collapse onto a single call rather than billing twice.
+
+**Pay less for the calls that remain.** Each request is split into a stable half and a volatile half. The project description and its criteria are identical for every applicant, so they are sent first and marked as a prompt-cache breakpoint together with the system prompt and the tool schema; the applicant material follows unmarked. Reviewing a queue of applicants therefore re-reads that prefix at about a tenth of the input price. `usage.cache_read_input_tokens` is recorded on every call, and the admin panel shows the resulting hit rate, so the assumption is visible rather than hopeful.
+
+**Bound what one request can cost.** Each block of student text is capped, and the whole request is capped again. A trimmed block says so in the text, so the model reports the gap instead of drawing conclusions from a sentence that stops mid-word.
+
+**Bound how many requests can happen.** Fixed-window counters in `ai_rate_limits` limit calls per minute, per day, and per application per hour. They live in the database so every worker shares one allowance. A request that is already over the line is refused without consuming a slot, and a call that fails before reaching the provider gives its slot back.
+
+**Bound total spend.** Token counts from each response are priced against the published list rates in `lib/ai/pricing.ts` and rolled into `ai_spend_daily`. When the daily or monthly budget is reached, calls stop until the next period. Deterministic criteria keep working throughout, so the product degrades rather than breaking.
+
+**Stop paying for a provider that is down.** Four consecutive failures open a circuit breaker for two minutes, after which one call is allowed through to test recovery. A transient failure is remembered for thirty minutes so it is not retried in a loop, while a rejected response schema is remembered as authoritative, because resending identical bytes would fail identically.
+
+Blocked and failed calls are written to `ai_usage_events` with the reason, so `/admin/system` distinguishes a rate limit from an outage from an exhausted budget.
+
+Not implemented, and worth revisiting if volume grows: the Message Batches API halves the price of work that does not need an immediate answer, which describes analysis on submission. It needs a worker to poll batch results, so it was left out of the pilot.
 
 ---
 

@@ -74,6 +74,21 @@ const validPayload = {
   warnings: [],
 };
 
+type TextBlock = { type: string; text: string };
+
+/** The request now sends system and user content as block arrays, so flatten them. */
+function blockText(value: string | TextBlock[]): string {
+  return typeof value === "string" ? value : value.map((block) => block.text).join("\n");
+}
+
+function systemText(call: Record<string, any>): string {
+  return blockText(call.system);
+}
+
+function userText(call: Record<string, any>): string {
+  return blockText(call.messages[0].content);
+}
+
 function toolResponse(input: unknown) {
   return {
     model: "claude-sonnet-5",
@@ -247,10 +262,10 @@ describe("prompt injection defense", () => {
     await run(await freshApplicationId(), { evidence: hostile });
 
     const call = createMock.mock.calls[0][0];
-    expect(call.system).toContain(UNTRUSTED_INPUT_RULES);
-    expect(call.system).toContain("cannot be judged");
-    expect(call.messages[0].content).toContain("Ignore all previous instructions");
-    expect(call.messages[0].content.split("</applicant_material>").length - 1).toBeLessThanOrEqual(3);
+    expect(systemText(call)).toContain(UNTRUSTED_INPUT_RULES);
+    expect(systemText(call)).toContain("cannot be judged");
+    expect(userText(call)).toContain("Ignore all previous instructions");
+    expect(userText(call).split("</applicant_material>").length - 1).toBeLessThanOrEqual(3);
   });
 
   it("still validates the schema when the applicant asked for a score", async () => {
@@ -270,8 +285,8 @@ describe("prompt injection defense", () => {
     await run(await freshApplicationId());
 
     const call = createMock.mock.calls[0][0];
-    expect(call.system).toContain(FAIRNESS_RULES);
-    expect(call.system).toContain("Do not produce an overall score, ranking, percentage, or recommendation.");
+    expect(systemText(call)).toContain(FAIRNESS_RULES);
+    expect(systemText(call)).toContain("Do not produce an overall score, ranking, percentage, or recommendation.");
   });
 
   it("adds a stricter instruction for paid positions", async () => {
@@ -279,7 +294,7 @@ describe("prompt injection defense", () => {
     await run(await freshApplicationId(), { isPaidPosition: true });
 
     const call = createMock.mock.calls[0][0];
-    expect(call.system).toContain("must not suggest a hiring decision, shortlist, or ordering of candidates");
+    expect(systemText(call)).toContain("must not suggest a hiring decision, shortlist, or ordering of candidates");
   });
 });
 

@@ -4,11 +4,11 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { db, placementOutcomes } from "@/db";
-import { CriteriaEvidence } from "@/components/app/criteria-evidence";
+import { CriteriaEvidence, type AiState } from "@/components/app/criteria-evidence";
 import { StatusPill } from "@/components/app/status-pill";
 import { Badge, Tag } from "@/components/ui/badge";
 import { canManageOpportunity, requireApprovedResearcher } from "@/lib/auth/permissions";
-import { loadStoredAnalysis, analysisToCriterionResults } from "@/lib/ai/application-analysis";
+import { loadStoredAnalysis, analysisToCriterionResults, type AnalysisState } from "@/lib/ai/application-analysis";
 import { allowedTransitions, STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
 import { summarizeAlignment } from "@/lib/criteria/weights";
 import type { CriterionResult } from "@/lib/criteria/types";
@@ -43,6 +43,19 @@ function Panel({ title, subtitle, children }: { title: string; subtitle?: string
       <div className="px-5 py-4">{children}</div>
     </section>
   );
+}
+
+const REPORTABLE_REASONS = new Set<AiState>([
+  "missing_api_key",
+  "throttled",
+  "budget_exceeded",
+  "provider_unavailable",
+]);
+
+/** Tells the reviewer why analysis is missing when the reason is one they can act on. */
+function aiStateFor(state: AnalysisState): AiState {
+  if (state.state !== "unavailable") return state.state;
+  return REPORTABLE_REASONS.has(state.reason as AiState) ? (state.reason as AiState) : "unavailable";
 }
 
 export default async function CandidateReviewPage({
@@ -163,17 +176,7 @@ export default async function CandidateReviewPage({
             criteria={criteria}
             results={combined}
             summary={summary}
-            aiState={
-              analysisState.state === "ready"
-                ? "ready"
-                : analysisState.state === "disabled"
-                  ? "disabled"
-                  : analysisState.state === "pending"
-                    ? "pending"
-                    : analysisState.reason === "missing_api_key"
-                      ? "missing_api_key"
-                      : "unavailable"
-            }
+            aiState={aiStateFor(analysisState)}
             isPaidPosition={isPaid}
             refreshControl={<RefreshEvidence applicationId={applicationId} />}
           />

@@ -833,3 +833,72 @@ export const featureFlags = pgTable("feature_flags", {
   description: text("description"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const aiUsageEvents = pgTable(
+  "ai_usage_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    feature: text("feature").notNull(),
+    model: text("model"),
+    outcome: text("outcome").notNull(),
+    errorCode: text("error_code"),
+    subjectKey: text("subject_key"),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    cacheCreationInputTokens: integer("cache_creation_input_tokens").notNull().default(0),
+    cacheReadInputTokens: integer("cache_read_input_tokens").notNull().default(0),
+    costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+    latencyMs: integer("latency_ms"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_usage_events_created_idx").on(t.createdAt),
+    index("ai_usage_events_feature_idx").on(t.feature, t.createdAt),
+    check("ai_usage_events_cost_nonnegative", sql`"ai_usage_events"."cost_usd" >= 0`),
+  ],
+);
+
+export const aiSpendDaily = pgTable(
+  "ai_spend_daily",
+  {
+    day: date("day").primaryKey(),
+    calls: integer("calls").notNull().default(0),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    cacheCreationInputTokens: integer("cache_creation_input_tokens").notNull().default(0),
+    cacheReadInputTokens: integer("cache_read_input_tokens").notNull().default(0),
+    costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("ai_spend_daily_cost_nonnegative", sql`"ai_spend_daily"."cost_usd" >= 0`)],
+);
+
+export const aiRateLimits = pgTable(
+  "ai_rate_limits",
+  {
+    bucket: text("bucket").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.bucket, t.windowStart] }),
+    index("ai_rate_limits_window_idx").on(t.windowStart),
+    check("ai_rate_limits_count_nonnegative", sql`"ai_rate_limits"."count" >= 0`),
+  ],
+);
+
+export const aiResponseCache = pgTable(
+  "ai_response_cache",
+  {
+    cacheKey: text("cache_key").primaryKey(),
+    feature: text("feature").notNull(),
+    model: text("model"),
+    status: text("status").notNull().default("ok"),
+    errorCode: text("error_code"),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    hits: integer("hits").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ai_response_cache_expiry_idx").on(t.expiresAt), index("ai_response_cache_feature_idx").on(t.feature)],
+);

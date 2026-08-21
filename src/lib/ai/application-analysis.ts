@@ -1,13 +1,21 @@
 import crypto from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { aiAnalyses, db } from "@/db";
-import { env } from "@/lib/env";
+import { aiCostControls, env } from "@/lib/env";
 import { isEnabled } from "@/lib/flags";
 import { log } from "@/lib/log";
 import type { ApplicantEvidence, Criterion, CriterionResult } from "@/lib/criteria/types";
 import { AI_ASSISTED_TYPES } from "@/lib/criteria/types";
 import { weightOf, STATUS_FACTOR } from "@/lib/criteria/weights";
-import { FAIRNESS_RULES, structuredCall, UNTRUSTED_INPUT_RULES, wrapUntrusted, anthropicAvailable } from "./anthropic";
+import {
+  FAIRNESS_RULES,
+  structuredCall,
+  TRANSIENT_FAILURES,
+  UNTRUSTED_INPUT_RULES,
+  wrapUntrusted,
+  anthropicAvailable,
+  type StructuredFailure,
+} from "./anthropic";
 import {
   applicationAnalysisJsonSchema,
   applicationAnalysisSchema,
@@ -15,6 +23,7 @@ import {
   SCHEMA_VERSION,
   type ApplicationAnalysis,
 } from "./schemas";
+import { singleFlight } from "./single-flight";
 
 const ANALYSIS_TYPE = "application_criteria_evidence";
 
@@ -50,9 +59,15 @@ function buildSystemPrompt(isPaidPosition: boolean): string {
   return lines.join(" ");
 }
 
-function buildUserContent(input: {
+/**
+ * The half of the request that is identical for every applicant on a project.
+ *
+ * It is kept separate and sent first so it can carry a prompt-cache breakpoint.
+ * The second applicant reviewed for the same project reads this prefix from the
+ * cache at about a tenth of the input price rather than paying for it again.
+ */
+function buildSharedContent(input: {
   criteria: Criterion[];
-  evidence: ApplicantEvidence;
   projectTitle: string;
   projectSummary: string;
 }): string {
@@ -70,23 +85,34 @@ function buildUserContent(input: {
     )
     .join("\n");
 
+  return [
+    `Project title: ${input.projectTitle}`,
+    `Project summary: ${input.projectSummary}`,
+    "",
+    "Criteria defined by the researcher for this project:",
+    criteriaBlock,
+  ].join("\n");
+}
+
+/** The half that differs for every applicant, so it is never cached. */
+function buildApplicantContent(evidence: ApplicantEvidence): string {
   const profileLines = [
-    input.evidence.program ? `Program: ${input.evidence.program}` : null,
-    input.evidence.degreeLevel ? `Degree level: ${input.evidence.degreeLevel}` : null,
-    input.evidence.yearLevel ? `Year of study: ${input.evidence.yearLevel}` : null,
-    input.evidence.weeklyHours ? `Stated availability: ${input.evidence.weeklyHours} hours per week` : null,
-    input.evidence.skills.length
-      ? `Listed skills: ${input.evidence.skills.map((s) => (s.context ? `${s.name} (${s.context})` : s.name)).join("; ")}`
+    evidence.program ? `Program: ${evidence.program}` : null,
+    evidence.degreeLevel ? `Degree level: ${evidence.degreeLevel}` : null,
+    evidence.yearLevel ? `Year of study: ${evidence.yearLevel}` : null,
+    evidence.weeklyHours ? `Stated availability: ${evidence.weeklyHours} hours per week` : null,
+    evidence.skills.length
+      ? `Listed skills: ${evidence.skills.map((s) => (s.context ? `${s.name} (${s.context})` : s.name)).join("; ")}`
       : null,
-    input.evidence.courses.length
-      ? `Listed coursework: ${input.evidence.courses.map((c) => `${c.courseCode} ${c.courseName}`).join("; ")}`
+    evidence.courses.length
+      ? `Listed coursework: ${evidence.courses.map((c) => `${c.courseCode} ${c.courseName}`).join("; ")}`
       : null,
-    input.evidence.researchFields.length
-      ? `Listed research interests: ${input.evidence.researchFields.map((f) => f.name).join(", ")}`
+    evidence.researchFields.length
+      ? `Listed research interests: ${evidence.researchFields.map((f) => f.name).join(", ")}`
       : null,
   ].filter(Boolean);
 
-  const experienceBlock = input.evidence.experiences
+  const experienceBlock = evidence.experiences
     .map((item) =>
       [
         `Organization: ${item.organization}`,
@@ -99,18 +125,12 @@ function buildUserContent(input: {
     )
     .join("\n\n");
 
-  const answersBlock = input.evidence.answers
+  const answersBlock = evidence.answers
     .filter((answer) => answer.text && answer.text.trim().length > 0)
     .map((answer) => `questionId: ${answer.questionId}\nPrompt: ${answer.prompt}\nResponse:\n${answer.text}`)
     .join("\n\n");
 
   return [
-    `Project title: ${input.projectTitle}`,
-    `Project summary: ${input.projectSummary}`,
-    "",
-    "Criteria defined by the researcher for this project:",
-    criteriaBlock,
-    "",
     wrapUntrusted("profile", profileLines.join("\n")),
     experienceBlock ? wrapUntrusted("research_experience", experienceBlock) : "",
     answersBlock ? wrapUntrusted("application_responses", answersBlock) : "",
@@ -132,7 +152,8 @@ export function analysisInputHash(input: {
     schemaVersion: SCHEMA_VERSION,
     model: env.ANTHROPIC_MODEL,
     criteria: input.criteria.map((c) => ({ id: c.id, label: c.label, type: c.type, required: c.required, importance: c.importance, description: c.description })),
-    content: buildUserContent(input),
+    sharedContent: buildSharedContent(input),
+    applicantContent: buildApplicantContent(input.evidence),
   });
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
@@ -153,6 +174,21 @@ export async function loadStoredAnalysis(applicationId: string): Promise<Analysi
   return { state: "ready", analysis: parsed.data, model: row.model, createdAt: row.createdAt };
 }
 
+/**
+ * A stored failure only stands in for a fresh call while it is recent.
+ *
+ * A permanent record of a one-off timeout would keep an application stuck on an
+ * error forever, and a permanent record of a rejected schema would keep paying
+ * nothing while never recovering either. Failures that describe the input, such
+ * as an invalid response shape, stay authoritative because retrying the same
+ * bytes would produce the same answer.
+ */
+function failureIsStale(errorCode: string | null, createdAt: Date): boolean {
+  if (!errorCode) return true;
+  if (!TRANSIENT_FAILURES.has(errorCode as StructuredFailure)) return false;
+  return Date.now() - createdAt.getTime() > aiCostControls.negativeCacheTtlMs;
+}
+
 export async function runApplicationAnalysis(input: {
   applicationId: string;
   criteria: Criterion[];
@@ -171,26 +207,60 @@ export async function runApplicationAnalysis(input: {
   const inputHash = analysisInputHash(payload);
 
   if (!input.force) {
-    const cached = await db
-      .select()
-      .from(aiAnalyses)
-      .where(and(eq(aiAnalyses.applicationId, input.applicationId), eq(aiAnalyses.inputHash, inputHash)))
-      .orderBy(desc(aiAnalyses.createdAt))
-      .limit(1);
-    const row = cached[0];
-    if (row) {
-      if (row.status === "ok" && row.result) {
-        const parsed = applicationAnalysisSchema.safeParse(row.result);
-        if (parsed.success) return { state: "ready", analysis: parsed.data, model: row.model, createdAt: row.createdAt };
-      } else {
-        return { state: "unavailable", reason: row.errorCode ?? "provider_error" };
-      }
-    }
+    const cached = await readCachedAnalysis(input.applicationId, inputHash);
+    if (cached) return cached;
   }
 
+  // Two submissions of the same form, or two reviewers opening the same
+  // applicant, collapse onto one provider call rather than two identical bills.
+  return singleFlight(`${ANALYSIS_TYPE}:${inputHash}`, async () => {
+    if (!input.force) {
+      const cached = await readCachedAnalysis(input.applicationId, inputHash);
+      if (cached) return cached;
+    }
+
+    return executeAnalysis(payload, inputHash);
+  });
+}
+
+async function readCachedAnalysis(applicationId: string, inputHash: string): Promise<AnalysisState | null> {
+  const cached = await db
+    .select()
+    .from(aiAnalyses)
+    .where(and(eq(aiAnalyses.applicationId, applicationId), eq(aiAnalyses.inputHash, inputHash)))
+    .orderBy(desc(aiAnalyses.createdAt))
+    .limit(1);
+
+  const row = cached[0];
+  if (!row) return null;
+
+  if (row.status === "ok" && row.result) {
+    const parsed = applicationAnalysisSchema.safeParse(row.result);
+    if (parsed.success) {
+      log.debug("ai_analysis_cache_hit", { applicationId });
+      return { state: "ready", analysis: parsed.data, model: row.model, createdAt: row.createdAt };
+    }
+    return null;
+  }
+
+  if (failureIsStale(row.errorCode, row.createdAt)) return null;
+  return { state: "unavailable", reason: row.errorCode ?? "provider_error" };
+}
+
+async function executeAnalysis(
+  payload: {
+    applicationId: string;
+    criteria: Criterion[];
+    evidence: ApplicantEvidence;
+    projectTitle: string;
+    projectSummary: string;
+    isPaidPosition: boolean;
+  },
+  inputHash: string,
+): Promise<AnalysisState> {
   if (!anthropicAvailable()) {
     await db.insert(aiAnalyses).values({
-      applicationId: input.applicationId,
+      applicationId: payload.applicationId,
       type: ANALYSIS_TYPE,
       model: null,
       promptVersion: PROMPT_VERSION,
@@ -203,19 +273,21 @@ export async function runApplicationAnalysis(input: {
   }
 
   const response = await structuredCall({
-    system: buildSystemPrompt(input.isPaidPosition),
-    userContent: buildUserContent(payload),
+    system: buildSystemPrompt(payload.isPaidPosition),
+    sharedContent: buildSharedContent(payload),
+    userContent: buildApplicantContent(payload.evidence),
     toolName: "report_criterion_evidence",
     toolDescription: "Report the evidence found for each researcher-defined criterion.",
     inputSchema: applicationAnalysisJsonSchema as unknown as Record<string, unknown>,
     parser: applicationAnalysisSchema,
     maxTokens: 3000,
     feature: ANALYSIS_TYPE,
+    subjectKey: payload.applicationId,
   });
 
   if (!response.ok) {
     await db.insert(aiAnalyses).values({
-      applicationId: input.applicationId,
+      applicationId: payload.applicationId,
       type: ANALYSIS_TYPE,
       model: env.ANTHROPIC_MODEL,
       promptVersion: PROMPT_VERSION,
@@ -227,7 +299,7 @@ export async function runApplicationAnalysis(input: {
     return { state: "unavailable", reason: response.failure };
   }
 
-  const knownIds = new Set(semanticCriteria.map((criterion) => criterion.id));
+  const knownIds = new Set(payload.criteria.map((criterion) => criterion.id));
   const filtered: ApplicationAnalysis = {
     ...response.data,
     criteria: response.data.criteria.filter((item) => knownIds.has(item.criterionId)),
@@ -236,7 +308,7 @@ export async function runApplicationAnalysis(input: {
   const [row] = await db
     .insert(aiAnalyses)
     .values({
-      applicationId: input.applicationId,
+      applicationId: payload.applicationId,
       type: ANALYSIS_TYPE,
       model: response.model,
       promptVersion: PROMPT_VERSION,
@@ -244,15 +316,17 @@ export async function runApplicationAnalysis(input: {
       inputHash,
       status: "ok",
       result: filtered,
-      inputTokens: response.inputTokens,
+      inputTokens: response.inputTokens + response.cacheCreationInputTokens + response.cacheReadInputTokens,
       outputTokens: response.outputTokens,
     })
     .returning();
 
   log.info("ai_analysis_stored", {
-    applicationId: input.applicationId,
+    applicationId: payload.applicationId,
     criteriaCount: filtered.criteria.length,
     model: response.model,
+    costUsd: response.costUsd,
+    cacheReadInputTokens: response.cacheReadInputTokens,
   });
 
   return { state: "ready", analysis: filtered, model: response.model, createdAt: row.createdAt };
