@@ -273,6 +273,29 @@ describe("budget cap", () => {
   });
 });
 
+describe("rejected key", () => {
+  it("names a rejected key instead of reporting a provider outage", async () => {
+    createMock.mockRejectedValue(Object.assign(new Error("API key is invalid."), { status: 401 }));
+    const result = await runAnalysis(await freshApplicationId());
+
+    expect(result.state).toBe("unavailable");
+    if (result.state !== "unavailable") return;
+    expect(result.reason).toBe("invalid_api_key");
+
+    const summary = await mods.spend.spendSummary();
+    expect(summary.recentFailure).toBe("invalid_api_key");
+  });
+
+  it("still lets the application submit and the deterministic criteria stand", async () => {
+    createMock.mockRejectedValue(Object.assign(new Error("forbidden"), { status: 403 }));
+    const result = await runAnalysis(await freshApplicationId());
+
+    expect(result.state).toBe("unavailable");
+    if (result.state !== "unavailable") return;
+    expect(result.reason).toBe("invalid_api_key");
+  });
+});
+
 describe("rate limiting", () => {
   it("caps how often one application can be re-analysed", async () => {
     await reload({ AI_MAX_CALLS_PER_SUBJECT_PER_HOUR: "2" });

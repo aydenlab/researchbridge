@@ -56,7 +56,7 @@ Open http://localhost:3000.
 | `APP_URL` | Yes | Public base URL. Used for metadata, sitemap, and links in email. |
 | `SESSION_SECRET` | Yes | At least 16 characters. Signs session tokens and verification code hashes. Rotating it invalidates all sessions and codes. |
 | `ADMIN_EMAILS` | First deploy | Comma-separated addresses that become ResearchBridge administrators on sign in, bypassing the institution domain check. Needed to bootstrap a fresh database, which has no institutions until an admin creates one. |
-| `ANTHROPIC_API_KEY` | No | Enables Claude evidence analysis. Server only, never prefixed with `NEXT_PUBLIC_`. |
+| `ANTHROPIC_API_KEY` | No | Enables Claude evidence analysis. Server only, never prefixed with `NEXT_PUBLIC_`. A key the provider rejects is reported as such on `/admin/system` rather than as an outage. |
 | `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-5`. Changing the model does not require a code change. |
 | `ANTHROPIC_PROMPT_CACHE_ENABLED` | No | Marks the stable part of each prompt as cacheable. On by default. |
 | `AI_DAILY_BUDGET_USD` | No | Estimated spend allowed per UTC day before analysis stops. Defaults to 5. |

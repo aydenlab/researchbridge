@@ -35,7 +35,8 @@ export type StructuredFailure =
   | "empty_output"
   | "throttled"
   | "budget_exceeded"
-  | "provider_unavailable";
+  | "provider_unavailable"
+  | "invalid_api_key";
 
 /** Failures that mean "try again later", so they should not be cached for long. */
 export const TRANSIENT_FAILURES: ReadonlySet<StructuredFailure> = new Set<StructuredFailure>([
@@ -45,6 +46,10 @@ export const TRANSIENT_FAILURES: ReadonlySet<StructuredFailure> = new Set<Struct
   "throttled",
   "budget_exceeded",
   "provider_unavailable",
+  // A rejected key is a configuration problem rather than an outage, but it is
+  // still worth retrying: the fix is someone pasting a correct key, and the
+  // next call after that should pick it up.
+  "invalid_api_key",
 ]);
 
 export type StructuredResult<T> =
@@ -118,6 +123,9 @@ function failureFor(error: unknown): StructuredFailure {
   const status = (error as { status?: number })?.status;
   if (status === 429) return "rate_limited";
   if (status === 408 || status === 504) return "timeout";
+  // A rejected or revoked key looks nothing like an outage from the operator's
+  // side, and saying "provider error" sends them to look at a status page.
+  if (status === 401 || status === 403) return "invalid_api_key";
   if (typeof status === "number") return "provider_error";
   // Connection failures carry no status. The SDK names them, so read the name
   // rather than the class, which keeps this working under a stubbed client.

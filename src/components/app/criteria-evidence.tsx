@@ -24,6 +24,7 @@ const AI_STATE_COPY: Record<string, string> = {
   unavailable: "Written-response analysis is unavailable right now. Everything below still works, and it will be retried later.",
   pending: "Written-response analysis has not run for this application yet.",
   missing_api_key: "Written-response analysis is not configured in this environment. Everything below still works.",
+  invalid_api_key: "Written-response analysis is configured with a key the provider rejected. Everything below still works. An administrator needs to update the key.",
   throttled: "Written-response analysis is being rate limited to keep costs predictable. Everything below still works, and it will be retried shortly.",
   budget_exceeded: "Written-response analysis has reached its spending limit for this period. Everything below still works.",
   provider_unavailable: "Written-response analysis is paused after repeated provider errors. Everything below still works, and it will be retried automatically.",
@@ -35,6 +36,7 @@ export type AiState =
   | "unavailable"
   | "pending"
   | "missing_api_key"
+  | "invalid_api_key"
   | "throttled"
   | "budget_exceeded"
   | "provider_unavailable";

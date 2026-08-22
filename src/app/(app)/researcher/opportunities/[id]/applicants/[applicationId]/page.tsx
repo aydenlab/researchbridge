@@ -47,6 +47,7 @@ function Panel({ title, subtitle, children }: { title: string; subtitle?: string
 
 const REPORTABLE_REASONS = new Set<AiState>([
   "missing_api_key",
+  "invalid_api_key",
   "throttled",
   "budget_exceeded",
   "provider_unavailable",

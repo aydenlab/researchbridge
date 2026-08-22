@@ -94,7 +94,13 @@ export default async function AdminSystemPage() {
             <div className="flex items-center justify-between gap-3 px-5 py-3">
               <dt className="text-[13.5px] text-ink">Anthropic API key</dt>
               <dd>
-                <Badge tone={anthropicAvailable() ? "ok" : "warn"}>{anthropicAvailable() ? "Configured" : "Not set"}</Badge>
+                <Badge tone={anthropicAvailable() && spend.recentFailure !== "invalid_api_key" ? "ok" : "warn"}>
+                  {!anthropicAvailable()
+                    ? "Not set"
+                    : spend.recentFailure === "invalid_api_key"
+                      ? "Rejected by the provider"
+                      : "Configured"}
+                </Badge>
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3 px-5 py-3">

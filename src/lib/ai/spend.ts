@@ -15,6 +15,8 @@ export type SpendSummary = {
   outputTokens: number;
   cacheReadInputTokens: number;
   cacheHitRate: number;
+  /** Most recent error code today, so the admin page can name the real problem. */
+  recentFailure: string | null;
 };
 
 /** Records one completed call and returns what it cost. */
@@ -72,6 +74,8 @@ export async function spendSummary(): Promise<SpendSummary> {
       outputTokens: sql<number>`coalesce(sum(${aiUsageEvents.outputTokens}) filter (where ${at} >= ${month}), 0)::int`,
       cacheWrite: sql<number>`coalesce(sum(${aiUsageEvents.cacheCreationInputTokens}) filter (where ${at} >= ${month}), 0)::int`,
       cacheRead: sql<number>`coalesce(sum(${aiUsageEvents.cacheReadInputTokens}) filter (where ${at} >= ${month}), 0)::int`,
+      recentFailure: sql<string | null>`(array_agg(${aiUsageEvents.errorCode} order by ${aiUsageEvents.createdAt} desc)
+        filter (where ${aiUsageEvents.errorCode} is not null and ${at} >= ${day}))[1]`,
     })
     .from(aiUsageEvents);
 
@@ -95,5 +99,6 @@ export async function spendSummary(): Promise<SpendSummary> {
     outputTokens: totals.outputTokens,
     cacheReadInputTokens: totals.cacheRead,
     cacheHitRate: promptTokens === 0 ? 0 : totals.cacheRead / promptTokens,
+    recentFailure: totals.recentFailure ?? null,
   };
 }
