@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applicationAnalysisSchema, interestAlignmentSchema } from "@/lib/ai/schemas";
+import {
+  applicationAnalysisJsonSchema,
+  applicationAnalysisSchema,
+  interestAlignmentJsonSchema,
+  interestAlignmentSchema,
+} from "@/lib/ai/schemas";
 import { FAIRNESS_RULES, UNTRUSTED_INPUT_RULES, wrapUntrusted } from "@/lib/ai/anthropic";
 import type { ApplicantEvidence, Criterion } from "@/lib/criteria/types";
 import { createApplicationGraph } from "../fixtures";
@@ -333,21 +338,34 @@ describe("caching and mapping", () => {
 });
 
 describe("schemas", () => {
-  it("caps evidence lists so a model cannot flood the reviewer", () => {
+  it("trims an oversized evidence list rather than discarding a paid response", () => {
     const parsed = applicationAnalysisSchema.safeParse({
       criteria: [
         {
           criterionId: "criterion_123",
           assessment: "some_evidence",
           evidence: Array.from({ length: 20 }, () => "line"),
-          reasoningSummary: "x",
+          reasoningSummary: "y".repeat(900),
         },
       ],
       responseSummaries: [],
       missingInformation: [],
       warnings: [],
     });
-    expect(parsed.success).toBe(false);
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    // The reviewer is still protected from a flood; the call is not wasted.
+    expect(parsed.data.criteria[0].evidence).toHaveLength(6);
+    expect(parsed.data.criteria[0].reasoningSummary).toHaveLength(600);
+  });
+
+  it("declares the same caps to the model that the parser enforces", () => {
+    const criterion = applicationAnalysisJsonSchema.properties.criteria.items.properties;
+    expect(applicationAnalysisJsonSchema.properties.criteria.maxItems).toBe(30);
+    expect(criterion.evidence.maxItems).toBe(6);
+    expect(criterion.reasoningSummary.maxLength).toBe(600);
+    expect(interestAlignmentJsonSchema.properties.overlaps.items.properties.reason.maxLength).toBe(300);
   });
 
   it("accepts an empty alignment result for the student view", () => {

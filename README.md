@@ -241,6 +241,8 @@ Every provider call passes through `lib/ai/anthropic.ts`, which is the only plac
 
 **Pay less for the calls that remain.** Each request is split into a stable half and a volatile half. The project description and its criteria are identical for every applicant, so they are sent first and marked as a prompt-cache breakpoint together with the system prompt and the tool schema; the applicant material follows unmarked. Reviewing a queue of applicants therefore re-reads that prefix at about a tenth of the input price. `usage.cache_read_input_tokens` is recorded on every call, and the admin panel shows the resulting hit rate, so the assumption is visible rather than hopeful.
 
+**Ask for output that fits.** The tool schema states the same length and count caps that the parser enforces, so the model aims inside them, and the parser trims an over-long answer instead of rejecting it. A response that runs a few characters long has already been paid for; discarding it would waste a billed call and leave the reviewer with nothing.
+
 **Bound what one request can cost.** Each block of student text is capped, and the whole request is capped again. A trimmed block says so in the text, so the model reports the gap instead of drawing conclusions from a sentence that stops mid-word.
 
 **Bound how many requests can happen.** Fixed-window counters in `ai_rate_limits` limit calls per minute, per day, and per application per hour. They live in the database so every worker shares one allowance. A request that is already over the line is refused without consuming a slot, and a call that fails before reaching the provider gives its slot back.
