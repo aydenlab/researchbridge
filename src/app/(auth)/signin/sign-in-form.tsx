@@ -37,7 +37,7 @@ export function SignInForm() {
           Sign in to ResearchBridge
         </h1>
         <p className="mt-3 text-[14.5px] leading-6 text-muted">
-          Enter your institutional email address. We send a six-digit code to confirm it is you. There is no password to
+          Enter your email address. We send a six-digit code to confirm it is you. There is no password to
           remember.
         </p>
 
@@ -45,7 +45,7 @@ export function SignInForm() {
           <FormError>{emailState?.ok === false ? emailState.error : null}</FormError>
 
           <Field
-            label="Institutional email"
+            label="Email"
             htmlFor="email"
             required
             hint="Use the email address your university issued you."

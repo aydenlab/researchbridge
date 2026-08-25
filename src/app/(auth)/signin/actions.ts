@@ -44,15 +44,6 @@ export async function requestCodeAction(_prev: ActionResult<{ email: string }> |
     }
 
     if (!account && !isBootstrapAdmin(email)) {
-      const institution = await resolveInstitutionForEmail(email);
-      if (!institution) {
-        return {
-          ok: false as const,
-          error:
-            "That email domain is not part of the pilot yet. Join the waitlist and we will contact you when your institution is added.",
-          fieldErrors: { email: ["Institution not recognized for this address."] },
-        };
-      }
       if (!(await isEnabled("PUBLIC_SIGNUP_ENABLED"))) {
         return { ok: false as const, error: "New accounts are paused right now. Join the waitlist and we will be in touch." };
       }
@@ -89,7 +80,7 @@ export async function verifyCodeAction(_prev: ActionResult | null, formData: For
       return {
         ok: false as const,
         error: "That code is not valid or has expired. Request a new code and try again.",
-        fieldErrors: { code: ["Enter the six-digit verification code sent to your institutional email."] },
+        fieldErrors: { code: ["Enter the six-digit verification code sent to your email."] },
       };
     }
 

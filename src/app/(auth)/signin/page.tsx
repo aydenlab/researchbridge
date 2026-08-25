@@ -5,7 +5,7 @@ import { SignInForm } from "./sign-in-form";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to ResearchBridge with your institutional email address.",
+  description: "Sign in to ResearchBridge with your email address.",
   robots: { index: false, follow: false },
 };
 

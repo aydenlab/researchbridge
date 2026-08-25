@@ -3,9 +3,9 @@ import { z } from "zod";
 export const emailSchema = z
   .string()
   .trim()
-  .min(1, "Enter your institutional email address.")
+  .min(1, "Enter your email address.")
   .max(254, "That email address is too long.")
-  .email("Enter a valid email address, for example name@example.edu.")
+  .email("Enter a valid email address, for example name@example.com.")
   .transform((value) => value.toLowerCase());
 
 export const requestCodeSchema = z.object({

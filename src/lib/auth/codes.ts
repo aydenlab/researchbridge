@@ -113,6 +113,6 @@ export async function consumeVerificationCode(email: string, code: string): Prom
 export function assertVerifiableEmail(email: string) {
   const normalized = normalizeEmail(email);
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) {
-    throw new AppError("Enter a valid institutional email address.", "invalid_email");
+    throw new AppError("Enter a valid email address.", "invalid_email");
   }
 }
