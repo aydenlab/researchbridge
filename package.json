@@ -19,7 +19,8 @@
     "test:watch": "vitest",
     "db:studio": "drizzle-kit studio",
     "check": "npm run typecheck && npm run test && npm run build",
-    "start:next": "next start"
+    "start:next": "next start",
+    "db:demo": "tsx scripts/demo-content.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",

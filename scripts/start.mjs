@@ -48,6 +48,19 @@ if (!databaseConfigured) {
   }
 }
 
+if (databaseConfigured && process.env.DEMO_CONTENT_ENABLED === "true") {
+  log("startup_demo_content_begin");
+  const demoCode = await run("npx", ["tsx", "scripts/demo-content.ts"]);
+  if (demoCode === 0) {
+    log("startup_demo_content_complete");
+  } else {
+    warn("startup_demo_content_failed", {
+      exitCode: demoCode,
+      message: "Demo content did not load. This never blocks startup and never affects real data.",
+    });
+  }
+}
+
 const server = spawn("npx", ["next", "start"], { stdio: "inherit", shell: process.platform === "win32" });
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
