@@ -61,6 +61,19 @@ if (databaseConfigured && process.env.DEMO_CONTENT_ENABLED === "true") {
   }
 }
 
+if (databaseConfigured && process.env.DEMO_RESEARCHER_EMAIL?.trim()) {
+  log("startup_demo_applicants_begin");
+  const applicantCode = await run("npx", ["tsx", "scripts/demo-applicants.ts"]);
+  if (applicantCode === 0) {
+    log("startup_demo_applicants_complete");
+  } else {
+    warn("startup_demo_applicants_failed", {
+      exitCode: applicantCode,
+      message: "Demo applicants did not load. This never blocks startup.",
+    });
+  }
+}
+
 const server = spawn("npx", ["next", "start"], { stdio: "inherit", shell: process.platform === "win32" });
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
