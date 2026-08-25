@@ -12,7 +12,9 @@ import { STATUS_LABELS, STUDENT_STATUS_DESCRIPTION, type ApplicationStatus } fro
 import { formatDate, formatShortDate } from "@/lib/format";
 import { COMPENSATION_LABELS, QUESTION_TYPE_LABELS, labelOr } from "@/lib/labels";
 import { loadApplication } from "@/lib/queries/applications";
+import { listReferences, MAX_REFERENCES_PER_APPLICATION } from "@/lib/queries/references";
 import { OutcomeForm, WithdrawForm } from "./client-forms";
+import { ReferenceSection } from "./reference-section";
 
 export const metadata: Metadata = {
   title: "Application",
@@ -36,6 +38,7 @@ export default async function ApplicationDetailPage({
   const outcomeRows = await db.select().from(placementOutcomes).where(eq(placementOutcomes.applicationId, id)).limit(1);
   const outcome = outcomeRows[0] ?? null;
 
+  const references = await listReferences(id);
   const answersByQuestion = new Map(bundle.answers.map((answer) => [answer.questionId, answer]));
   const status = bundle.application.status as ApplicationStatus;
   const canWithdraw = !["withdrawn", "declined", "position_filled", "draft"].includes(status);
@@ -131,6 +134,12 @@ export default async function ApplicationDetailPage({
             )}
           </section>
 
+          <ReferenceSection
+            applicationId={id}
+            references={references}
+            editable={status !== "withdrawn"}
+            max={MAX_REFERENCES_PER_APPLICATION}
+          />
           {showOutcomePrompt ? (
             <section className="mt-6 rounded-[12px] border border-line bg-white p-5">
               <h2 className="font-display text-[19px] text-ink" style={{ letterSpacing: "-0.4px" }}>

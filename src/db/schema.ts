@@ -108,6 +108,7 @@ export const researchMaterialType = pgEnum("research_material_type", [
 ]);
 export const courseStatus = pgEnum("course_status", ["completed", "in_progress", "planned"]);
 export const skillProficiency = pgEnum("skill_proficiency", ["exposure", "working", "proficient", "advanced"]);
+export const referenceStatus = pgEnum("reference_status", ["pending", "approved", "declined"]);
 export const waitlistKind = pgEnum("waitlist_kind", ["student", "researcher"]);
 export const waitlistStatus = pgEnum("waitlist_status", ["new", "contacted", "invited", "converted", "declined"]);
 
@@ -886,4 +887,45 @@ export const aiResponseCache = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("ai_response_cache_expiry_idx").on(t.expiresAt), index("ai_response_cache_feature_idx").on(t.feature)],
+);
+
+export const follows = pgTable(
+  "follows",
+  {
+    followerId: uuid("follower_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    followingId: uuid("following_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.followerId, t.followingId] }),
+    index("follows_following_idx").on(t.followingId),
+    check("follows_no_self", sql`"follows"."follower_id" <> "follows"."following_id"`),
+  ],
+);
+
+export const applicationReferences = pgTable(
+  "application_references",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    applicationId: uuid("application_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    refereeEmail: text("referee_email").notNull(),
+    refereeName: text("referee_name"),
+    relationship: text("relationship"),
+    status: referenceStatus("status").notNull().default("pending"),
+    tokenHash: text("token_hash").notNull(),
+    note: text("note"),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    respondedAt: timestamp("responded_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("application_references_unique").on(t.applicationId, t.refereeEmail),
+    uniqueIndex("application_references_token_key").on(t.tokenHash),
+    index("application_references_application_idx").on(t.applicationId),
+  ],
 );

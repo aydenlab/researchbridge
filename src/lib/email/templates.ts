@@ -105,3 +105,68 @@ export async function sendPilotInvite(to: string, firstName: string, token: stri
     ].join("\n"),
   });
 }
+
+export async function sendReferenceRequest(input: {
+  to: string;
+  refereeName: string | null;
+  studentName: string;
+  projectTitle: string;
+  relationship: string | null;
+  url: string;
+}) {
+  const greeting = input.refereeName ? `Hello ${input.refereeName},` : "Hello,";
+  return sendEmail({
+    to: input.to,
+    subject: `${input.studentName} listed you as a reference`,
+    text: [
+      greeting,
+      "",
+      `${input.studentName} has applied to "${input.projectTitle}" on ResearchBridge and listed you as a reference${
+        input.relationship ? ` (${input.relationship})` : ""
+      }.`,
+      "",
+      "Confirming takes one click and says only that you are willing to be named. You are not writing a letter and you are not rating anyone.",
+      "",
+      input.url,
+      "",
+      "If you do not know this person, decline on that page and we will record it. The link works once and then expires.",
+      "",
+      SIGNATURE,
+    ].join("\n"),
+  });
+}
+
+export async function sendReferenceResolved(input: {
+  to: string;
+  refereeLabel: string;
+  projectTitle: string;
+  approved: boolean;
+}) {
+  return sendEmail({
+    to: input.to,
+    subject: `${input.refereeLabel} ${input.approved ? "confirmed" : "declined"} your reference request`,
+    text: [
+      `${input.refereeLabel} has ${
+        input.approved ? "confirmed they are willing to act as your reference" : "declined to act as your reference"
+      } for "${input.projectTitle}".`,
+      "",
+      `You can see the current state of your references at ${env.APP_URL}/applications.`,
+      "",
+      SIGNATURE,
+    ].join("\n"),
+  });
+}
+
+export async function sendNewFollowerNotice(to: string, followerName: string) {
+  return sendEmail({
+    to,
+    subject: `${followerName} is now following you on ResearchBridge`,
+    text: [
+      `${followerName} started following you on ResearchBridge.`,
+      "",
+      `See who follows you at ${env.APP_URL}/connections.`,
+      "",
+      SIGNATURE,
+    ].join("\n"),
+  });
+}
