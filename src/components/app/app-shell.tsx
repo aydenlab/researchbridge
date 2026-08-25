@@ -142,11 +142,13 @@ export function AppHeader({
                 </Link>
               </li>
             ))}
-            <li>
-              <Link href="/profile" className="block border-b border-line py-2.5 text-[15px] text-ink">
-                Profile
-              </Link>
-            </li>
+            {nav.some((item) => item.href === "/profile") ? null : (
+              <li>
+                <Link href="/profile" className="block border-b border-line py-2.5 text-[15px] text-ink">
+                  Profile
+                </Link>
+              </li>
+            )}
             <li>
               <form action="/api/signout" method="post">
                 <button type="submit" className="block w-full py-2.5 text-left text-[15px] text-ink">
