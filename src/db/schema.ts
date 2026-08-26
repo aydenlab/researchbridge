@@ -41,6 +41,7 @@ export const degreeLevel = pgEnum("degree_level", [
 ]);
 export const opportunityStatus = pgEnum("opportunity_status", [
   "draft",
+  "pending_review",
   "published",
   "closed",
   "unpublished",
@@ -109,6 +110,7 @@ export const researchMaterialType = pgEnum("research_material_type", [
 export const courseStatus = pgEnum("course_status", ["completed", "in_progress", "planned"]);
 export const skillProficiency = pgEnum("skill_proficiency", ["exposure", "working", "proficient", "advanced"]);
 export const referenceStatus = pgEnum("reference_status", ["pending", "approved", "declined"]);
+export const reviewDirection = pgEnum("review_direction", ["researcher_to_student", "student_to_researcher"]);
 export const waitlistKind = pgEnum("waitlist_kind", ["student", "researcher"]);
 export const waitlistStatus = pgEnum("waitlist_status", ["new", "contacted", "invited", "converted", "declined"]);
 
@@ -244,6 +246,10 @@ export const studentProfiles = pgTable(
     scheduleNotes: text("schedule_notes"),
     resumeFileId: uuid("resume_file_id"),
     transcriptFileId: uuid("transcript_file_id"),
+    writingSampleFileId: uuid("writing_sample_file_id"),
+    videoIntroFileId: uuid("video_intro_file_id"),
+    linkedinUrl: text("linkedin_url"),
+    orcidId: text("orcid_id"),
     distinctions: text("distinctions"),
     profileCompletion: integer("profile_completion").notNull().default(0),
     onboardingStep: integer("onboarding_step").notNull().default(1),
@@ -398,6 +404,9 @@ export const researcherProfiles = pgTable(
     labName: text("lab_name"),
     labWebsite: text("lab_website"),
     personalWebsite: text("personal_website"),
+    linkedinUrl: text("linkedin_url"),
+    orcidId: text("orcid_id"),
+    contactEmail: text("contact_email"),
     biography: text("biography"),
     recruitingOnBehalfOf: text("recruiting_on_behalf_of"),
     photoFileId: uuid("photo_file_id"),
@@ -429,9 +438,7 @@ export const opportunities = pgTable(
   "opportunities",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    institutionId: uuid("institution_id")
-      .notNull()
-      .references(() => institutions.id, { onDelete: "restrict" }),
+    institutionId: uuid("institution_id").references(() => institutions.id, { onDelete: "restrict" }),
     researcherId: uuid("researcher_id")
       .notNull()
       .references(() => researcherProfiles.userId, { onDelete: "restrict" }),
@@ -955,5 +962,39 @@ export const profileReferences = pgTable(
     uniqueIndex("profile_references_unique").on(t.userId, t.refereeEmail),
     uniqueIndex("profile_references_token_key").on(t.tokenHash),
     index("profile_references_user_idx").on(t.userId),
+  ],
+);
+
+/**
+ * A review is anchored to the application that produced the working
+ * relationship, not to a pair of accounts. That is what makes "you actually
+ * worked together" checkable rather than asserted, and it caps each side at one
+ * review per placement.
+ */
+export const placementReviews = pgTable(
+  "placement_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    applicationId: uuid("application_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    direction: reviewDirection("direction").notNull(),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    rating: integer("rating").notNull(),
+    comment: text("comment"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("placement_reviews_once").on(t.applicationId, t.direction),
+    index("placement_reviews_subject_idx").on(t.subjectId),
+    index("placement_reviews_author_idx").on(t.authorId),
+    check("placement_reviews_rating_range", sql`"placement_reviews"."rating" between 1 and 5`),
+    check("placement_reviews_not_self", sql`"placement_reviews"."author_id" <> "placement_reviews"."subject_id"`),
   ],
 );

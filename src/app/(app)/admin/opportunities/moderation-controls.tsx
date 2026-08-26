@@ -49,7 +49,15 @@ export function ModerationControls({ opportunityId, status }: { opportunityId: s
 
       <div className="flex flex-wrap gap-1.5">
         {status !== "published" && status !== "archived" ? (
-          <ModButton label="Publish" value="published" tone="border border-line-strong bg-white text-ink hover:bg-shell" />
+          <ModButton
+            label={status === "pending_review" ? "Approve" : "Publish"}
+            value="published"
+            tone={
+              status === "pending_review"
+                ? "border border-[#c2dccc] bg-moss text-ok hover:bg-white"
+                : "border border-line-strong bg-white text-ink hover:bg-shell"
+            }
+          />
         ) : null}
         {status === "published" ? (
           <ModButton label="Unpublish" value="unpublished" tone="border border-[#e6d7ae] bg-white text-warn hover:bg-gold-soft" />

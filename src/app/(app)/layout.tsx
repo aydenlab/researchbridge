@@ -11,6 +11,7 @@ const STUDENT_NAV: NavItem[] = [
   { href: "/applications", label: "Applications" },
   { href: "/saved", label: "Saved" },
   { href: "/connections", label: "Connections" },
+  { href: "/reviews", label: "Reviews" },
   { href: "/profile", label: "Profile" },
 ];
 
@@ -19,6 +20,7 @@ const RESEARCHER_NAV: NavItem[] = [
   { href: "/researcher/opportunities", label: "Opportunities" },
   { href: "/researcher/applicants", label: "Applicants" },
   { href: "/connections", label: "Connections" },
+  { href: "/reviews", label: "Reviews" },
   { href: "/profile", label: "Profile" },
 ];
 

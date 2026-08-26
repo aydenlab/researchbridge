@@ -17,6 +17,7 @@ export const metadata: Metadata = {
 
 const TONE = {
   published: "forest",
+  pending_review: "gold",
   draft: "outline",
   closed: "neutral",
   unpublished: "warn",
@@ -51,6 +52,7 @@ export default async function AdminOpportunitiesPage({
           current={filter ?? ""}
           tabs={[
             { value: "", label: "All", count: all.length },
+            { value: "pending_review", label: "Awaiting review", count: all.filter((row) => row.status === "pending_review").length },
             { value: "published", label: "Published", count: all.filter((row) => row.status === "published").length },
             { value: "draft", label: "Draft", count: all.filter((row) => row.status === "draft").length },
             { value: "closed", label: "Closed", count: all.filter((row) => row.status === "closed").length },

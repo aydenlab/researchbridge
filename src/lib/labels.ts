@@ -125,6 +125,7 @@ export const WAITLIST_STATUS_LABELS: Record<string, string> = {
 
 export const OPPORTUNITY_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
+  pending_review: "Awaiting review",
   published: "Published",
   closed: "Closed",
   unpublished: "Unpublished",

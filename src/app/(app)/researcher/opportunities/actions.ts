@@ -14,12 +14,13 @@ import {
   opportunityResearchMaterials,
   opportunitySkills,
 } from "@/db";
-import { requireApprovedResearcher, requireManagedOpportunity } from "@/lib/auth/permissions";
+import { requireResearcher, requireManagedOpportunity } from "@/lib/auth/permissions";
 import { checkboxValue, formList, optionalText, parseForm, toActionError } from "@/lib/action-utils";
 import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
 import { slugify } from "@/lib/format";
 import { log } from "@/lib/log";
+import { isEnabled } from "@/lib/flags";
 import { ensureSkill } from "@/lib/queries/taxonomy";
 import {
   DEFAULT_PAPER_PROMPT,
@@ -49,17 +50,14 @@ async function uniqueSlug(title: string, opportunityId: string): Promise<string>
 }
 
 export async function createDraftAction(_prev: ActionResult | null, _formData: FormData) {
-  const user = await requireApprovedResearcher();
+  const user = await requireResearcher();
   let id = "";
 
   try {
-    if (!user.institutionId) {
-      return { ok: false as const, error: "Your account is not linked to an institution. Contact hello@myresearchbridge.com." };
-    }
     const [row] = await db
       .insert(opportunities)
       .values({
-        institutionId: user.institutionId,
+        institutionId: user.institutionId ?? null,
         researcherId: user.id,
         title: "Untitled research position",
         slug: `draft-${crypto.randomUUID().slice(0, 12)}`,
@@ -468,6 +466,7 @@ export async function saveVideoStepAction(_prev: ActionResult | null, formData: 
 
 export async function publishOpportunityAction(_prev: ActionResult | null, formData: FormData) {
   const opportunityId = String(formData.get("opportunityId") ?? "");
+  let queued = false;
   if (!checkboxValue(formData, "confirm")) {
     return { ok: false as const, error: "Confirm that the listing is accurate before publishing." };
   }
@@ -491,11 +490,23 @@ export async function publishOpportunityAction(_prev: ActionResult | null, formD
       };
     }
 
+    // With moderation on, submitting queues the listing rather than publishing
+    // it. The researcher is done either way; only visibility differs.
+    const reviewRequired = await isEnabled("OPPORTUNITY_REVIEW_REQUIRED");
+    const alreadyLive = opportunity.status === "published";
+    const nextStatus = reviewRequired && !alreadyLive ? "pending_review" : "published";
+
+    queued = nextStatus === "pending_review";
     const now = new Date();
     await db.transaction(async (tx) => {
       await tx
         .update(opportunities)
-        .set({ status: "published", publishedAt: opportunity.publishedAt ?? now, draftStep: TOTAL_STEPS, updatedAt: now })
+        .set({
+          status: nextStatus,
+          publishedAt: nextStatus === "published" ? (opportunity.publishedAt ?? now) : opportunity.publishedAt,
+          draftStep: TOTAL_STEPS,
+          updatedAt: now,
+        })
         .where(eq(opportunities.id, opportunity.id));
     });
 
@@ -520,14 +531,14 @@ export async function publishOpportunityAction(_prev: ActionResult | null, formD
     return toActionError(error, "publish_opportunity_failed");
   }
 
-  redirect(`/researcher/opportunities/${opportunityId}/applicants?published=1`);
+  redirect(`/researcher/opportunities/${opportunityId}/applicants?${queued ? "queued" : "published"}=1`);
 }
 
 export async function changeOpportunityStatusAction(_prev: ActionResult | null, formData: FormData) {
   const opportunityId = String(formData.get("opportunityId") ?? "");
   const target = String(formData.get("status") ?? "");
 
-  if (!["published", "closed", "unpublished", "archived"].includes(target)) {
+  if (!["published", "closed", "unpublished", "archived", "pending_review"].includes(target)) {
     return { ok: false as const, error: "That status change is not allowed." };
   }
 
@@ -551,7 +562,7 @@ export async function changeOpportunityStatusAction(_prev: ActionResult | null, 
     await db
       .update(opportunities)
       .set({
-        status: target as "published" | "closed" | "unpublished" | "archived",
+        status: target as "published" | "closed" | "unpublished" | "archived" | "pending_review",
         closedAt: target === "closed" ? now : opportunity.closedAt,
         archivedAt: target === "archived" ? now : opportunity.archivedAt,
         publishedAt: target === "published" ? (opportunity.publishedAt ?? now) : opportunity.publishedAt,

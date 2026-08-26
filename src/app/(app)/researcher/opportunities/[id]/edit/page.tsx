@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { OnboardingShell, type Step } from "@/components/app/onboarding-shell";
 import { Badge, Tag } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
-import { requireApprovedResearcher, canManageOpportunity } from "@/lib/auth/permissions";
+import { requireResearcher, canManageOpportunity } from "@/lib/auth/permissions";
 import { IMPORTANCE_LABEL } from "@/lib/criteria/weights";
 import { isEnabled } from "@/lib/flags";
 import { deadlineNote, formatDate, hoursLabel } from "@/lib/format";
@@ -58,11 +58,12 @@ export default async function EditOpportunityPage({
   searchParams: Promise<{ step?: string }>;
 }) {
   const { id } = await params;
-  const user = await requireApprovedResearcher();
+  const user = await requireResearcher();
   if (!(await canManageOpportunity(user, id))) notFound();
 
   const detail = await loadOpportunityDetail(id);
   if (!detail) notFound();
+  const reviewRequired = await isEnabled("OPPORTUNITY_REVIEW_REQUIRED");
   if (detail.opportunity.status === "archived") redirect("/researcher/opportunities");
 
   const { step: stepParam } = await searchParams;
@@ -325,7 +326,13 @@ export default async function EditOpportunityPage({
         </div>
       ) : null}
 
-      {step === 9 ? <PublishStep id={id} alreadyPublished={detail.opportunity.status === "published"} /> : null}
+      {step === 9 ? (
+        <PublishStep
+          id={id}
+          alreadyPublished={detail.opportunity.status === "published"}
+          reviewRequired={reviewRequired}
+        />
+      ) : null}
     </OnboardingShell>
   );
 }

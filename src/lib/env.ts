@@ -47,6 +47,7 @@ const schema = z.object({
   WAITLIST_ENABLED: boolish,
   PUBLIC_SIGNUP_ENABLED: boolish,
   RESEARCHER_SIGNUP_ENABLED: boolish,
+  OPPORTUNITY_REVIEW_REQUIRED: boolish,
 });
 
 const parsed = schema.safeParse(process.env);
@@ -92,6 +93,7 @@ export const featureDefaults = {
   WAITLIST_ENABLED: env.WAITLIST_ENABLED ?? true,
   PUBLIC_SIGNUP_ENABLED: env.PUBLIC_SIGNUP_ENABLED ?? true,
   RESEARCHER_SIGNUP_ENABLED: env.RESEARCHER_SIGNUP_ENABLED ?? true,
+  OPPORTUNITY_REVIEW_REQUIRED: env.OPPORTUNITY_REVIEW_REQUIRED ?? true,
 } as const;
 
 export type FeatureFlagKey = keyof typeof featureDefaults;

@@ -462,8 +462,17 @@ export function VideoStep({
   );
 }
 
-export function PublishStep({ id, alreadyPublished }: { id: string; alreadyPublished: boolean }) {
+export function PublishStep({
+  id,
+  alreadyPublished,
+  reviewRequired,
+}: {
+  id: string;
+  alreadyPublished: boolean;
+  reviewRequired: boolean;
+}) {
   const [state, action] = useActionState<ActionResult | null, FormData>(publishOpportunityAction, null);
+  const queues = reviewRequired && !alreadyPublished;
 
   return (
     <form action={action} className="flex flex-col gap-5">
@@ -471,8 +480,9 @@ export function PublishStep({ id, alreadyPublished }: { id: string; alreadyPubli
       <FormError>{state?.ok === false ? state.error : null}</FormError>
 
       <FormNote>
-        Publishing makes this listing visible to students at your institution and lets them start applications
-        immediately. You can close or unpublish it at any time, and applications are preserved either way.
+        {queues
+          ? "Submitting sends this to a ResearchBridge administrator, who checks it before students see it. You are finished once you submit, and you do not need to come back. It usually takes under a day."
+          : "Publishing makes this listing visible to students and lets them start applications immediately. You can close or unpublish it at any time, and applications are preserved either way."}
       </FormNote>
 
       <label className="flex cursor-pointer items-start gap-2.5 rounded-[8px] border border-line bg-white px-3 py-2.5">
@@ -483,7 +493,12 @@ export function PublishStep({ id, alreadyPublished }: { id: string; alreadyPubli
         </span>
       </label>
 
-      <Actions backHref={base(id, 8)} submitLabel={alreadyPublished ? "Update published listing" : "Publish opportunity"} />
+      <Actions
+        backHref={base(id, 8)}
+        submitLabel={
+          alreadyPublished ? "Update published listing" : queues ? "Submit for review" : "Publish opportunity"
+        }
+      />
     </form>
   );
 }

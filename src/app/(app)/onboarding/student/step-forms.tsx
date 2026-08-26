@@ -35,6 +35,8 @@ type Profile = {
   specialization: string | null;
   yearLevel: number | null;
   graduationYear: number | null;
+  linkedinUrl: string | null;
+  orcidId: string | null;
   researchInterestSummary: string | null;
   desiredStartDate: string | null;
   weeklyHours: number | null;
@@ -130,6 +132,23 @@ export function BasicsForm({ profile, faculties }: { profile: Profile; faculties
             defaultValue={profile.graduationYear ?? ""}
             required
           />
+        </Field>
+        <Field label="LinkedIn" htmlFor="linkedinUrl" hint="Optional." error={errors?.linkedinUrl?.[0]}>
+          <Input
+            id="linkedinUrl"
+            name="linkedinUrl"
+            type="url"
+            defaultValue={profile.linkedinUrl ?? ""}
+            placeholder="https://www.linkedin.com/in/"
+          />
+        </Field>
+        <Field
+          label="ORCID iD"
+          htmlFor="orcidId"
+          hint="Optional. Only if you already have one."
+          error={errors?.orcidId?.[0]}
+        >
+          <Input id="orcidId" name="orcidId" type="text" defaultValue={profile.orcidId ?? ""} placeholder="0000-0002-1825-0097" />
         </Field>
       </div>
 
@@ -393,7 +412,15 @@ export function AvailabilityForm({ profile }: { profile: Profile }) {
   );
 }
 
-export function ResumeForm({ hasResume }: { hasResume: boolean }) {
+export function ResumeForm({
+  hasResume,
+  hasWritingSample,
+  hasVideoIntro,
+}: {
+  hasResume: boolean;
+  hasWritingSample: boolean;
+  hasVideoIntro: boolean;
+}) {
   const [state, action] = useActionState<ActionResult | null, FormData>(saveResumeAction, null);
 
   return (
@@ -401,11 +428,11 @@ export function ResumeForm({ hasResume }: { hasResume: boolean }) {
       <FormError>{state?.ok === false ? state.error : null}</FormError>
 
       <FormNote>
-        A resume is optional. You can apply to any position that does not require one, and the listing states whether it
-        is required before you start an application.
+        Everything on this step is optional and you can finish onboarding without any of it. A resume is only required
+        at the moment you apply to a position, and we will ask for it then.
       </FormNote>
 
-      <Field label="Resume" htmlFor="resume" hint="PDF only, up to 8 MB.">
+      <Field label="Resume" htmlFor="resume" hint="PDF only, up to 8 MB. Required when you apply, not before.">
         <Input id="resume" name="resume" type="file" accept="application/pdf" className="py-1.5" />
       </Field>
 
@@ -413,6 +440,36 @@ export function ResumeForm({ hasResume }: { hasResume: boolean }) {
         <label className="flex cursor-pointer items-start gap-2.5 rounded-[8px] border border-line bg-white px-3 py-2.5">
           <input type="checkbox" name="removeResume" className="mt-0.5 size-4 accent-[#1d4436]" />
           <span className="text-[13.5px] text-ink">Remove the resume currently on my profile</span>
+        </label>
+      ) : null}
+
+      <Field
+        label="Writing sample"
+        htmlFor="writingSample"
+        hint="PDF only, up to 20 MB. A lab report, essay, or thesis chapter. Researchers read this to see how you think on paper."
+      >
+        <Input id="writingSample" name="writingSample" type="file" accept="application/pdf" className="py-1.5" />
+      </Field>
+
+      {hasWritingSample ? (
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-[8px] border border-line bg-white px-3 py-2.5">
+          <input type="checkbox" name="removeWritingSample" className="mt-0.5 size-4 accent-[#1d4436]" />
+          <span className="text-[13.5px] text-ink">Remove the writing sample currently on my profile</span>
+        </label>
+      ) : null}
+
+      <Field
+        label="Short video introduction"
+        htmlFor="videoIntro"
+        hint="MP4 or WebM, up to 60 MB. A minute is plenty. Say who you are and what you want to work on."
+      >
+        <Input id="videoIntro" name="videoIntro" type="file" accept="video/mp4,video/webm" className="py-1.5" />
+      </Field>
+
+      {hasVideoIntro ? (
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-[8px] border border-line bg-white px-3 py-2.5">
+          <input type="checkbox" name="removeVideoIntro" className="mt-0.5 size-4 accent-[#1d4436]" />
+          <span className="text-[13.5px] text-ink">Remove the video currently on my profile</span>
         </label>
       ) : null}
 

@@ -9,6 +9,7 @@ import { DEGREE_LABELS, LOCATION_LABELS, labelOr } from "@/lib/labels";
 import { loadApplication } from "@/lib/queries/applications";
 import { loadStudentProfile } from "@/lib/queries/student";
 import { ApplicationForm } from "./application-form";
+import { ResumeGate } from "./resume-gate";
 
 export const metadata: Metadata = {
   title: "Your application",
@@ -99,6 +100,10 @@ export default async function EditApplicationPage({ params }: { params: Promise<
           <p className="mt-1 text-[13px] text-muted">Applications close {formatDate(bundle.opportunity.deadline)}.</p>
         ) : null}
       </header>
+
+      <div className="mb-6">
+        <ResumeGate applicationId={bundle.application.id} hasResume={Boolean(profile.profile.resumeFileId)} />
+      </div>
 
       <ApplicationForm
         applicationId={bundle.application.id}

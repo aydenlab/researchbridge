@@ -11,7 +11,7 @@ import {
   researcherApplicationNotes,
   users,
 } from "@/db";
-import { requireApprovedResearcher, canManageOpportunity } from "@/lib/auth/permissions";
+import { requireResearcher, canManageOpportunity } from "@/lib/auth/permissions";
 import { optionalText, toActionError } from "@/lib/action-utils";
 import { runApplicationAnalysis } from "@/lib/ai/application-analysis";
 import { canTransition, STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
@@ -25,7 +25,7 @@ import { loadApplication, loadCriteria, persistCriterionResults } from "@/lib/qu
 import { loadStudentProfile, toApplicantEvidence } from "@/lib/queries/student";
 
 async function guard(applicationId: string) {
-  const user = await requireApprovedResearcher();
+  const user = await requireResearcher();
   const bundle = await loadApplication(applicationId);
   if (!bundle) return { error: "That application could not be found.", user: null, bundle: null };
   const allowed = await canManageOpportunity(user, bundle.opportunity.id);

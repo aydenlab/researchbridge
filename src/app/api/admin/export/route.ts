@@ -137,7 +137,7 @@ async function buildDataset(dataset: Dataset): Promise<{ headers: string[]; rows
       })
       .from(opportunities)
       .innerJoin(researcherProfiles, eq(researcherProfiles.userId, opportunities.researcherId))
-      .innerJoin(institutions, eq(institutions.id, opportunities.institutionId))
+      .leftJoin(institutions, eq(institutions.id, opportunities.institutionId))
       .orderBy(desc(opportunities.createdAt));
 
     return {
@@ -183,7 +183,7 @@ async function buildDataset(dataset: Dataset): Promise<{ headers: string[]; rows
       .innerJoin(opportunities, eq(opportunities.id, applications.opportunityId))
       .innerJoin(researcherProfiles, eq(researcherProfiles.userId, opportunities.researcherId))
       .innerJoin(studentProfiles, eq(studentProfiles.userId, applications.studentId))
-      .innerJoin(institutions, eq(institutions.id, opportunities.institutionId))
+      .leftJoin(institutions, eq(institutions.id, opportunities.institutionId))
       .where(ne(applications.status, "draft"))
       .orderBy(desc(applications.submittedAt));
 

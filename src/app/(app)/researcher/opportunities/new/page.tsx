@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/app/page-header";
-import { requireApprovedResearcher } from "@/lib/auth/permissions";
+import { requireResearcher } from "@/lib/auth/permissions";
 import { CreateDraftButton } from "./create-draft-button";
 
 export const metadata: Metadata = {
@@ -17,18 +17,18 @@ const STEPS = [
   "Optionally attach a paper and ask applicants to respond to it.",
   "Optionally request a short video response. Off by default.",
   "A preview of exactly what students see.",
-  "Confirm and publish.",
+  "Confirm and submit.",
 ];
 
 export default async function NewOpportunityPage() {
-  await requireApprovedResearcher();
+  await requireResearcher();
 
   return (
     <div className="mx-auto max-w-[760px] px-4 py-10 sm:px-6 sm:py-14">
       <PageHeader
         eyebrow="New position"
         title="Post a research opportunity"
-        lede="Nine short steps. Everything saves as a draft, so you can stop and come back."
+        lede="Nine short steps. Everything saves as a draft, so you can stop and come back. You do not need to be verified first."
       />
 
       <ol className="overflow-hidden rounded-[12px] border border-line bg-white">

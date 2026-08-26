@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 
 const STATUS_TONE = {
   published: "forest",
+  pending_review: "gold",
   draft: "outline",
   closed: "neutral",
   unpublished: "warn",

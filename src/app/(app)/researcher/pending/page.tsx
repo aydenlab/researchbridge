@@ -9,7 +9,7 @@ import { requireResearcher } from "@/lib/auth/permissions";
 import { VERIFICATION_LABELS, labelOr } from "@/lib/labels";
 
 export const metadata: Metadata = {
-  title: "Account under review",
+  title: "Account verification",
   robots: { index: false, follow: false },
 };
 
@@ -19,55 +19,55 @@ export default async function ResearcherPendingPage() {
 
   const rows = await db.select().from(researcherProfiles).where(eq(researcherProfiles.userId, user.id)).limit(1);
   const profile = rows[0];
+  const rejected = profile?.verificationStatus === "rejected";
 
   return (
     <div className="mx-auto max-w-[720px] px-4 py-10 sm:px-6 sm:py-14">
       <PageHeader
         eyebrow="Researcher account"
-        title="Your account is with a ResearchBridge administrator"
-        actions={<Badge tone={profile?.verificationStatus === "rejected" ? "bad" : "warn"}>{labelOr(VERIFICATION_LABELS, profile?.verificationStatus)}</Badge>}
+        title={rejected ? "This account was not verified" : "Verification is running in the background"}
+        lede={
+          rejected
+            ? undefined
+            : "You do not have to wait for it. You can write and submit a position right now."
+        }
+        actions={
+          <Badge tone={rejected ? "bad" : "warn"}>{labelOr(VERIFICATION_LABELS, profile?.verificationStatus)}</Badge>
+        }
       />
 
       <div className="rounded-[12px] border border-line bg-white p-6">
-        {profile?.verificationStatus === "rejected" ? (
+        {rejected ? (
           <>
             <p className="text-[15px] leading-7 text-muted">
               This account was not approved for the pilot. If you believe that is a mistake, write to
-              hello@myresearchbridge.com from your institutional address and we will look at it again.
+              hello@myresearchbridge.com and we will look at it again.
             </p>
-            {profile.verificationNotes ? (
+            {profile?.verificationNotes ? (
               <p className="mt-4 rounded-[8px] border border-line bg-shell px-4 py-3 text-[14px] leading-6 text-muted">
                 Note from the reviewer: {profile.verificationNotes}
               </p>
             ) : null}
           </>
-        ) : profile?.verificationStatus === "needs_review" ? (
-          <>
-            <p className="text-[15px] leading-7 text-muted">
-              A reviewer has asked for clarification before approving this account.
-            </p>
-            {profile.verificationNotes ? (
-              <p className="mt-4 rounded-[8px] border border-line bg-shell px-4 py-3 text-[14px] leading-6 text-muted">
-                What they asked: {profile.verificationNotes}
-              </p>
-            ) : null}
-            <p className="mt-4 text-[14px] leading-7 text-muted">
-              Reply to hello@myresearchbridge.com from your institutional address and the account will be re-reviewed.
-            </p>
-          </>
         ) : (
           <>
             <p className="text-[15px] leading-7 text-muted">
-              Researcher accounts are reviewed before positions can be published. This exists so that students can
-              trust that every listing comes from a real research group. During the pilot it usually takes under a day.
+              Verification is how students know a listing comes from a real research group. It no longer blocks you:
+              create your position now, and a reviewer looks at it before it goes in front of students.
             </p>
+            {profile?.verificationStatus === "needs_review" && profile.verificationNotes ? (
+              <p className="mt-4 rounded-[8px] border border-line bg-shell px-4 py-3 text-[14px] leading-6 text-muted">
+                A reviewer asked: {profile.verificationNotes}
+              </p>
+            ) : null}
             <p className="mt-4 text-[15px] leading-7 text-muted">
-              You will receive an email at {user.email} once it is done. Nothing else is needed from you right now.
+              You will hear from us at {user.email} when verification is done. Nothing else is needed from you.
             </p>
           </>
         )}
 
         <div className="mt-6 flex flex-wrap gap-3">
+          {rejected ? null : <ButtonLink href="/researcher/opportunities/new">Post a position</ButtonLink>}
           <ButtonLink href="/profile" variant="outline">
             Review your profile
           </ButtonLink>

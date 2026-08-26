@@ -26,6 +26,8 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   VIDEO_RESPONSES_ENABLED: "Allow researchers to request a short video response on a position.",
   WAITLIST_ENABLED: "Public waitlist and researcher interest forms accept submissions.",
   PUBLIC_SIGNUP_ENABLED: "New accounts can be created directly from an institutional email.",
+  OPPORTUNITY_REVIEW_REQUIRED:
+    "Submitted positions wait for an administrator before students can see them. Turn this off and they publish immediately.",
   RESEARCHER_SIGNUP_ENABLED: "Researchers can register interest and create accounts.",
 };
 

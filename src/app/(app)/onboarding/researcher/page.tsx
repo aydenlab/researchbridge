@@ -88,6 +88,9 @@ export default async function ResearcherOnboardingPage({
             labName: profile.labName,
             labWebsite: profile.labWebsite,
             personalWebsite: profile.personalWebsite,
+            linkedinUrl: profile.linkedinUrl,
+            orcidId: profile.orcidId,
+            contactEmail: profile.contactEmail,
             biography: profile.biography,
             recruitingOnBehalfOf: profile.recruitingOnBehalfOf,
           }}

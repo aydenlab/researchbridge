@@ -13,14 +13,27 @@ export default async function ApplicantsIndexPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ published?: string }>;
+  searchParams: Promise<{ published?: string; queued?: string }>;
 }) {
   const { id } = await params;
-  const { published } = await searchParams;
+  const { published, queued } = await searchParams;
   const applicants = await listApplicantsForOpportunity(id);
 
   return (
     <div className="flex flex-col gap-5">
+      {queued ? (
+        <div className="flex items-start gap-3 rounded-[12px] border border-[#e6d7ae] bg-gold-soft px-5 py-4">
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-warn" aria-hidden="true" />
+          <div>
+            <p className="font-display text-[19px] text-ink">Submitted for review</p>
+            <p className="mt-1 text-[14px] leading-6 text-muted">
+              An administrator checks it before students see it, usually within a day. Nothing else is needed from you,
+              and applicants will appear here once it goes live.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       {published ? (
         <div className="flex items-start gap-3 rounded-[12px] border border-[#c2dccc] bg-moss px-5 py-4">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden="true" />

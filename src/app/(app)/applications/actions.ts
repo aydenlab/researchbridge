@@ -12,6 +12,7 @@ import {
   notifications,
   opportunities,
   opportunityQuestions,
+  studentProfiles,
   users,
 } from "@/db";
 import { requireStudent } from "@/lib/auth/permissions";
@@ -144,6 +145,15 @@ export async function submitApplicationAction(_prev: ActionResult | null, formDa
 
     const profile = await loadStudentProfile(user.id);
     if (!profile) return { ok: false as const, error: "Complete your profile before submitting an application." };
+
+    // Onboarding stays optional, but no application goes out without a resume.
+    if (!profile.profile.resumeFileId) {
+      return {
+        ok: false as const,
+        error: "Attach a resume before submitting. It is the one document every researcher expects, and your draft is saved.",
+        fieldErrors: { resume: ["Upload a resume to submit this application."] },
+      };
+    }
 
     const snapshot = {
       firstName: profile.profile.firstName,
@@ -418,4 +428,45 @@ export async function markApplicationOpenedAction(applicationId: string, researc
     newStatus: "under_review",
     changedBy: researcherId,
   });
+}
+
+/**
+ * Uploads a resume from inside the application flow. A student who skipped the
+ * optional step during onboarding should not have to leave a half-finished
+ * application to go and fix that.
+ */
+export async function attachResumeAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const applicationId = String(formData.get("applicationId") ?? "");
+  const user = await requireStudent();
+
+  try {
+    const file = formData.get("resume");
+    if (!(file instanceof File) || file.size === 0) {
+      return {
+        ok: false as const,
+        error: "Choose a PDF to upload.",
+        fieldErrors: { resume: ["Choose a PDF to upload."] },
+      };
+    }
+
+    const stored = await storeFile({ file, purpose: "resume", ownerId: user.id });
+    await db
+      .update(studentProfiles)
+      .set({ resumeFileId: stored.id, updatedAt: new Date() })
+      .where(eq(studentProfiles.userId, user.id));
+
+    await recordAudit({
+      actorId: user.id,
+      action: "resume_attached",
+      subjectType: "application",
+      subjectId: applicationId,
+    });
+
+    revalidatePath(`/applications/${applicationId}`);
+    revalidatePath(`/applications/${applicationId}/edit`);
+    revalidatePath("/profile");
+    return { ok: true as const, data: undefined, message: "Resume saved to your profile" };
+  } catch (caught) {
+    return toActionError(caught, "attach_resume_failed");
+  }
 }

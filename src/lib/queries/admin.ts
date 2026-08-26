@@ -249,7 +249,7 @@ export async function adminOpportunities(status?: string) {
     })
     .from(opportunities)
     .innerJoin(researcherProfiles, eq(researcherProfiles.userId, opportunities.researcherId))
-    .innerJoin(institutions, eq(institutions.id, opportunities.institutionId))
+    .leftJoin(institutions, eq(institutions.id, opportunities.institutionId))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(opportunities.createdAt))
     .limit(300);
@@ -283,7 +283,7 @@ export async function adminApplications() {
     .innerJoin(opportunities, eq(opportunities.id, applications.opportunityId))
     .innerJoin(researcherProfiles, eq(researcherProfiles.userId, opportunities.researcherId))
     .innerJoin(studentProfiles, eq(studentProfiles.userId, applications.studentId))
-    .innerJoin(institutions, eq(institutions.id, opportunities.institutionId))
+    .leftJoin(institutions, eq(institutions.id, opportunities.institutionId))
     .where(ne(applications.status, "draft"))
     .orderBy(desc(applications.submittedAt))
     .limit(300);

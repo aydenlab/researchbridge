@@ -78,6 +78,8 @@ export default async function StudentOnboardingPage({
     scheduleNotes: bundle.profile.scheduleNotes,
     distinctions: bundle.profile.distinctions,
     resumeFileId: bundle.profile.resumeFileId,
+    linkedinUrl: bundle.profile.linkedinUrl,
+    orcidId: bundle.profile.orcidId,
   };
 
   const metrics = toAcademicMetrics(bundle.academicRecords);
@@ -161,7 +163,13 @@ export default async function StudentOnboardingPage({
         />
       ) : null}
       {step === 6 ? <AvailabilityForm profile={profile} /> : null}
-      {step === 7 ? <ResumeForm hasResume={Boolean(profile.resumeFileId)} /> : null}
+      {step === 7 ? (
+        <ResumeForm
+          hasResume={Boolean(profile.resumeFileId)}
+          hasWritingSample={Boolean(bundle.profile.writingSampleFileId)}
+          hasVideoIntro={Boolean(bundle.profile.videoIntroFileId)}
+        />
+      ) : null}
       {step === 8 ? <ReviewForm completion={completion} missing={missing} summary={summary} /> : null}
     </OnboardingShell>
   );

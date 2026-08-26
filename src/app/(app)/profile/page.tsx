@@ -115,6 +115,9 @@ export default async function ProfilePage() {
                 { label: "Lab or group", value: profile.labName ?? "Not set" },
                 { label: "Lab website", value: profile.labWebsite ?? "Not set" },
                 { label: "Research page", value: profile.personalWebsite ?? "Not set" },
+                { label: "LinkedIn", value: profile.linkedinUrl ?? "Not set" },
+                { label: "ORCID iD", value: profile.orcidId ?? "Not set" },
+                { label: "Contact email", value: profile.contactEmail ?? user.email },
               ]}
             />
           </Panel>
@@ -315,11 +318,30 @@ export default async function ProfilePage() {
           />
         </Panel>
 
-        <Panel title="Resume" editHref="/onboarding/student?step=7">
-          <p className="text-[13.5px] leading-6 text-muted">
-            {bundle.profile.resumeFileId
-              ? "A resume is attached to your profile and is shared with the applications you submit."
-              : "No resume uploaded. You can still apply to any position that does not require one."}
+        <Panel title="Documents and links" editHref="/onboarding/student?step=7">
+          <Rows
+            rows={[
+              {
+                label: "Resume",
+                value: bundle.profile.resumeFileId
+                  ? "Attached. Sent with every application."
+                  : "Not uploaded. You will be asked for one when you apply.",
+              },
+              {
+                label: "Writing sample",
+                value: bundle.profile.writingSampleFileId ? "Attached" : "Not uploaded",
+              },
+              {
+                label: "Video introduction",
+                value: bundle.profile.videoIntroFileId ? "Attached" : "Not uploaded",
+              },
+              { label: "LinkedIn", value: bundle.profile.linkedinUrl ?? "Not set" },
+              { label: "ORCID iD", value: bundle.profile.orcidId ?? "Not set" },
+            ]}
+          />
+          <p className="mt-4 border-t border-line pt-4 text-[13px] leading-6 text-muted">
+            A writing sample and a short video are the two things researchers say tell them most about an applicant
+            beyond a transcript. Both are optional.
           </p>
         </Panel>
 

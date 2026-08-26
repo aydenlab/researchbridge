@@ -7,7 +7,7 @@ import { db, placementOutcomes } from "@/db";
 import { CriteriaEvidence, type AiState } from "@/components/app/criteria-evidence";
 import { StatusPill } from "@/components/app/status-pill";
 import { Badge, Tag } from "@/components/ui/badge";
-import { canManageOpportunity, requireApprovedResearcher } from "@/lib/auth/permissions";
+import { canManageOpportunity, requireResearcher } from "@/lib/auth/permissions";
 import { loadStoredAnalysis, analysisToCriterionResults, type AnalysisState } from "@/lib/ai/application-analysis";
 import { allowedTransitions, STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
 import { summarizeAlignment } from "@/lib/criteria/weights";
@@ -66,7 +66,7 @@ export default async function CandidateReviewPage({
   params: Promise<{ id: string; applicationId: string }>;
 }) {
   const { id, applicationId } = await params;
-  const user = await requireApprovedResearcher();
+  const user = await requireResearcher();
   if (!(await canManageOpportunity(user, id))) notFound();
 
   const bundle = await loadApplication(applicationId);
@@ -357,18 +357,59 @@ export default async function CandidateReviewPage({
                 </div>
 
                 <div className="border-t border-line pt-4">
-                  <p className="text-[12px] font-medium text-subtle">Resume</p>
-                  {profile.profile.resumeFileId ? (
-                    <a
-                      href={`/api/files/by-id/${profile.profile.resumeFileId}`}
-                      className="mt-1.5 inline-flex items-center gap-1.5 text-[13.5px] text-forest underline decoration-line-strong underline-offset-4"
-                    >
-                      <FileText className="size-3.5" aria-hidden="true" />
-                      Open the resume
-                    </a>
-                  ) : (
-                    <p className="mt-1.5 text-[13.5px] text-muted">Not uploaded.</p>
-                  )}
+                  <p className="text-[12px] font-medium text-subtle">Materials</p>
+                  <ul className="mt-1.5 flex flex-col gap-1.5">
+                    <li>
+                      {profile.profile.resumeFileId ? (
+                        <a
+                          href={`/api/files/by-id/${profile.profile.resumeFileId}`}
+                          className="inline-flex items-center gap-1.5 text-[13.5px] text-forest underline decoration-line-strong underline-offset-4"
+                        >
+                          <FileText className="size-3.5" aria-hidden="true" />
+                          Open the resume
+                        </a>
+                      ) : (
+                        <span className="text-[13.5px] text-muted">No resume.</span>
+                      )}
+                    </li>
+                    {profile.profile.writingSampleFileId ? (
+                      <li>
+                        <a
+                          href={`/api/files/by-id/${profile.profile.writingSampleFileId}`}
+                          className="inline-flex items-center gap-1.5 text-[13.5px] text-forest underline decoration-line-strong underline-offset-4"
+                        >
+                          <FileText className="size-3.5" aria-hidden="true" />
+                          Open the writing sample
+                        </a>
+                      </li>
+                    ) : null}
+                    {profile.profile.videoIntroFileId ? (
+                      <li>
+                        <a
+                          href={`/api/files/by-id/${profile.profile.videoIntroFileId}`}
+                          className="inline-flex items-center gap-1.5 text-[13.5px] text-forest underline decoration-line-strong underline-offset-4"
+                        >
+                          <FileText className="size-3.5" aria-hidden="true" />
+                          Watch the video introduction
+                        </a>
+                      </li>
+                    ) : null}
+                    {profile.profile.linkedinUrl ? (
+                      <li>
+                        <a
+                          href={profile.profile.linkedinUrl}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="text-[13.5px] text-forest underline decoration-line-strong underline-offset-4"
+                        >
+                          LinkedIn
+                        </a>
+                      </li>
+                    ) : null}
+                    {profile.profile.orcidId ? (
+                      <li className="text-[13.5px] text-muted">ORCID {profile.profile.orcidId}</li>
+                    ) : null}
+                  </ul>
                 </div>
               </div>
             ) : (

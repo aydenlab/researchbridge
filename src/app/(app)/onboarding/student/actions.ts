@@ -67,6 +67,8 @@ export async function saveBasicsAction(_prev: ActionResult | null, formData: For
         specialization: parsed.data.specialization,
         yearLevel: parsed.data.yearLevel,
         graduationYear: parsed.data.graduationYear,
+        linkedinUrl: parsed.data.linkedinUrl,
+        orcidId: parsed.data.orcidId,
         updatedAt: new Date(),
       })
       .where(eq(studentProfiles.userId, user.id));
@@ -299,25 +301,45 @@ export async function saveAvailabilityAction(_prev: ActionResult | null, formDat
   redirect(`/onboarding/student?step=${next}`);
 }
 
+/**
+ * Handles the three optional documents on one step. Each is uploaded or cleared
+ * independently, so a student can add a video months after their resume.
+ */
 export async function saveResumeAction(_prev: ActionResult | null, formData: FormData) {
   const user = await requireUser();
   let next = 8;
 
+  const documents = [
+    { field: "resume", remove: "removeResume", purpose: "resume" as const, column: "resumeFileId" as const },
+    {
+      field: "writingSample",
+      remove: "removeWritingSample",
+      purpose: "paper" as const,
+      column: "writingSampleFileId" as const,
+    },
+    { field: "videoIntro", remove: "removeVideoIntro", purpose: "video" as const, column: "videoIntroFileId" as const },
+  ];
+
   try {
-    const file = formData.get("resume");
-    if (file instanceof File && file.size > 0) {
-      const stored = await storeFile({ file, purpose: "resume", ownerId: user.id });
+    const changes: Record<string, string | null> = {};
+
+    for (const document of documents) {
+      const file = formData.get(document.field);
+      if (file instanceof File && file.size > 0) {
+        const stored = await storeFile({ file, purpose: document.purpose, ownerId: user.id });
+        changes[document.column] = stored.id;
+      } else if (checkboxValue(formData, document.remove)) {
+        changes[document.column] = null;
+      }
+    }
+
+    if (Object.keys(changes).length > 0) {
       await db
         .update(studentProfiles)
-        .set({ resumeFileId: stored.id, updatedAt: new Date() })
+        .set({ ...changes, updatedAt: new Date() })
         .where(eq(studentProfiles.userId, user.id));
     }
-    if (checkboxValue(formData, "removeResume")) {
-      await db
-        .update(studentProfiles)
-        .set({ resumeFileId: null, updatedAt: new Date() })
-        .where(eq(studentProfiles.userId, user.id));
-    }
+
     next = await advance(user.id, 7);
   } catch (error) {
     return toActionError(error, "student_resume_failed");

@@ -24,6 +24,9 @@ export type ResearcherDraft = {
   labName: string | null;
   labWebsite: string | null;
   personalWebsite: string | null;
+  linkedinUrl: string | null;
+  orcidId: string | null;
+  contactEmail: string | null;
   biography: string | null;
   recruitingOnBehalfOf: string | null;
 };
@@ -107,6 +110,33 @@ export function ResearcherDetailsForm({
         <Input id="personalWebsite" name="personalWebsite" type="url" defaultValue={draft.personalWebsite ?? ""} placeholder="https://" />
       </Field>
 
+      <Field
+        label="LinkedIn"
+        htmlFor="linkedinUrl"
+        hint="Optional."
+        error={errors?.linkedinUrl?.[0]}
+      >
+        <Input id="linkedinUrl" name="linkedinUrl" type="url" defaultValue={draft.linkedinUrl ?? ""} placeholder="https://www.linkedin.com/in/" />
+      </Field>
+
+      <Field
+        label="ORCID iD"
+        htmlFor="orcidId"
+        hint="Optional. Students use it to find your published work."
+        error={errors?.orcidId?.[0]}
+      >
+        <Input id="orcidId" name="orcidId" type="text" defaultValue={draft.orcidId ?? ""} placeholder="0000-0002-1825-0097" />
+      </Field>
+
+      <Field
+        label="Contact email"
+        htmlFor="contactEmail"
+        hint="Optional. Shown to students you contact, if it differs from your sign-in address."
+        error={errors?.contactEmail?.[0]}
+      >
+        <Input id="contactEmail" name="contactEmail" type="email" defaultValue={draft.contactEmail ?? ""} />
+      </Field>
+
       <fieldset>
         <legend className="mb-2 text-[13px] font-medium text-ink">
           Research areas <span className="text-clay">*</span>
@@ -186,8 +216,8 @@ export function ResearcherReviewForm({
 
       <FormNote>
         {verificationStatus === "verified"
-          ? "Your account is already approved. Submitting simply saves these details."
-          : "Researcher accounts are reviewed by a ResearchBridge administrator before positions can be published. During the pilot this usually takes under a day, and you will be emailed when it is done."}
+          ? "Your account is already verified. Submitting saves these details and takes you straight to posting a position."
+          : "You go straight to posting a position after this. Verification happens in the background: an administrator checks your account and your first listing before students see it, usually within a day. You do not need an institutional email address to get this far, and you will be emailed when verification is done."}
       </FormNote>
 
       <dl className="divide-y divide-line border-y border-line">
@@ -199,7 +229,7 @@ export function ResearcherReviewForm({
         ))}
       </dl>
 
-      <Actions backHref="/onboarding/researcher?step=1" submitLabel="Submit for review" />
+      <Actions backHref="/onboarding/researcher?step=1" submitLabel="Save and post a position" />
     </form>
   );
 }

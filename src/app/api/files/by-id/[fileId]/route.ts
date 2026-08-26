@@ -43,7 +43,12 @@ async function isAuthorized(fileId: string, userId: string, role: string | null)
     .where(
       and(
         eq(opportunities.researcherId, userId),
-        or(eq(studentProfiles.resumeFileId, fileId), eq(studentProfiles.transcriptFileId, fileId)),
+        or(
+          eq(studentProfiles.resumeFileId, fileId),
+          eq(studentProfiles.transcriptFileId, fileId),
+          eq(studentProfiles.writingSampleFileId, fileId),
+          eq(studentProfiles.videoIntroFileId, fileId),
+        ),
       ),
     )
     .limit(1);

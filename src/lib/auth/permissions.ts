@@ -51,12 +51,6 @@ export async function requireResearcher(): Promise<SessionUser> {
   return user;
 }
 
-export async function requireApprovedResearcher(): Promise<SessionUser> {
-  const user = await requireResearcher();
-  if (user.researcherVerification !== "verified") redirect("/researcher/pending");
-  return user;
-}
-
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await requireUser();
   if (user.role !== "admin") deny(user, "require_admin");

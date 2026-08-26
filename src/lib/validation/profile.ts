@@ -27,6 +27,27 @@ const optionalUrl = z
     message: "Enter a full web address starting with http or https.",
   });
 
+const optionalOrcid = z
+  .string()
+  .trim()
+  .max(40)
+  .optional()
+  .transform((value) => (value && value.length > 0 ? value : null))
+  .refine((value) => value === null || /^(?:https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/i.test(value), {
+    message: "Enter an ORCID iD in the form 0000-0002-1825-0097.",
+  });
+
+const optionalEmail = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(254)
+  .optional()
+  .transform((value) => (value && value.length > 0 ? value : null))
+  .refine((value) => value === null || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value), {
+    message: "Enter a valid email address.",
+  });
+
 export const studentBasicsSchema = z.object({
   firstName: requiredText("First name", 80),
   lastName: requiredText("Last name", 80),
@@ -43,6 +64,8 @@ export const studentBasicsSchema = z.object({
     .int()
     .min(2020, "Enter a graduation year of 2020 or later.")
     .max(2040, "Enter a graduation year of 2040 or earlier."),
+  linkedinUrl: optionalUrl,
+  orcidId: optionalOrcid,
 });
 
 export const studentAcademicsSchema = z.object({
@@ -122,6 +145,9 @@ export const researcherProfileSchema = z.object({
   labName: optionalText(160),
   labWebsite: optionalUrl,
   personalWebsite: optionalUrl,
+  linkedinUrl: optionalUrl,
+  orcidId: optionalOrcid,
+  contactEmail: optionalEmail,
   biography: requiredText("Short biography", 2500),
   recruitingOnBehalfOf: z.enum(["personally", "lab", "another_investigator"], {
     message: "Tell us who you are recruiting for.",

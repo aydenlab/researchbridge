@@ -43,6 +43,13 @@
       "when": 1787703311266,
       "tag": "0005_light_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787711846480,
+      "tag": "0006_productive_proudstar",
+      "breakpoints": true
     }
   ]
 }

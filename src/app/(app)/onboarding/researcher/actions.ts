@@ -37,6 +37,9 @@ export async function saveResearcherDetailsAction(_prev: ActionResult | null, fo
         labName: parsed.data.labName,
         labWebsite: parsed.data.labWebsite,
         personalWebsite: parsed.data.personalWebsite,
+        linkedinUrl: parsed.data.linkedinUrl,
+        orcidId: parsed.data.orcidId,
+        contactEmail: parsed.data.contactEmail,
         biography: parsed.data.biography,
         recruitingOnBehalfOf: parsed.data.recruitingOnBehalfOf,
         ...(photoFileId ? { photoFileId } : {}),
@@ -99,5 +102,8 @@ export async function submitResearcherForReviewAction(_prev: ActionResult | null
     return toActionError(error, "researcher_submit_failed");
   }
 
-  redirect("/researcher");
+  // Straight into posting. Verification carries on in the background, and the
+  // fewer steps between finishing a profile and having a position written, the
+  // fewer people stop here.
+  redirect("/researcher/opportunities/new");
 }

@@ -9,6 +9,8 @@ import { Badge, Tag } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader, SectionTitle } from "@/components/ui/card";
 import { requireOnboardedUser } from "@/lib/auth/permissions";
 import { listConfirmedProfileReferences } from "@/lib/queries/references";
+import { listReviewsFor, reviewSummary } from "@/lib/queries/reviews";
+import { formatShortDate } from "@/lib/format";
 import {
   followCounts,
   isFollowing,
@@ -58,7 +60,11 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
     fieldsFor(userId, person.role),
   ]);
 
-  const confirmedReferences = await listConfirmedProfileReferences(userId);
+  const [confirmedReferences, reviews, ratings] = await Promise.all([
+    listConfirmedProfileReferences(userId),
+    listReviewsFor(userId),
+    reviewSummary(userId),
+  ]);
   const [followerIds, followingIds] = await Promise.all([listFollowerIds(userId), listFollowingIds(userId)]);
   const connectionIds = [...new Set([...followerIds, ...followingIds])].slice(0, 12);
   const connectionPeople = await loadPeople([...new Set([...connectionIds, ...sharedIds])]);
@@ -85,6 +91,9 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
           </p>
           <p className="mt-2 text-[13px] text-subtle">
             {counts.followers} {counts.followers === 1 ? "follower" : "followers"} · {counts.following} following
+            {ratings.average !== null
+              ? ` (rated ${ratings.average.toFixed(1)} of 5 across ${ratings.count} ${ratings.count === 1 ? "review" : "reviews"})`
+              : ""}
           </p>
         </div>
         {isSelf ? (
@@ -105,6 +114,33 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
                 <Tag key={name}>{name}</Tag>
               ))}
             </div>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {reviews.length > 0 ? (
+        <Card className="mt-5">
+          <CardHeader>
+            <SectionTitle>Reviews from people who worked with them</SectionTitle>
+          </CardHeader>
+          <CardBody>
+            <ul className="flex flex-col gap-4">
+              {reviews.map((entry) => (
+                <li key={entry.review.id} className="border-b border-line pb-4 last:border-b-0 last:pb-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[13.5px] text-ink">{entry.opportunityTitle}</p>
+                    <Badge tone="neutral">{entry.review.rating} of 5</Badge>
+                  </div>
+                  {entry.review.comment ? (
+                    <p className="rb-measure mt-2 text-[14px] leading-7 text-muted">{entry.review.comment}</p>
+                  ) : null}
+                  <p className="mt-1.5 text-[12px] text-subtle">{formatShortDate(entry.review.createdAt)}</p>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 border-t border-line pt-3 text-[12px] leading-5 text-subtle">
+              Only somebody who took part in the same placement can leave one of these.
+            </p>
           </CardBody>
         </Card>
       ) : null}
