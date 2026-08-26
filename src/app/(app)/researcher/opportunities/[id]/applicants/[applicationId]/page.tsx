@@ -26,7 +26,7 @@ import {
 } from "@/lib/labels";
 import { listApplicantsForOpportunity, loadApplication, loadCriteria, loadCriterionResults, listResearcherNotes } from "@/lib/queries/applications";
 import { loadStudentProfile, toAcademicMetrics } from "@/lib/queries/student";
-import { listReferences } from "@/lib/queries/references";
+import { listConfirmedProfileReferences, listReferences } from "@/lib/queries/references";
 import { ContactControl, NotesPanel, PlacementForm, RefreshEvidence, StatusActions } from "./review-controls";
 
 export const metadata: Metadata = {
@@ -76,7 +76,7 @@ export default async function CandidateReviewPage({
     await markApplicationOpenedAction(applicationId, user.id);
   }
 
-  const [profile, criteria, storedResults, notes, analysisState, applicants, outcomeRows, references] = await Promise.all([
+  const [profile, criteria, storedResults, notes, analysisState, applicants, outcomeRows, references, profileReferences] = await Promise.all([
     loadStudentProfile(bundle.application.studentId),
     loadCriteria(id),
     loadCriterionResults(applicationId),
@@ -85,6 +85,7 @@ export default async function CandidateReviewPage({
     listApplicantsForOpportunity(id),
     db.select().from(placementOutcomes).where(eq(placementOutcomes.applicationId, applicationId)).limit(1),
     listReferences(applicationId),
+    listConfirmedProfileReferences(bundle.application.studentId),
   ]);
 
   const aiResults: CriterionResult[] =
@@ -401,9 +402,10 @@ export default async function CandidateReviewPage({
               <h2 className="font-display text-[17px] text-ink">References</h2>
             </div>
             <div className="px-5 py-4">
-              {references.length === 0 ? (
+              {references.length === 0 && profileReferences.length === 0 ? (
                 <p className="text-[12.5px] leading-5 text-subtle">This applicant did not name a reference.</p>
-              ) : (
+              ) : null}
+              {references.length > 0 ? (
                 <ul className="flex flex-col gap-3">
                   {references.map((reference) => (
                     <li key={reference.id} className="flex items-start justify-between gap-3">
@@ -419,7 +421,23 @@ export default async function CandidateReviewPage({
                     </li>
                   ))}
                 </ul>
-              )}
+              ) : null}
+              {profileReferences.length > 0 ? (
+                <div className="mt-3 border-t border-line pt-3">
+                  <p className="text-[12px] text-subtle">On their profile, confirmed</p>
+                  <ul className="mt-2 flex flex-col gap-2.5">
+                    {profileReferences.map((reference) => (
+                      <li key={reference.id} className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[13px] text-ink">{reference.refereeName || reference.refereeEmail}</p>
+                          <p className="mt-0.5 text-[12px] text-subtle">{reference.relationship || "Relationship not given"}</p>
+                        </div>
+                        <Badge tone="ok">Confirmed</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <p className="mt-3 border-t border-line pt-3 text-[12px] leading-5 text-subtle">
                 Only a confirmed reference means the named person replied and agreed. Treat anything else as unverified.
               </p>

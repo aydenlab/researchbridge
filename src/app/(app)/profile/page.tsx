@@ -19,6 +19,8 @@ import {
   labelOr,
 } from "@/lib/labels";
 import { loadStudentProfile, missingProfileItems, toAcademicMetrics } from "@/lib/queries/student";
+import { listProfileReferences, MAX_PROFILE_REFERENCES } from "@/lib/queries/references";
+import { ProfileReferences } from "./profile-references";
 
 export const metadata: Metadata = {
   title: "Profile",
@@ -68,6 +70,8 @@ export default async function ProfilePage() {
   const user = await requireUser();
   if (!user.role) redirect("/onboarding");
   if (user.role === "admin") redirect("/admin");
+
+  const profileReferenceRows = await listProfileReferences(user.id);
 
   if (user.role === "researcher") {
     const rows = await db.select().from(researcherProfiles).where(eq(researcherProfiles.userId, user.id)).limit(1);
@@ -130,6 +134,8 @@ export default async function ProfilePage() {
           <Panel title="Biography" editHref="/onboarding/researcher?step=1">
             <p className="rb-measure text-[14.5px] leading-7 text-muted">{profile.biography ?? "Not set"}</p>
           </Panel>
+
+          <ProfileReferences references={profileReferenceRows} max={MAX_PROFILE_REFERENCES} />
         </div>
       </div>
     );
@@ -316,6 +322,8 @@ export default async function ProfilePage() {
               : "No resume uploaded. You can still apply to any position that does not require one."}
           </p>
         </Panel>
+
+        <ProfileReferences references={profileReferenceRows} max={MAX_PROFILE_REFERENCES} />
       </div>
     </div>
   );

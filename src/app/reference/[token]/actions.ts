@@ -3,13 +3,13 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { applicationReferences, db } from "@/db";
+import { applicationReferences, db, profileReferences } from "@/db";
 import { sendReferenceResolved } from "@/lib/email";
 import { recordAudit } from "@/lib/events";
 import type { ActionResult } from "@/lib/errors";
 import { toActionError, parseForm } from "@/lib/action-utils";
 import { log } from "@/lib/log";
-import { loadReferenceByToken, studentEmailForApplication } from "@/lib/queries/references";
+import { emailForUser, resolveReferenceToken, studentEmailForApplication } from "@/lib/queries/references";
 
 const respondSchema = z.object({
   token: z.string().min(1),
@@ -19,8 +19,8 @@ const respondSchema = z.object({
 
 /**
  * Reached from an emailed link by somebody with no account, so the token is the
- * only credential. It is matched by hash, single use, and the row is only ever
- * moved out of "pending" once.
+ * only credential. It is matched by hash, answered once, and it covers both a
+ * per-application request and a profile-wide one.
  */
 export async function respondToReferenceAction(
   _prev: ActionResult | null,
@@ -32,19 +32,20 @@ export async function respondToReferenceAction(
   const { token, decision, note } = parsed.data;
 
   try {
-    const context = await loadReferenceByToken(token);
-    if (!context) {
+    const resolved = await resolveReferenceToken(token);
+    if (!resolved) {
       return { ok: false as const, error: "That link is not valid. Ask for a new request." };
     }
-    if (context.reference.status !== "pending") {
+    if (resolved.status !== "pending") {
       return { ok: false as const, error: "This request has already been answered." };
     }
 
+    const table = resolved.kind === "application" ? applicationReferences : profileReferences;
     const updated = await db
-      .update(applicationReferences)
+      .update(table)
       .set({ status: decision, note: note || null, respondedAt: new Date() })
-      .where(eq(applicationReferences.id, context.reference.id))
-      .returning({ id: applicationReferences.id });
+      .where(eq(table.id, resolved.referenceId))
+      .returning({ id: table.id });
 
     if (updated.length === 0) {
       return { ok: false as const, error: "This request has already been answered." };
@@ -52,23 +53,33 @@ export async function respondToReferenceAction(
 
     await recordAudit({
       action: decision === "approved" ? "reference_approved" : "reference_declined",
-      subjectType: "application",
-      subjectId: context.applicationId,
-      detail: { refereeEmail: context.reference.refereeEmail },
+      subjectType: resolved.kind === "application" ? "application" : "user",
+      subjectId: resolved.kind === "application" ? resolved.applicationId : resolved.userId,
+      detail: { refereeEmail: resolved.refereeEmail, kind: resolved.kind },
     });
 
-    const studentEmail = await studentEmailForApplication(context.applicationId);
-    if (studentEmail) {
+    const notifyEmail =
+      resolved.kind === "application"
+        ? await studentEmailForApplication(resolved.applicationId)
+        : await emailForUser(resolved.userId);
+
+    if (notifyEmail) {
       void sendReferenceResolved({
-        to: studentEmail,
-        refereeLabel: context.reference.refereeName || context.reference.refereeEmail,
-        projectTitle: context.opportunityTitle,
+        to: notifyEmail,
+        refereeLabel: resolved.refereeName || resolved.refereeEmail,
+        projectTitle: resolved.kind === "application" ? resolved.projectTitle : "your profile",
         approved: decision === "approved",
       }).catch((error) => log.error("reference_resolution_notice_failed", { error }));
     }
 
     revalidatePath(`/reference/${token}`);
-    revalidatePath(`/applications/${context.applicationId}`);
+    if (resolved.kind === "application") {
+      revalidatePath(`/applications/${resolved.applicationId}`);
+    } else {
+      revalidatePath("/profile");
+      revalidatePath(`/people/${resolved.userId}`);
+    }
+
     return {
       ok: true as const,
       data: undefined,

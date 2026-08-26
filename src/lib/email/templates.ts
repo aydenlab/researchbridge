@@ -170,3 +170,33 @@ export async function sendNewFollowerNotice(to: string, followerName: string) {
     ].join("\n"),
   });
 }
+
+export async function sendProfileReferenceRequest(input: {
+  to: string;
+  refereeName: string | null;
+  personName: string;
+  personDetail: string | null;
+  relationship: string | null;
+  url: string;
+}) {
+  const greeting = input.refereeName ? `Hello ${input.refereeName},` : "Hello,";
+  return sendEmail({
+    to: input.to,
+    subject: `${input.personName} listed you as a reference`,
+    text: [
+      greeting,
+      "",
+      `${input.personName}${input.personDetail ? ` (${input.personDetail})` : ""} has asked to list you as a reference on their ResearchBridge profile${
+        input.relationship ? `, as their ${input.relationship}` : ""
+      }.`,
+      "",
+      "This is asked once, not for every position they apply to. Confirming says only that you know them and are willing to be named. You are not writing a letter and you are not rating anyone.",
+      "",
+      input.url,
+      "",
+      "If you do not know this person, decline on that page and we will record it. The link works once.",
+      "",
+      SIGNATURE,
+    ].join("\n"),
+  });
+}

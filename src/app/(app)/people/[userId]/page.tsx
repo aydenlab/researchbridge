@@ -8,6 +8,7 @@ import { PersonRow } from "@/components/app/person-row";
 import { Badge, Tag } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader, SectionTitle } from "@/components/ui/card";
 import { requireOnboardedUser } from "@/lib/auth/permissions";
+import { listConfirmedProfileReferences } from "@/lib/queries/references";
 import {
   followCounts,
   isFollowing,
@@ -57,6 +58,7 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
     fieldsFor(userId, person.role),
   ]);
 
+  const confirmedReferences = await listConfirmedProfileReferences(userId);
   const [followerIds, followingIds] = await Promise.all([listFollowerIds(userId), listFollowingIds(userId)]);
   const connectionIds = [...new Set([...followerIds, ...followingIds])].slice(0, 12);
   const connectionPeople = await loadPeople([...new Set([...connectionIds, ...sharedIds])]);
@@ -107,6 +109,31 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
         </Card>
       ) : null}
 
+      {confirmedReferences.length > 0 ? (
+        <Card className="mt-5">
+          <CardHeader>
+            <SectionTitle>Confirmed references</SectionTitle>
+          </CardHeader>
+          <CardBody>
+            <ul className="flex flex-col gap-3">
+              {confirmedReferences.map((reference) => (
+                <li key={reference.id} className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[14px] text-ink">{reference.refereeName || reference.refereeEmail}</p>
+                    <p className="mt-0.5 text-[12.5px] text-subtle">
+                      {reference.relationship || "Relationship not given"}
+                    </p>
+                  </div>
+                  <Badge tone="ok">Confirmed</Badge>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 border-t border-line pt-3 text-[12px] leading-5 text-subtle">
+              Each of these people was emailed and confirmed it themselves. Requests that are still waiting are not shown here.
+            </p>
+          </CardBody>
+        </Card>
+      ) : null}
       {sharedIds.length > 0 ? (
         <Card className="mt-5">
           <CardHeader>

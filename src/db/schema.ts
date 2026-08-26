@@ -929,3 +929,31 @@ export const applicationReferences = pgTable(
     index("application_references_application_idx").on(t.applicationId),
   ],
 );
+
+/**
+ * A reference attached to the person rather than to one application. Somebody
+ * vouches once, and it then shows on the profile instead of being re-requested
+ * every time that person applies.
+ */
+export const profileReferences = pgTable(
+  "profile_references",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    refereeEmail: text("referee_email").notNull(),
+    refereeName: text("referee_name"),
+    relationship: text("relationship"),
+    status: referenceStatus("status").notNull().default("pending"),
+    tokenHash: text("token_hash").notNull(),
+    note: text("note"),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    respondedAt: timestamp("responded_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("profile_references_unique").on(t.userId, t.refereeEmail),
+    uniqueIndex("profile_references_token_key").on(t.tokenHash),
+    index("profile_references_user_idx").on(t.userId),
+  ],
+);
