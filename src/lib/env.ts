@@ -93,7 +93,10 @@ export const featureDefaults = {
   WAITLIST_ENABLED: env.WAITLIST_ENABLED ?? true,
   PUBLIC_SIGNUP_ENABLED: env.PUBLIC_SIGNUP_ENABLED ?? true,
   RESEARCHER_SIGNUP_ENABLED: env.RESEARCHER_SIGNUP_ENABLED ?? true,
-  OPPORTUNITY_REVIEW_REQUIRED: env.OPPORTUNITY_REVIEW_REQUIRED ?? true,
+  // Off by default: the pilot optimises for how fast a researcher gets from
+  // wanting to recruit to having posted. Turn it on in /admin/system when there
+  // are more researchers than can be vouched for individually.
+  OPPORTUNITY_REVIEW_REQUIRED: env.OPPORTUNITY_REVIEW_REQUIRED ?? false,
 } as const;
 
 export type FeatureFlagKey = keyof typeof featureDefaults;

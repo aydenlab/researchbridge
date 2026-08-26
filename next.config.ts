@@ -11,7 +11,11 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@electric-sql/pglite", "pg"],
-  experimental: { serverActions: { bodySizeLimit: "12mb" } },
+  // Must stay above the largest FILE_RULES entry in src/lib/storage/index.ts.
+  // A server action rejects an oversized body before any of our own validation
+  // runs, so a lower value here silently breaks video and writing-sample
+  // uploads no matter what those rules say.
+  experimental: { serverActions: { bodySizeLimit: "64mb" } },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
