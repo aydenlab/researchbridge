@@ -7,33 +7,42 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * Driven by an external scheduler rather than an in-process timer, so a restart
- * or a second web worker cannot cause a week to be skipped or sent twice.
+ * Triggers the weekly digest from outside the web process.
  *
- * Point a weekly cron at this URL with the CRON_SECRET as a bearer token. With
- * no secret configured the endpoint refuses to run rather than running open to
- * anyone who guesses the path.
+ * This is optional. The digest already runs itself off ordinary traffic (see
+ * lib/notifications/schedule.ts), and this endpoint exists for deployments that
+ * want deterministic timing or need to send a period again by hand.
+ *
+ * Authentication is deliberately conditional. Setting CRON_SECRET locks the
+ * endpoint down completely. Leaving it unset keeps the endpoint open, which is
+ * safe only because the run claims its ISO week in the database before sending
+ * anything: an anonymous caller can at most cause the week's digest to go out
+ * slightly early, never twice, and never in a loop. Resending a period that has
+ * already been sent is the one thing that is never open, because that is the
+ * only way to make this send the same email to everybody more than once.
  */
 export async function POST(request: Request) {
   const secret = env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json(
-      { error: "Scheduled jobs are not configured. Set CRON_SECRET to enable this endpoint." },
-      { status: 503 },
-    );
-  }
-
   const provided = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (provided !== secret) {
+  const authorized = Boolean(secret) && provided === secret;
+
+  if (secret && !authorized) {
     log.warn("cron_unauthorized", { job: "weekly_digest" });
     return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   }
 
+  const force = new URL(request.url).searchParams.get("force") === "1";
+  if (force && !authorized) {
+    return NextResponse.json(
+      {
+        error:
+          "Resending a period requires CRON_SECRET to be set and supplied. Without it this endpoint can only send a week that has not gone out yet.",
+      },
+      { status: 401 },
+    );
+  }
+
   try {
-    // `?force=1` resends a period that has already gone out. Deliberately a
-    // query parameter rather than the default, so a retrying scheduler cannot
-    // ask for it by accident.
-    const force = new URL(request.url).searchParams.get("force") === "1";
     const result = await runWeeklyDigest({ force });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

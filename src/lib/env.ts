@@ -23,6 +23,7 @@ const schema = z.object({
   SESSION_SECRET: z.string().min(16).default("researchbridge_local_development_secret"),
   ADMIN_EMAILS: z.string().optional(),
   CRON_SECRET: z.string().optional(),
+  DIGEST_AUTORUN: boolish,
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-5"),
   ANTHROPIC_PROMPT_CACHE_ENABLED: boolish,
@@ -58,7 +59,12 @@ if (!parsed.success) {
   throw new Error(`Invalid environment configuration. ${issues}`);
 }
 
-export const env = parsed.data;
+export const env = {
+  ...parsed.data,
+  // On by default so the digest works with no configuration at all. Turning it
+  // off is for deployments that would rather drive the endpoint themselves.
+  DIGEST_AUTORUN: parsed.data.DIGEST_AUTORUN ?? true,
+};
 
 export const isProduction = env.NODE_ENV === "production";
 

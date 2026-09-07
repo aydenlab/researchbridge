@@ -1,8 +1,12 @@
 name: Weekly digest
 
-# The digest runs from here rather than from a timer inside the web process, so
-# a restart or a second Railway worker cannot skip or duplicate a week. The
-# endpoint is idempotent per ISO week regardless, so a retry is harmless.
+# Optional. The app already runs the digest itself off ordinary traffic, and the
+# run claims its ISO week in the database, so this workflow and the app's own
+# heartbeat cannot both send the same week.
+#
+# Set the APP_URL repository variable to switch this on. Setting the CRON_SECRET
+# repository secret as well is only needed if the deployment has CRON_SECRET set,
+# or if you want to use the force option below.
 on:
   schedule:
     # 13:00 UTC Monday, which is a reasonable Monday morning across Canada.
@@ -10,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: "Send this week again even if it has already gone out"
+        description: "Send this week again even if it has already gone out (needs CRON_SECRET)"
         type: boolean
         default: false
 
@@ -26,13 +30,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Not configured is not a failure. Leaving this workflow to go red
+          # every Monday would train everybody to ignore the Actions tab.
           if [ -z "${APP_URL:-}" ]; then
-            echo "APP_URL repository variable is not set." >&2
-            exit 1
-          fi
-          if [ -z "${CRON_SECRET:-}" ]; then
-            echo "CRON_SECRET repository secret is not set." >&2
-            exit 1
+            echo "APP_URL repository variable is not set, so there is nothing to call."
+            echo "The app runs the digest itself off its own health check, so this is fine."
+            exit 0
           fi
 
           url="${APP_URL%/}/api/cron/weekly-digest"
@@ -40,13 +43,14 @@ jobs:
             url="${url}?force=1"
           fi
 
-          # Separate the body from the status so a non-2xx response fails the
-          # job loudly instead of being swallowed by curl's exit code.
-          response=$(curl --silent --show-error --max-time 300 \
-            --write-out "\n%{http_code}" \
-            --request POST "$url" \
-            --header "Authorization: Bearer ${CRON_SECRET}")
+          args=(--silent --show-error --max-time 300 --write-out "\n%{http_code}" --request POST "$url")
+          if [ -n "${CRON_SECRET:-}" ]; then
+            args+=(--header "Authorization: Bearer ${CRON_SECRET}")
+          fi
 
+          # Split the body from the status so a non-2xx response fails the job
+          # loudly instead of being swallowed by curl's exit code.
+          response=$(curl "${args[@]}")
           status=$(printf '%s' "$response" | tail -n 1)
           body=$(printf '%s' "$response" | sed '$d')
 

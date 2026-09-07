@@ -55,7 +55,8 @@ Open http://localhost:3000.
 | `DATABASE_URL` | Production | PostgreSQL connection string. Empty in development falls back to PGlite. |
 | `APP_URL` | Yes | Public base URL. Used for metadata, sitemap, and links in email. |
 | `SESSION_SECRET` | Yes | At least 16 characters. Signs session tokens and verification code hashes. Rotating it invalidates all sessions and codes. |
-| `CRON_SECRET` | For digests | Bearer token accepted by `POST /api/cron/weekly-digest`. Without it the endpoint refuses to run rather than being open to anyone who guesses the path. |
+| `CRON_SECRET` | No | Locks down `POST /api/cron/weekly-digest`. Not needed: the digest schedules itself. Set it to close the manual endpoint, or to be able to resend a week that has already gone out. |
+| `DIGEST_AUTORUN` | No | Whether the app schedules the weekly digest itself off its health check. On by default. Set to `false` only if you want to drive the endpoint yourself. |
 | `ADMIN_EMAILS` | First deploy | Comma-separated addresses that become ResearchBridge administrators on sign in, bypassing the institution domain check. Needed to bootstrap a fresh database, which has no institutions until an admin creates one. |
 | `ANTHROPIC_API_KEY` | No | Enables Claude evidence analysis. Server only, never prefixed with `NEXT_PUBLIC_`. A key the provider rejects is reported as such on `/admin/system` rather than as an outage. |
 | `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-5`. Changing the model does not require a code change. |
@@ -160,15 +161,16 @@ Notes:
 
 ---
 
-### Scheduling the weekly digest
+### The weekly digest schedules itself
 
-The digest is triggered from outside the web process, so a restart or a second Railway worker cannot skip or duplicate a week.
+There is nothing to configure. From Monday 13:00 UTC each week the app checks, on its own health check, whether that week has been sent, and sends it if not.
 
-1. Generate a token: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`
-2. Set `CRON_SECRET` to it in the Railway service variables.
-3. In GitHub, add the same value as the `CRON_SECRET` repository secret, and add `APP_URL` as a repository variable pointing at the deployed site.
+The usual objection to scheduling inside a web process is that a restart drops the timer and a second worker duplicates the work. Neither applies, because there is no timer. Every heartbeat asks the database whether the current ISO week has been claimed, and the claim is a single atomic insert, so any number of workers arriving at once still produce exactly one send. A restart loses nothing, because nothing was held in memory. The one real dependency is that the site sees some traffic during the week, which Railway's own health check already guarantees.
 
-`.github/workflows/weekly-digest.yml` then runs every Monday at 13:00 UTC, and can be triggered by hand from the Actions tab. Without `CRON_SECRET` the endpoint returns 503 rather than running open to anyone who guesses the path.
+Two optional extras:
+
+- `POST /api/cron/weekly-digest` triggers a run by hand. With `CRON_SECRET` unset it is open, which is safe only because the week is claimed before anything is sent: an anonymous caller can at most make that week's digest go out early, never twice. Resending a week that has already gone out always requires the secret, because that is the only way to make this send the same email to everybody twice.
+- `.github/workflows/weekly-digest.yml` calls that endpoint every Monday if you set the `APP_URL` repository variable. Without it the workflow exits cleanly rather than going red every week.
 
 ---
 
@@ -327,7 +329,7 @@ Semantic HTML, keyboard reachable controls, visible focus outlines, labelled fie
 - The end to end suite in `scripts/run-e2e.sh` runs against `next dev` because the PGlite fallback cannot be shared across the production server's workers. Point `DATABASE_URL` at a real PostgreSQL instance to run it against `next start`.
 - Faculty prefill keeps the platform's passwordless sign-in rather than adding a password, which the original note asked for. Adding password auth would mean a second credential store, a reset flow, and its own rate limiting, all to replace a six-digit code that already arrives at the same verified address. The claim flow is otherwise exactly as described: sign in, confirm, state your needs, done.
 - The faculty importer reads a CSV. Scraping McMaster Experts and LinkedIn is not built; the expectation is that the list arrives as an export.
-- The weekly digest runs from `.github/workflows/weekly-digest.yml`, which POSTs to `/api/cron/weekly-digest` every Monday at 13:00 UTC. It needs the `APP_URL` repository variable and the `CRON_SECRET` repository secret. The run is idempotent per ISO week, so a retry, a manual trigger, and a second environment pointed at the same database cannot double-send.
+- The weekly digest rides on the health check rather than a real scheduler. That is correct here and needs no setup, but it does mean a deployment that receives no traffic at all for a week sends nothing that week. Point the optional GitHub workflow at it if that ever matters.
 - The duration backfill in migration 0008 reads the old free-text duration field. Anything it cannot read confidently is left unset rather than guessed at, so some existing listings will ask their owner for a duration the next time they are edited.
 - No formal third-party accessibility audit has been carried out, and no compliance certification is claimed.
 
