@@ -3,7 +3,7 @@
 import { TokenField } from "@/components/app/inputs";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CheckboxRow, Field, FormNote, Input, Textarea } from "@/components/ui/field";
-import { LOCATION_LABELS } from "@/lib/labels";
+import { DURATION_LABELS, DURATION_ORDER, LOCATION_LABELS } from "@/lib/labels";
 import { OptionGrid } from "./option-grid";
 import { WeightSliders } from "./weight-sliders";
 
@@ -15,10 +15,10 @@ const OUTCOME_OPTIONS = [
   { value: "publication", label: "Publication" },
 ];
 
-const DURATION_OPTIONS = [
-  { value: "short_term", label: "Short-term", description: "A single term or less." },
-  { value: "long_term", label: "Long-term", description: "Two terms or more." },
-];
+// The same fixed list the schema and the matching engine use. Duration is a
+// matching dimension now, so a short-term/long-term split here would not survive
+// being saved, and a supervisor open to either length has to be able to say so.
+const DURATION_OPTIONS = DURATION_ORDER.map((value) => ({ value, label: DURATION_LABELS[value] }));
 
 const COMPENSATION_OPTIONS = [
   { value: "volunteer", label: "Volunteer", description: "Unpaid. Students see this before they apply." },
@@ -159,7 +159,11 @@ export function SimpleOpportunityForm({
       <Section title="Logistics" description="Students filter on all three of these before they read anything else.">
         <fieldset>
           <Legend label="Duration" required />
-          <OptionGrid type="radio" name="duration" options={DURATION_OPTIONS} columns={2} required />
+          <p className="-mt-1 mb-2 text-[12.5px] leading-5 text-muted">
+            Choose every length you would consider. Students are matched on the overlap, so saying yes to two is a
+            wider net rather than a vaguer answer.
+          </p>
+          <OptionGrid type="checkbox" name="preferredDurations" options={DURATION_OPTIONS} columns={3} />
         </fieldset>
 
         <fieldset>
@@ -204,7 +208,8 @@ export function SimpleOpportunityForm({
 
       <FormNote>
         This form is not connected yet. Submitting does nothing, and nothing is saved. The nine-step wizard at
-        /researcher/opportunities/new is still the way to post a live listing.
+        /researcher/opportunities/new is still the way to post a live listing. The field names here match the schema,
+        so wiring it up is a matter of pointing it at an action rather than renaming anything.
       </FormNote>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-6">
