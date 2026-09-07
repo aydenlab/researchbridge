@@ -39,7 +39,17 @@ export default async function ResearcherDashboardPage() {
       <PageHeader
         title={`Hello, ${user.displayName ?? "there"}`}
         lede="Your open positions and the candidates waiting on you."
-        actions={<ButtonLink href="/researcher/opportunities/new">Post opportunity</ButtonLink>}
+        actions={
+          <>
+            <ButtonLink href="/directory/students" variant="outline">
+              Find students
+            </ButtonLink>
+            <ButtonLink href="/researcher/reviews/new" variant="outline">
+              Post a review
+            </ButtonLink>
+            <ButtonLink href="/researcher/opportunities/new">Post a position</ButtonLink>
+          </>
+        }
       />
 
       <StatGrid

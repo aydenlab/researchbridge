@@ -6,11 +6,15 @@ import {
   researchFields,
   skills,
   studentAcademicRecords,
+  studentCompensationPreferences,
   studentCourses,
+  studentCourseTypes,
+  studentDurations,
   studentProfiles,
   studentResearchInterests,
   studentSkills,
 } from "@/db";
+import type { CompensationPreferenceOption, CourseTypeOption, DurationOption } from "@/lib/labels";
 import type { AcademicMetric } from "@/lib/gpa";
 import type { ApplicantEvidence } from "@/lib/criteria/types";
 
@@ -21,6 +25,9 @@ export type StudentProfileBundle = {
   fields: { id: string; name: string; slug: string }[];
   experiences: (typeof researchExperiences.$inferSelect)[];
   academicRecords: (typeof studentAcademicRecords.$inferSelect)[];
+  durations: DurationOption[];
+  courseTypes: CourseTypeOption[];
+  compensationPreferences: CompensationPreferenceOption[];
 };
 
 export async function loadStudentProfile(studentId: string): Promise<StudentProfileBundle | null> {
@@ -28,7 +35,16 @@ export async function loadStudentProfile(studentId: string): Promise<StudentProf
   const profile = rows[0];
   if (!profile) return null;
 
-  const [skillRows, courseRows, fieldRows, experienceRows, academicRows] = await Promise.all([
+  const [
+    skillRows,
+    courseRows,
+    fieldRows,
+    experienceRows,
+    academicRows,
+    durationRows,
+    courseTypeRows,
+    compensationRows,
+  ] = await Promise.all([
     db
       .select({
         id: skills.id,
@@ -65,6 +81,15 @@ export async function loadStudentProfile(studentId: string): Promise<StudentProf
       .where(eq(researchExperiences.studentId, studentId))
       .orderBy(asc(researchExperiences.sortOrder)),
     db.select().from(studentAcademicRecords).where(eq(studentAcademicRecords.studentId, studentId)),
+    db.select({ duration: studentDurations.duration }).from(studentDurations).where(eq(studentDurations.studentId, studentId)),
+    db
+      .select({ courseType: studentCourseTypes.courseType })
+      .from(studentCourseTypes)
+      .where(eq(studentCourseTypes.studentId, studentId)),
+    db
+      .select({ preference: studentCompensationPreferences.preference })
+      .from(studentCompensationPreferences)
+      .where(eq(studentCompensationPreferences.studentId, studentId)),
   ]);
 
   return {
@@ -74,6 +99,9 @@ export async function loadStudentProfile(studentId: string): Promise<StudentProf
     fields: fieldRows,
     experiences: experienceRows,
     academicRecords: academicRows,
+    durations: durationRows.map((row) => row.duration),
+    courseTypes: courseTypeRows.map((row) => row.courseType),
+    compensationPreferences: compensationRows.map((row) => row.preference),
   };
 }
 
@@ -138,6 +166,8 @@ export function computeProfileCompletion(bundle: StudentProfileBundle): number {
     Boolean(bundle.profile.researchInterestSummary),
     Boolean(bundle.profile.weeklyHours !== null && bundle.profile.locationPreference),
     Boolean(bundle.profile.desiredStartDate),
+    bundle.durations.length > 0,
+    bundle.compensationPreferences.length > 0,
   ];
   const met = checks.filter(Boolean).length;
   return Math.round((met / checks.length) * 100);
@@ -153,5 +183,7 @@ export function missingProfileItems(bundle: StudentProfileBundle): string[] {
   if (!bundle.profile.researchInterestSummary) missing.push("What interests you");
   if (bundle.profile.weeklyHours === null) missing.push("Weekly availability");
   if (!bundle.profile.desiredStartDate) missing.push("Desired start date");
+  if (bundle.durations.length === 0) missing.push("How long you want to work for");
+  if (bundle.compensationPreferences.length === 0) missing.push("Paid or volunteer");
   return missing;
 }

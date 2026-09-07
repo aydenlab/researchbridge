@@ -200,3 +200,77 @@ export async function sendProfileReferenceRequest(input: {
     ].join("\n"),
   });
 }
+
+/**
+ * The one recurring email a researcher gets. Everything else on the platform is
+ * a reply to something they did, so this is deliberately a single weekly roll-up
+ * rather than a message per applicant.
+ */
+export async function sendWeeklyApplicantDigest(input: {
+  to: string;
+  researcherName: string;
+  newApplicants: number;
+  awaitingReview: number;
+  postings: { title: string; newApplicants: number; awaitingReview: number }[];
+}) {
+  const lines = input.postings.map(
+    (posting) =>
+      `  ${posting.title}: ${posting.newApplicants} new this week, ${posting.awaitingReview} waiting on you in total.`,
+  );
+
+  return sendEmail({
+    to: input.to,
+    subject: `${input.newApplicants} new ${input.newApplicants === 1 ? "application" : "applications"} this week`,
+    text: [
+      `${input.researcherName}, here is your week on ResearchBridge.`,
+      "",
+      `${input.newApplicants} new ${input.newApplicants === 1 ? "application" : "applications"} arrived, and ${input.awaitingReview} ${
+        input.awaitingReview === 1 ? "is" : "are"
+      } waiting for a first look.`,
+      "",
+      ...lines,
+      "",
+      `Review them at ${env.APP_URL}/researcher/applicants.`,
+      "",
+      "This is the only recurring email we send you. Everything else is triggered by something you did.",
+      "",
+      SIGNATURE,
+    ].join("\n"),
+  });
+}
+
+/**
+ * Sent so that nobody is left guessing. It goes out when something moved, or
+ * when something has been sitting untouched long enough that silence has itself
+ * become information.
+ */
+export async function sendApplicationStatusDigest(input: {
+  to: string;
+  studentName: string;
+  applications: { title: string; statusLabel: string; waitingDays: number; changed: boolean }[];
+}) {
+  const lines = input.applications.map((application) => {
+    const suffix = application.changed
+      ? " (changed this week)"
+      : application.waitingDays >= 14
+        ? ` (no change for ${application.waitingDays} days)`
+        : "";
+    return `  ${application.title}: ${application.statusLabel}${suffix}`;
+  });
+
+  return sendEmail({
+    to: input.to,
+    subject: "Where your research applications stand",
+    text: [
+      `${input.studentName}, here is where each of your open applications stands.`,
+      "",
+      ...lines,
+      "",
+      "An application sitting unopened usually means the researcher is busy, not that a decision has been made. You can withdraw at any time.",
+      "",
+      `See the detail at ${env.APP_URL}/applications.`,
+      "",
+      SIGNATURE,
+    ].join("\n"),
+  });
+}

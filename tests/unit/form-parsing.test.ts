@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { parseForm } from "@/lib/action-utils";
 import { arrayField } from "@/lib/validation/shared";
-import { projectStepSchema } from "@/lib/validation/opportunity";
+import { logisticsStepSchema, projectStepSchema, reviewPostingSchema } from "@/lib/validation/opportunity";
 import { researcherProfileSchema, studentAvailabilitySchema } from "@/lib/validation/profile";
 
 function form(entries: [string, string][]): FormData {
@@ -113,11 +113,15 @@ describe("researcher profile step", () => {
 });
 
 describe("student availability step", () => {
+  const availabilityBase: [string, string][] = [
+    ["weeklyHours", "8"],
+    ["locationPreference", "hybrid"],
+    ["preferredDurations", "one_semester"],
+    ["compensationPreferences", "paid"],
+  ];
+
   it("accepts a single semester selection", () => {
-    const parsed = parseForm(
-      studentAvailabilitySchema,
-      form([["weeklyHours", "8"], ["locationPreference", "hybrid"], ["semesters", "Fall"]]),
-    );
+    const parsed = parseForm(studentAvailabilitySchema, form([...availabilityBase, ["semesters", "Fall"]]));
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(parsed.data.semesters).toEqual(["Fall"]);
@@ -126,10 +130,110 @@ describe("student availability step", () => {
   it("rejects negative hours", () => {
     const parsed = parseForm(
       studentAvailabilitySchema,
-      form([["weeklyHours", "-4"], ["locationPreference", "hybrid"]]),
+      form([...availabilityBase.filter(([key]) => key !== "weeklyHours"), ["weeklyHours", "-4"]]),
     );
     expect(parsed.ok).toBe(false);
     if (parsed.ok || parsed.result.ok) return;
     expect(parsed.result.fieldErrors?.weeklyHours?.[0]).toBe("Hours cannot be negative.");
+  });
+
+  it("keeps every duration a student selects", () => {
+    const parsed = parseForm(
+      studentAvailabilitySchema,
+      form([
+        ["weeklyHours", "8"],
+        ["locationPreference", "hybrid"],
+        ["compensationPreferences", "paid"],
+        ["compensationPreferences", "volunteer"],
+        ["preferredDurations", "one_semester"],
+        ["preferredDurations", "summer_only"],
+        ["preferredDurations", "multi_year"],
+      ]),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.data.preferredDurations).toEqual(["one_semester", "summer_only", "multi_year"]);
+    expect(parsed.data.compensationPreferences).toEqual(["paid", "volunteer"]);
+  });
+
+  it("asks for a duration when none is chosen", () => {
+    const parsed = parseForm(
+      studentAvailabilitySchema,
+      form([["weeklyHours", "8"], ["locationPreference", "hybrid"], ["compensationPreferences", "paid"]]),
+    );
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok || parsed.result.ok) return;
+    expect(parsed.result.fieldErrors?.preferredDurations?.[0]).toContain("at least one length");
+  });
+
+  it("asks whether the student needs paid work", () => {
+    const parsed = parseForm(
+      studentAvailabilitySchema,
+      form([["weeklyHours", "8"], ["locationPreference", "hybrid"], ["preferredDurations", "one_year"]]),
+    );
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok || parsed.result.ok) return;
+    expect(parsed.result.fieldErrors?.compensationPreferences?.[0]).toContain("at least one");
+  });
+});
+
+describe("review posting form", () => {
+  it("accepts the four fields a review needs", () => {
+    const parsed = parseForm(
+      reviewPostingSchema,
+      form([
+        ["title", "Scoping review of remote cardiac rehabilitation"],
+        ["summary", "We are screening about nine hundred abstracts and need a second reviewer for the next six weeks."],
+        ["authorshipOffered", "true"],
+        ["reviewTasks", "screening"],
+        ["reviewTasks", "data_extraction"],
+      ]),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.data.authorshipOffered).toBe(true);
+    expect(parsed.data.reviewTasks).toEqual(["screening", "data_extraction"]);
+  });
+
+  it("requires at least one task, since that is what a student is signing up for", () => {
+    const parsed = parseForm(
+      reviewPostingSchema,
+      form([
+        ["title", "Systematic review of sleep interventions"],
+        ["summary", "A review of behavioural sleep interventions in adolescents, currently at the extraction stage."],
+        ["authorshipOffered", "false"],
+      ]),
+    );
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok || parsed.result.ok) return;
+    expect(parsed.result.fieldErrors?.reviewTasks?.[0]).toContain("at least one part");
+  });
+});
+
+describe("opportunity logistics step", () => {
+  const logisticsBase: [string, string][] = [
+    ["numberOfOpenings", "1"],
+    ["hoursPerWeekMin", "6"],
+    ["hoursPerWeekMax", "10"],
+    ["deadline", "2027-01-31"],
+    ["locationMode", "hybrid"],
+    ["compensationType", "academic_credit"],
+  ];
+
+  it("records every duration the position is open to", () => {
+    const parsed = parseForm(
+      logisticsStepSchema,
+      form([...logisticsBase, ["preferredDurations", "two_semesters"], ["preferredDurations", "one_year"]]),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.data.preferredDurations).toEqual(["two_semesters", "one_year"]);
+  });
+
+  it("will not let a position be saved without a duration", () => {
+    const parsed = parseForm(logisticsStepSchema, form(logisticsBase));
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok || parsed.result.ok) return;
+    expect(parsed.result.fieldErrors?.preferredDurations?.[0]).toContain("at least one length");
   });
 });

@@ -10,16 +10,21 @@ import { requireUser } from "@/lib/auth/permissions";
 import { formatDate, formatMonth } from "@/lib/format";
 import { formatMetric } from "@/lib/gpa";
 import {
+  COMPENSATION_PREFERENCE_LABELS,
   COURSE_STATUS_LABELS,
+  COURSE_TYPE_LABELS,
   DEGREE_LABELS,
+  DURATION_LABELS,
   LOCATION_LABELS,
   PROFICIENCY_LABELS,
+  PROGRAM_CATEGORY_LABELS,
   RESEARCHER_TYPE_LABELS,
   VERIFICATION_LABELS,
   labelOr,
 } from "@/lib/labels";
 import { loadStudentProfile, missingProfileItems, toAcademicMetrics } from "@/lib/queries/student";
 import { listProfileReferences, MAX_PROFILE_REFERENCES } from "@/lib/queries/references";
+import { listReferralsFor } from "@/lib/queries/referrals";
 import { ProfileReferences } from "./profile-references";
 
 export const metadata: Metadata = {
@@ -71,7 +76,10 @@ export default async function ProfilePage() {
   if (!user.role) redirect("/onboarding");
   if (user.role === "admin") redirect("/admin");
 
-  const profileReferenceRows = await listProfileReferences(user.id);
+  const [profileReferenceRows, referrals] = await Promise.all([
+    listProfileReferences(user.id),
+    listReferralsFor(user.id),
+  ]);
 
   if (user.role === "researcher") {
     const rows = await db.select().from(researcherProfiles).where(eq(researcherProfiles.userId, user.id)).limit(1);
@@ -192,6 +200,7 @@ export default async function ProfilePage() {
               { label: "Email", value: user.email },
               { label: "Institution", value: user.institutionName ?? "Not set" },
               { label: "Program", value: bundle.profile.program ?? "Not set" },
+              { label: "Program area", value: labelOr(PROGRAM_CATEGORY_LABELS, bundle.profile.programCategory) },
               { label: "Degree level", value: labelOr(DEGREE_LABELS, bundle.profile.degreeLevel) },
               { label: "Faculty", value: bundle.profile.faculty ?? "Not set" },
               { label: "Specialization", value: bundle.profile.specialization ?? "Not set" },
@@ -305,9 +314,23 @@ export default async function ProfilePage() {
           )}
         </Panel>
 
-        <Panel title="Availability" editHref="/onboarding/student?step=6">
+        <Panel title="Availability and fit" editHref="/onboarding/student?step=6">
           <Rows
             rows={[
+              {
+                label: "Placement length",
+                value: bundle.durations.map((value) => DURATION_LABELS[value]).join(", ") || "Not set",
+              },
+              {
+                label: "Paid or volunteer",
+                value:
+                  bundle.compensationPreferences.map((value) => COMPENSATION_PREFERENCE_LABELS[value]).join(", ") ||
+                  "Not set",
+              },
+              {
+                label: "Course type",
+                value: bundle.courseTypes.map((value) => COURSE_TYPE_LABELS[value]).join(", ") || "Not stated",
+              },
               { label: "Hours per week", value: bundle.profile.weeklyHours !== null ? String(bundle.profile.weeklyHours) : "Not set" },
               { label: "Location preference", value: labelOr(LOCATION_LABELS, bundle.profile.locationPreference) },
               { label: "Desired start", value: bundle.profile.desiredStartDate ? formatDate(bundle.profile.desiredStartDate) : "Not set" },
@@ -316,6 +339,34 @@ export default async function ProfilePage() {
               { label: "Schedule notes", value: bundle.profile.scheduleNotes ?? "None" },
             ]}
           />
+          <p className="mt-4 border-t border-line pt-4 text-[13px] leading-6 text-muted">
+            Placement length and whether you need paid work are both matching dimensions. A position that does not
+            overlap with what you chose is ranked lower, never hidden from you.
+          </p>
+        </Panel>
+
+        <Panel title="Referrals">
+          {referrals.length === 0 ? (
+            <p className="text-[13.5px] leading-6 text-muted">
+              Nobody has referred you yet. A referral is added by somebody with an account here, and their name appears
+              alongside it on your public profile.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {referrals.map((referral) => (
+                <li key={referral.id} className="border-b border-line pb-3 last:border-b-0 last:pb-0">
+                  <p className="text-[14px] text-ink">Referred by {referral.referrerName}</p>
+                  {referral.referrerHeadline ? (
+                    <p className="mt-0.5 text-[12.5px] text-subtle">{referral.referrerHeadline}</p>
+                  ) : null}
+                  {referral.note ? <p className="mt-1.5 text-[13.5px] leading-6 text-muted">{referral.note}</p> : null}
+                  {referral.letterFileId ? (
+                    <p className="mt-1 text-[12.5px] text-subtle">A reference letter is attached.</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
 
         <Panel title="Documents and links" editHref="/onboarding/student?step=7">

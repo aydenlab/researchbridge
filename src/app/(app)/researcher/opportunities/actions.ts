@@ -9,6 +9,7 @@ import {
   notifications,
   opportunities,
   opportunityCriteria,
+  opportunityDurations,
   opportunityFields,
   opportunityQuestions,
   opportunityResearchMaterials,
@@ -20,7 +21,8 @@ import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
 import { slugify } from "@/lib/format";
 import { log } from "@/lib/log";
-import { isEnabled } from "@/lib/flags";
+import { isEnabled } from "@/lib/flags";
+
 import { ensureSkill } from "@/lib/queries/taxonomy";
 import {
   DEFAULT_PAPER_PROMPT,
@@ -178,6 +180,14 @@ export async function saveLogisticsStepAction(_prev: ActionResult | null, formDa
         updatedAt: new Date(),
       })
       .where(eq(opportunities.id, opportunity.id));
+
+    await db.transaction(async (tx) => {
+      await tx.delete(opportunityDurations).where(eq(opportunityDurations.opportunityId, opportunity.id));
+      await tx
+        .insert(opportunityDurations)
+        .values(parsed.data.preferredDurations.map((duration) => ({ opportunityId: opportunity.id, duration })));
+    });
+
     await advance(opportunity.id, 3);
   } catch (error) {
     return toActionError(error, "save_logistics_step_failed");
@@ -482,6 +492,12 @@ export async function publishOpportunityAction(_prev: ActionResult | null, formD
     if (opportunity.hoursPerWeekMin === null) problems.push("expected hours per week");
     if (!opportunity.deadline) problems.push("an application deadline");
     if (!opportunity.department) problems.push("a department");
+
+    const [{ durationCount }] = await db
+      .select({ durationCount: sql<number>`count(*)::int` })
+      .from(opportunityDurations)
+      .where(eq(opportunityDurations.opportunityId, opportunity.id));
+    if (durationCount === 0) problems.push("how long the position runs");
 
     if (problems.length > 0) {
       return {

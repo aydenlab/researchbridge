@@ -56,6 +56,24 @@ export const studentBasicsSchema = z.object({
     message: "Choose your degree level.",
   }),
   program: requiredText("Program", 160),
+  programCategory: z
+    .enum([
+      "life_sciences",
+      "health_sciences",
+      "human_resources_management",
+      "health_policy",
+      "kinesiology",
+      "nursing",
+      "medicine",
+      "engineering",
+      "science",
+      "social_sciences",
+      "humanities",
+      "business",
+      "other",
+    ])
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   faculty: optionalText(160),
   specialization: optionalText(160),
   yearLevel: z.coerce.number().int().min(1, "Year of study must be at least 1.").max(12, "Year of study looks too high."),
@@ -112,6 +130,26 @@ export const experienceSchema = z.object({
   outputs: arrayField(z.string().trim().max(80), { max: 10 }),
 });
 
+export const durationOptionSchema = z.enum([
+  "one_semester",
+  "two_semesters",
+  "summer_only",
+  "one_year",
+  "multi_year",
+]);
+
+export const courseTypeSchema = z.enum([
+  "honours_thesis",
+  "thesis_course",
+  "one_semester_coursework",
+  "two_semester_coursework",
+  "volunteer",
+  "phd_thesis",
+  "medical_student_elective",
+]);
+
+export const compensationPreferenceSchema = z.enum(["paid", "volunteer", "academic_credit"]);
+
 export const studentAvailabilitySchema = z.object({
   desiredStartDate: optionalText(20),
   weeklyHours: z.coerce.number().int().min(0, "Hours cannot be negative.").max(60, "That is more hours than a full week."),
@@ -119,6 +157,31 @@ export const studentAvailabilitySchema = z.object({
   summerAvailable: z.coerce.boolean().default(false),
   locationPreference: z.enum(["in_person", "hybrid", "remote"], { message: "Choose a location preference." }),
   scheduleNotes: optionalText(800),
+  preferredDurations: arrayField(durationOptionSchema, {
+    min: 1,
+    max: 5,
+    message: "Choose at least one length of placement. Select them all if you are open to anything.",
+  }),
+  courseTypes: arrayField(courseTypeSchema, { max: 7 }),
+  compensationPreferences: arrayField(compensationPreferenceSchema, {
+    min: 1,
+    max: 3,
+    message: "Choose at least one. Select more than one if you are open to either.",
+  }),
+});
+
+export const referralSchema = z.object({
+  subjectId: z.string().uuid(),
+  note: optionalText(600),
+});
+
+export const directMessageSchema = z.object({
+  recipientId: z.string().uuid(),
+  body: z
+    .string()
+    .trim()
+    .min(1, "Write a message before sending.")
+    .max(4000, "Messages are limited to 4000 characters."),
 });
 
 export const researcherProfileSchema = z.object({

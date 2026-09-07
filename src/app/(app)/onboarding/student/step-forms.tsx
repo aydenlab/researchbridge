@@ -3,12 +3,31 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { CheckboxGrid, ExperienceRows, SkillRows, TokenField, type ExperienceRow, type SkillRow } from "@/components/app/inputs";
+import {
+  CheckboxGrid,
+  ExperienceRows,
+  MultiSelectGrid,
+  SkillRows,
+  TokenField,
+  type ExperienceRow,
+  type SkillRow,
+} from "@/components/app/inputs";
 import { StepActions } from "@/components/app/onboarding-shell";
 import { Field, FormError, FormNote, Input, RadioRow, Select, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
 import { GRADE_SCALES } from "@/lib/gpa";
-import { RESEARCH_OUTPUT_OPTIONS, SEMESTER_OPTIONS } from "@/lib/labels";
+import {
+  COMPENSATION_PREFERENCE_LABELS,
+  COMPENSATION_PREFERENCE_ORDER,
+  COURSE_TYPE_LABELS,
+  COURSE_TYPE_ORDER,
+  DURATION_LABELS,
+  DURATION_ORDER,
+  PROGRAM_CATEGORY_LABELS,
+  PROGRAM_CATEGORY_ORDER,
+  RESEARCH_OUTPUT_OPTIONS,
+  SEMESTER_OPTIONS,
+} from "@/lib/labels";
 import {
   completeStudentOnboardingAction,
   saveAcademicsAction,
@@ -31,6 +50,7 @@ type Profile = {
   preferredName: string | null;
   degreeLevel: string | null;
   program: string | null;
+  programCategory: string | null;
   faculty: string | null;
   specialization: string | null;
   yearLevel: number | null;
@@ -46,6 +66,9 @@ type Profile = {
   scheduleNotes: string | null;
   distinctions: string | null;
   resumeFileId: string | null;
+  preferredDurations: string[];
+  courseTypes: string[];
+  compensationPreferences: string[];
 };
 
 const DEGREE_OPTIONS = [
@@ -93,6 +116,22 @@ export function BasicsForm({ profile, faculties }: { profile: Profile; faculties
           <Input id="program" name="program" defaultValue={profile.program ?? ""} placeholder="Bachelor of Health Sciences" required />
         </Field>
       </div>
+
+      <Field
+        label="Program area"
+        htmlFor="programCategory"
+        error={errors?.programCategory?.[0]}
+        hint="Some researchers only take students from particular programs and filter on this directly. Pick the closest match."
+      >
+        <Select id="programCategory" name="programCategory" defaultValue={profile.programCategory ?? ""}>
+          <option value="">Not listed</option>
+          {PROGRAM_CATEGORY_ORDER.map((value) => (
+            <option key={value} value={value}>
+              {PROGRAM_CATEGORY_LABELS[value]}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Faculty" htmlFor="faculty">
@@ -354,6 +393,42 @@ export function AvailabilityForm({ profile }: { profile: Profile }) {
           />
         </Field>
       </div>
+
+      <MultiSelectGrid
+        name="preferredDurations"
+        legend="How long are you looking to work for?"
+        hint="This is matched against what each position is offering, so choose every length you would take. Wanting a single term and a multi-year project are both fine answers."
+        options={DURATION_ORDER.map((value) => ({ value, label: DURATION_LABELS[value] }))}
+        initial={profile.preferredDurations}
+        error={errors?.preferredDurations?.[0]}
+        selectAllLabel="I am open to any length"
+        columns={3}
+      />
+
+      <MultiSelectGrid
+        name="compensationPreferences"
+        legend="Are you looking for paid or volunteer positions?"
+        hint="Choose more than one if you are open to either. Positions outside what you choose are ranked lower, never hidden."
+        options={COMPENSATION_PREFERENCE_ORDER.map((value) => ({
+          value,
+          label: COMPENSATION_PREFERENCE_LABELS[value],
+        }))}
+        initial={profile.compensationPreferences}
+        error={errors?.compensationPreferences?.[0]}
+        selectAllLabel="I am open to all of these"
+        columns={3}
+      />
+
+      <MultiSelectGrid
+        name="courseTypes"
+        legend="What are you looking to do this as?"
+        hint="Optional. Researchers filter their applicant list on this, so it is worth saying if you know."
+        options={COURSE_TYPE_ORDER.map((value) => ({ value, label: COURSE_TYPE_LABELS[value] }))}
+        initial={profile.courseTypes}
+        error={errors?.courseTypes?.[0]}
+        selectAllLabel="Any of these"
+        columns={2}
+      />
 
       <fieldset>
         <legend className="mb-2 text-[13px] font-medium text-ink">Semesters you are available</legend>

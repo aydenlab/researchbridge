@@ -25,7 +25,9 @@ import { deadlineNote, formatDate, hoursLabel, truncate } from "@/lib/format";
 import {
   COMPENSATION_LABELS,
   CRITERION_TYPE_LABELS,
+  DURATION_LABELS,
   LOCATION_LABELS,
+  REVIEW_TASK_LABELS,
   PAID_COMPENSATION,
   QUESTION_TYPE_LABELS,
   RESEARCHER_TYPE_LABELS,
@@ -130,6 +132,110 @@ export default async function OpportunityDetailPage({ params }: Params) {
       .where(eq(opportunities.id, detail.opportunity.id));
   }
 
+  // A review posting has four fields by design, so it gets a page shaped like
+  // the posting rather than a research listing with most sections empty.
+  if (detail.opportunity.kind === "review_project") {
+    return (
+      <div className="mx-auto max-w-[860px] px-4 py-8 sm:px-6 sm:py-10">
+        <nav aria-label="Breadcrumb" className="mb-5">
+          <Link href="/reviews" className="text-[13px] text-muted underline decoration-line-strong underline-offset-4 hover:text-ink">
+            Back to open reviews
+          </Link>
+        </nav>
+
+        {detail.opportunity.status !== "published" ? (
+          <div className="mb-6 rounded-[10px] border border-[#e6d7ae] bg-gold-soft px-4 py-3 text-[13.5px] text-warn">
+            This review is {detail.opportunity.status}. It is visible to you because you manage it.
+          </div>
+        ) : null}
+
+        <div className="grid gap-8 lg:grid-cols-[1fr_300px] lg:gap-10">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge tone="outline">Review</Badge>
+              <Badge tone={detail.opportunity.authorshipOffered ? "forest" : "neutral"}>
+                {detail.opportunity.authorshipOffered ? "Authorship offered" : "No authorship"}
+              </Badge>
+            </div>
+
+            <h1 className="mt-4 font-display text-[30px] leading-tight text-ink sm:text-[36px]" style={{ letterSpacing: "-0.7px" }}>
+              {detail.opportunity.title}
+            </h1>
+
+            <p className="mt-3 text-[15px] leading-7 text-muted">
+              Posted by {detail.researcher.title ? `${detail.researcher.title} ` : ""}
+              {detail.researcher.firstName} {detail.researcher.lastName}
+              {detail.opportunity.department ? `, ${detail.opportunity.department}` : ""}
+            </p>
+
+            <div className="mt-6 border-t border-line pt-6">
+              <p className="text-[12px] font-medium text-subtle">About the review</p>
+              <div className="mt-2">
+                <Paragraphs text={detail.opportunity.summary} />
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-line pt-6">
+              <p className="text-[12px] font-medium text-subtle">What they need help with</p>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {detail.reviewTasks.length === 0 ? (
+                  <p className="text-[14px] text-muted">Not specified.</p>
+                ) : (
+                  detail.reviewTasks.map((task) => (
+                    <Badge key={task} tone="outline">
+                      {labelOr(REVIEW_TASK_LABELS, task)}
+                    </Badge>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-line pt-6">
+              <p className="text-[12px] font-medium text-subtle">Authorship</p>
+              <p className="mt-1.5 text-[14.5px] leading-7 text-muted">
+                {detail.opportunity.authorshipOffered
+                  ? "The researcher has said contributors will be named as authors. Agree what that means in practice before you start."
+                  : "The researcher has said there is no authorship on this one. That is stated up front so you can decide with the facts."}
+              </p>
+            </div>
+
+            {isOwner ? (
+              <div className="mt-6 border-t border-line pt-6">
+                <Link
+                  href={`/researcher/reviews/${detail.opportunity.id}/edit`}
+                  className="text-[13.5px] text-forest underline decoration-line-strong underline-offset-4"
+                >
+                  Edit this review
+                </Link>
+              </div>
+            ) : null}
+          </div>
+
+          <aside className="lg:sticky lg:top-[76px] lg:self-start">
+            <div className="rounded-[12px] border border-line bg-white p-5">
+              <OpportunityActions
+                opportunityId={detail.opportunity.id}
+                slug={detail.opportunity.slug}
+                saved={state.saved}
+                signedIn={Boolean(user)}
+                isStudent={isStudent}
+                applicationId={state.application?.id ?? null}
+                applicationStatus={state.application?.status ?? null}
+                acceptingApplications={detail.opportunity.status === "published"}
+                closedReason="This review is no longer looking for help."
+              />
+              <p className="mt-4 border-t border-line pt-4 text-[12.5px] leading-5 text-muted">
+                Applying to a review sends your profile. There are no extra questions, and{" "}
+                {applicationCount === 0 ? "nobody has applied yet" : `${applicationCount} ${applicationCount === 1 ? "person has" : "people have"} applied`}
+                .
+              </p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
   const criteria: Criterion[] = detail.criteria.map((criterion) => ({
     id: criterion.id,
     type: criterion.type,
@@ -184,7 +290,11 @@ export default async function OpportunityDetailPage({ params }: Params) {
   const facts = [
     { Icon: Clock, label: "Time commitment", value: hoursLabel(detail.opportunity.hoursPerWeekMin, detail.opportunity.hoursPerWeekMax) },
     { Icon: CalendarClock, label: "Expected start", value: formatDate(detail.opportunity.startDate) },
-    { Icon: Target, label: "Duration", value: detail.opportunity.duration ?? "Not specified" },
+    {
+      Icon: Target,
+      label: "Duration",
+      value: detail.durations.map((value) => DURATION_LABELS[value]).join(", ") || detail.opportunity.duration || "Not specified",
+    },
     {
       Icon: MapPin,
       label: "Location",
@@ -234,6 +344,9 @@ export default async function OpportunityDetailPage({ params }: Params) {
             <div className="mt-4 flex flex-wrap gap-1.5">
               {detail.fields.map((field) => (
                 <Tag key={field.id}>{field.name}</Tag>
+              ))}
+              {detail.durations.map((value) => (
+                <Tag key={value}>{DURATION_LABELS[value]}</Tag>
               ))}
             </div>
           </header>

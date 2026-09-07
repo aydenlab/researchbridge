@@ -9,6 +9,7 @@ export const EVENT_NAMES = [
   "researcher_verified",
   "opportunity_created",
   "opportunity_published",
+  "review_posting_created",
   "opportunity_viewed",
   "opportunity_saved",
   "application_started",
@@ -17,6 +18,8 @@ export const EVENT_NAMES = [
   "researcher_contacted_student",
   "application_accepted",
   "placement_confirmed",
+  "student_referred",
+  "direct_message_sent",
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];

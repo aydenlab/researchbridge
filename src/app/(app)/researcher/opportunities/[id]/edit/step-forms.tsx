@@ -2,12 +2,12 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { CheckboxGrid } from "@/components/app/inputs";
+import { CheckboxGrid, MultiSelectGrid } from "@/components/app/inputs";
 import { CriterionRows, OpportunitySkillRows, QuestionRows, type CriterionDraft, type QuestionDraft, type SkillDraft } from "@/components/app/builder-inputs";
 import { StepActions } from "@/components/app/onboarding-shell";
 import { Field, FormError, FormNote, Input, RadioRow, Select, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
-import { COMPENSATION_LABELS, COMPENSATION_ORDER } from "@/lib/labels";
+import { COMPENSATION_LABELS, COMPENSATION_ORDER, DURATION_LABELS, DURATION_ORDER } from "@/lib/labels";
 import { DEFAULT_PAPER_PROMPT } from "@/lib/validation/opportunity";
 import {
   publishOpportunityAction,
@@ -155,6 +155,7 @@ export function LogisticsStep({
     numberOfOpenings: number;
     startDate: string;
     duration: string;
+    preferredDurations: string[];
     hoursPerWeekMin: string;
     hoursPerWeekMax: string;
     deadline: string;
@@ -185,14 +186,24 @@ export function LogisticsStep({
         </Field>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Expected start" htmlFor="startDate">
-          <Input id="startDate" name="startDate" type="date" defaultValue={draft.startDate} />
-        </Field>
-        <Field label="Duration" htmlFor="duration" hint="For example, one academic term or eight months.">
-          <Input id="duration" name="duration" defaultValue={draft.duration} />
-        </Field>
-      </div>
+      <Field label="Expected start" htmlFor="startDate" className="sm:max-w-[280px]">
+        <Input id="startDate" name="startDate" type="date" defaultValue={draft.startDate} />
+      </Field>
+
+      <MultiSelectGrid
+        name="preferredDurations"
+        legend="How long is this position?"
+        hint="Students filter and are matched on this. Choose every length you would consider, not only the ideal one."
+        options={DURATION_ORDER.map((value) => ({ value, label: DURATION_LABELS[value] }))}
+        initial={draft.preferredDurations}
+        error={errors?.preferredDurations?.[0]}
+        selectAllLabel="Open to any length"
+        columns={3}
+      />
+
+      <Field label="Anything else about the timing" htmlFor="duration" hint="Optional free text shown next to the durations above. For example, start dates are flexible.">
+        <Input id="duration" name="duration" defaultValue={draft.duration} />
+      </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Minimum hours per week" htmlFor="hoursPerWeekMin" required error={errors?.hoursPerWeekMin?.[0]}>

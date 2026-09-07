@@ -10,6 +10,8 @@ import {
   opportunityQuestions,
   researcherApplicationNotes,
   researcherProfiles,
+  studentCourseTypes,
+  studentDurations,
   studentProfiles,
   users,
 } from "@/db";
@@ -154,6 +156,7 @@ export async function listApplicantsForOpportunity(opportunityId: string) {
       lastName: studentProfiles.lastName,
       preferredName: studentProfiles.preferredName,
       program: studentProfiles.program,
+      programCategory: studentProfiles.programCategory,
       yearLevel: studentProfiles.yearLevel,
       degreeLevel: studentProfiles.degreeLevel,
       weeklyHours: studentProfiles.weeklyHours,
@@ -168,7 +171,8 @@ export async function listApplicantsForOpportunity(opportunityId: string) {
   if (rows.length === 0) return [];
 
   const ids = rows.map((row) => row.id);
-  const [answerCounts, noteCounts] = await Promise.all([
+  const studentIds = [...new Set(rows.map((row) => row.studentId))];
+  const [answerCounts, noteCounts, courseTypeRows, durationRows] = await Promise.all([
     db
       .select({ applicationId: applicationAnswers.applicationId, count: sql<number>`count(*)::int` })
       .from(applicationAnswers)
@@ -179,15 +183,34 @@ export async function listApplicantsForOpportunity(opportunityId: string) {
       .from(researcherApplicationNotes)
       .where(inArray(researcherApplicationNotes.applicationId, ids))
       .groupBy(researcherApplicationNotes.applicationId),
+    db
+      .select({ studentId: studentCourseTypes.studentId, courseType: studentCourseTypes.courseType })
+      .from(studentCourseTypes)
+      .where(inArray(studentCourseTypes.studentId, studentIds)),
+    db
+      .select({ studentId: studentDurations.studentId, duration: studentDurations.duration })
+      .from(studentDurations)
+      .where(inArray(studentDurations.studentId, studentIds)),
   ]);
 
   const answerMap = new Map(answerCounts.map((row) => [row.applicationId, row.count]));
   const noteMap = new Map(noteCounts.map((row) => [row.applicationId, row.count]));
 
+  const courseTypeMap = new Map<string, string[]>();
+  for (const row of courseTypeRows) {
+    courseTypeMap.set(row.studentId, [...(courseTypeMap.get(row.studentId) ?? []), row.courseType]);
+  }
+  const durationMap = new Map<string, string[]>();
+  for (const row of durationRows) {
+    durationMap.set(row.studentId, [...(durationMap.get(row.studentId) ?? []), row.duration]);
+  }
+
   return rows.map((row) => ({
     ...row,
     answerCount: answerMap.get(row.id) ?? 0,
     noteCount: noteMap.get(row.id) ?? 0,
+    courseTypes: courseTypeMap.get(row.studentId) ?? [],
+    durations: durationMap.get(row.studentId) ?? [],
   }));
 }
 

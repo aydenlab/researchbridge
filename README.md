@@ -55,12 +55,13 @@ Open http://localhost:3000.
 | `DATABASE_URL` | Production | PostgreSQL connection string. Empty in development falls back to PGlite. |
 | `APP_URL` | Yes | Public base URL. Used for metadata, sitemap, and links in email. |
 | `SESSION_SECRET` | Yes | At least 16 characters. Signs session tokens and verification code hashes. Rotating it invalidates all sessions and codes. |
+| `CRON_SECRET` | For digests | Bearer token accepted by `POST /api/cron/weekly-digest`. Without it the endpoint refuses to run rather than being open to anyone who guesses the path. |
 | `ADMIN_EMAILS` | First deploy | Comma-separated addresses that become ResearchBridge administrators on sign in, bypassing the institution domain check. Needed to bootstrap a fresh database, which has no institutions until an admin creates one. |
 | `ANTHROPIC_API_KEY` | No | Enables Claude evidence analysis. Server only, never prefixed with `NEXT_PUBLIC_`. A key the provider rejects is reported as such on `/admin/system` rather than as an outage. |
 | `ANTHROPIC_MODEL` | No | Defaults to `claude-sonnet-5`. Changing the model does not require a code change. |
 | `ANTHROPIC_PROMPT_CACHE_ENABLED` | No | Marks the stable part of each prompt as cacheable. On by default. |
-| `AI_DAILY_BUDGET_USD` | No | Estimated spend allowed per UTC day before analysis stops. Defaults to 5. |
-| `AI_MONTHLY_BUDGET_USD` | No | Estimated spend allowed per UTC month. Defaults to 50. |
+| `AI_DAILY_BUDGET_USD` | No | Estimated spend allowed per UTC day before analysis stops. Defaults to 25. |
+| `AI_MONTHLY_BUDGET_USD` | No | Estimated spend allowed per UTC month. Defaults to 250. The monthly cap is checked first, so it has to leave room for the daily one to matter. |
 | `AI_MAX_CALLS_PER_MINUTE` | No | Provider calls allowed across the deployment per minute. Defaults to 20. |
 | `AI_MAX_CALLS_PER_DAY` | No | Provider calls allowed across the deployment per day. Defaults to 500. |
 | `AI_MAX_CALLS_PER_SUBJECT_PER_HOUR` | No | Calls allowed for one application per hour, which bounds refresh clicking. Defaults to 5. |
@@ -98,6 +99,7 @@ npm run db:migrate         # apply pending migrations
 npm run db:seed            # replace all data with development seed data
 npm run db:reset           # drop and recreate the public schema
 npm run db:studio          # browse the database
+npm run digest:weekly      # run the weekly email digest by hand
 ```
 
 `db:seed` truncates every table. Never run it against production.
@@ -181,10 +183,14 @@ src/
     (app)/              authenticated product
       onboarding/       role choice, 8-step student profile, researcher profile
       opportunities/    discovery, detail, save and apply entry points
+      reviews/          open systematic, scoping, and general reviews
+      directory/        two-way browse: students for researchers, researchers for students
+      messages/         direct messages, gated by the rules in lib/queries/messages.ts
+      people/           public member profiles, referrals, follow
       applications/     student drafts, submission, status, outcome reporting
-      researcher/       dashboard, 9-step opportunity builder, applicant review
+      researcher/       dashboard, 9-step opportunity builder, review posting, applicant review
       admin/            approvals, users, listings, institutions, taxonomies, pilot metrics
-    api/                health, sign out, authorised file access, CSV export
+    api/                health, sign out, authorised file access, CSV export, weekly digest cron
   components/
     ui/                 buttons, fields, badges, cards
     marketing/          site chrome, hero, product compositions
@@ -195,6 +201,8 @@ src/
     auth/               sessions, verification codes, permissions
     criteria/           types, deterministic engine, weighting
     email/              provider abstraction and templates
+    matching/           see matching.ts: the weighted dimensions both sides are scored on
+    notifications/      the weekly digest run, driven by an external scheduler
     queries/            read models for each surface
     storage/            file abstraction with per-purpose limits
     validation/         shared Zod schemas
@@ -259,6 +267,14 @@ Not implemented, and worth revisiting if volume grows: the Message Batches API h
 
 ## Important product rules
 
+**Matching is a set of independent weighted dimensions, not one number.** `src/lib/matching.ts` scores research interest, duration, paid or volunteer, skills, and availability separately, and reports a percentage over only the dimensions that actually applied. A student who has not filled in their durations is not penalised for it; the weight simply leaves the denominator. Duration is a first-class dimension because a student wanting one term and a supervisor running a multi-year program are a bad match even in the same field, and overlap on any one selected value counts as a match.
+
+**Messaging is gated on a mutual follow, deliberately.** A researcher can write to any student. A student can write to a researcher only once that researcher has followed them back, or once the researcher has actually engaged with one of their applications. Without that gate a professor's inbox becomes the cold-email pile this platform exists to replace, and the follow costs the researcher one click when they do want to hear from somebody. Once a conversation exists in either direction it stays open. Two students need a mutual follow. The rules live in one function, `canMessage`, and are tested in `tests/integration/messaging.test.ts`.
+
+**Reviews are a separate posting type, not a research position with blanks.** A review posting is four fields: title, summary, whether there is authorship, and which parts need help. It publishes immediately with no draft steps and no moderation queue, because the entire value of the type is that it can go up in under two minutes.
+
+**Referrals replace public reviews.** There is no star rating and no public review of a person. A referral is one account vouching for another by name, optionally with a reference letter. The referrer's name is read live from their account rather than copied at referral time, so a title change does not leave a stale endorsement behind. Reference letters are readable by the person referred, by researchers, and by admins, never by other students.
+
 **There is no universal student ranking.** No `student_quality_score` field, no leaderboard, no cross-project score. A student can be highly relevant to one project and not to the next, and that is the intended behaviour.
 
 **AI output is evidence assistance.** Claude locates evidence relating to criteria the researcher wrote and points at the passage it came from. It does not decide anything.
@@ -294,6 +310,9 @@ Semantic HTML, keyboard reachable controls, visible focus outlines, labelled fie
 - The SMTP email provider is a stub. `console` and `resend` work.
 - Waitlist to account invitations are stored and exportable, but the invite email is triggered manually rather than from an admin button.
 - The end to end suite in `scripts/run-e2e.sh` runs against `next dev` because the PGlite fallback cannot be shared across the production server's workers. Point `DATABASE_URL` at a real PostgreSQL instance to run it against `next start`.
+- Pre-populated faculty profiles are not built. The intent is that a professor logs in, sets a password, states their needs, and everything else is pre-filled from McMaster Experts and LinkedIn. It is waiting on the faculty list.
+- The weekly digest is driven by an external scheduler hitting `POST /api/cron/weekly-digest`, not by an in-process timer, so a restart or a second web worker cannot skip or duplicate a week. Nothing is scheduled until you point a cron at it.
+- The duration backfill in migration 0008 reads the old free-text duration field. Anything it cannot read confidently is left unset rather than guessed at, so some existing listings will ask their owner for a duration the next time they are edited.
 - No formal third-party accessibility audit has been carried out, and no compliance certification is claimed.
 
 ---

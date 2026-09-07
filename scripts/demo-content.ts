@@ -316,6 +316,10 @@ async function main() {
     })
     .returning();
 
+  await db
+    .insert(s.opportunityDurations)
+    .values((["two_semesters", "summer_only"] as const).map((duration) => ({ opportunityId: opportunity.id, duration })));
+
   await db.insert(s.opportunityFields).values(
     ["rehabilitation-science", "kinesiology", "neuroscience"].map((slug) => ({
       opportunityId: opportunity.id,

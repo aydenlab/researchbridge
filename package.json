@@ -21,7 +21,8 @@
     "check": "npm run typecheck && npm run test && npm run build",
     "start:next": "next start",
     "db:demo": "tsx scripts/demo-content.ts",
-    "db:demo:applicants": "tsx scripts/demo-applicants.ts"
+    "db:demo:applicants": "tsx scripts/demo-applicants.ts",
+    "digest:weekly": "tsx scripts/weekly-digest.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",

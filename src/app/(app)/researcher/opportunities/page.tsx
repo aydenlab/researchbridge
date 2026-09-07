@@ -7,12 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { requireResearcher } from "@/lib/auth/permissions";
 import { deadlineNote, formatShortDate, hoursLabel } from "@/lib/format";
-import { COMPENSATION_LABELS, LOCATION_LABELS, OPPORTUNITY_STATUS_LABELS, labelOr } from "@/lib/labels";
+import {
+  COMPENSATION_LABELS,
+  LOCATION_LABELS,
+  OPPORTUNITY_KIND_LABELS,
+  OPPORTUNITY_STATUS_LABELS,
+  labelOr,
+} from "@/lib/labels";
 import { researcherOpportunities } from "@/lib/queries/researcher";
 import { StatusControls } from "./status-controls";
 
 export const metadata: Metadata = {
-  title: "Your opportunities",
+  title: "Your postings",
   robots: { index: false, follow: false },
 };
 
@@ -34,29 +40,49 @@ export default async function ResearcherOpportunitiesPage() {
   return (
     <div className="mx-auto max-w-[1180px] px-4 py-8 sm:px-6 sm:py-10">
       <PageHeader
-        title="Your opportunities"
-        lede="Positions you control. Closing or unpublishing keeps every application and its history intact."
-        actions={<ButtonLink href="/researcher/opportunities/new">Post opportunity</ButtonLink>}
+        title="Your postings"
+        lede="Research positions and reviews you control. Closing or unpublishing keeps every application and its history intact."
+        actions={
+          <>
+            <ButtonLink href="/researcher/reviews/new" variant="outline">
+              Post a review
+            </ButtonLink>
+            <ButtonLink href="/researcher/opportunities/new">Post a position</ButtonLink>
+          </>
+        }
       />
 
       {rows.length === 0 ? (
         <EmptyState
-          title="Post your first research opportunity to begin receiving applications."
-          body="You describe the project, state what matters for it, and write the questions students answer. It takes about ten minutes."
+          title="Post your first opening to begin receiving applications."
+          body="A research position takes about ten minutes: the project, what matters for it, and the questions students answer. A review takes under two."
           actionHref="/researcher/opportunities/new"
-          actionLabel="Post opportunity"
+          actionLabel="Post a position"
+          secondaryHref="/researcher/reviews/new"
+          secondaryLabel="Post a review"
         />
       ) : (
         <ul className="flex flex-col gap-4">
           {rows.map((row) => {
             const deadline = deadlineNote(row.deadline);
+            const isReview = row.kind === "review_project";
+            const editHref = isReview
+              ? `/researcher/reviews/${row.id}/edit`
+              : `/researcher/opportunities/${row.id}/edit?step=1`;
             return (
               <li key={row.id} className="rounded-[12px] border border-line bg-white p-5">
                 <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={STATUS_TONE[row.status]}>{labelOr(OPPORTUNITY_STATUS_LABELS, row.status)}</Badge>
-                      <Badge tone="outline">{labelOr(COMPENSATION_LABELS, row.compensationType)}</Badge>
+                      <Badge tone="neutral">{labelOr(OPPORTUNITY_KIND_LABELS, row.kind)}</Badge>
+                      {isReview ? (
+                        <Badge tone={row.authorshipOffered ? "forest" : "outline"}>
+                          {row.authorshipOffered ? "Authorship offered" : "No authorship"}
+                        </Badge>
+                      ) : (
+                        <Badge tone="outline">{labelOr(COMPENSATION_LABELS, row.compensationType)}</Badge>
+                      )}
                       {row.awaitingReview > 0 ? <Badge tone="clay">{row.awaitingReview} awaiting review</Badge> : null}
                     </div>
 
@@ -74,10 +100,14 @@ export default async function ResearcherOpportunitiesPage() {
                     {row.summary ? <p className="mt-1 text-[13.5px] leading-6 text-muted">{row.summary}</p> : null}
 
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-muted">
-                      <span>{row.numberOfOpenings} {row.numberOfOpenings === 1 ? "opening" : "openings"}</span>
-                      <span>{hoursLabel(row.hoursPerWeekMin, row.hoursPerWeekMax)}</span>
-                      <span>{labelOr(LOCATION_LABELS, row.locationMode)}</span>
-                      <span className={deadline.urgent ? "text-warn" : ""}>{deadline.text}</span>
+                      {isReview ? null : (
+                        <>
+                          <span>{row.numberOfOpenings} {row.numberOfOpenings === 1 ? "opening" : "openings"}</span>
+                          <span>{hoursLabel(row.hoursPerWeekMin, row.hoursPerWeekMax)}</span>
+                          <span>{labelOr(LOCATION_LABELS, row.locationMode)}</span>
+                          <span className={deadline.urgent ? "text-warn" : ""}>{deadline.text}</span>
+                        </>
+                      )}
                       {row.publishedAt ? <span>Published {formatShortDate(row.publishedAt)}</span> : null}
                     </div>
 
@@ -97,7 +127,7 @@ export default async function ResearcherOpportunitiesPage() {
 
                   <div className="flex shrink-0 flex-col items-stretch gap-2">
                     {row.status === "draft" ? (
-                      <ButtonLink href={`/researcher/opportunities/${row.id}/edit?step=${row.draftStep}`} size="sm">
+                      <ButtonLink href={editHref} size="sm">
                         Continue draft
                       </ButtonLink>
                     ) : (
@@ -105,7 +135,7 @@ export default async function ResearcherOpportunitiesPage() {
                         <ButtonLink href={`/researcher/opportunities/${row.id}/applicants`} size="sm">
                           Review applicants
                         </ButtonLink>
-                        <ButtonLink href={`/researcher/opportunities/${row.id}/edit?step=1`} size="sm" variant="outline">
+                        <ButtonLink href={editHref} size="sm" variant="outline">
                           Edit listing
                         </ButtonLink>
                         <ButtonLink href={`/opportunities/${row.slug}`} size="sm" variant="ghost">

@@ -142,6 +142,113 @@ export const RESEARCH_OUTPUT_OPTIONS = [
   "No formal output",
 ] as const;
 
+export const DURATION_ORDER = ["one_semester", "two_semesters", "summer_only", "one_year", "multi_year"] as const;
+
+export type DurationOption = (typeof DURATION_ORDER)[number];
+
+export const DURATION_LABELS: Record<string, string> = {
+  one_semester: "One semester",
+  two_semesters: "Two semesters",
+  summer_only: "Summer only",
+  one_year: "One year",
+  multi_year: "Multi-year or ongoing",
+};
+
+export const COURSE_TYPE_ORDER = [
+  "honours_thesis",
+  "thesis_course",
+  "one_semester_coursework",
+  "two_semester_coursework",
+  "volunteer",
+  "phd_thesis",
+  "medical_student_elective",
+] as const;
+
+export type CourseTypeOption = (typeof COURSE_TYPE_ORDER)[number];
+
+export const COURSE_TYPE_LABELS: Record<string, string> = {
+  honours_thesis: "Honours thesis",
+  thesis_course: "Thesis course",
+  one_semester_coursework: "One-semester coursework",
+  two_semester_coursework: "Two-semester coursework",
+  volunteer: "Volunteer",
+  phd_thesis: "PhD thesis",
+  medical_student_elective: "Medical student elective",
+};
+
+export const PROGRAM_CATEGORY_ORDER = [
+  "life_sciences",
+  "health_sciences",
+  "human_resources_management",
+  "health_policy",
+  "kinesiology",
+  "nursing",
+  "medicine",
+  "engineering",
+  "science",
+  "social_sciences",
+  "humanities",
+  "business",
+  "other",
+] as const;
+
+export type ProgramCategoryOption = (typeof PROGRAM_CATEGORY_ORDER)[number];
+
+export const PROGRAM_CATEGORY_LABELS: Record<string, string> = {
+  life_sciences: "Life sciences",
+  health_sciences: "Health sciences",
+  human_resources_management: "Human resources management",
+  health_policy: "Health policy",
+  kinesiology: "Kinesiology",
+  nursing: "Nursing",
+  medicine: "Medicine",
+  engineering: "Engineering",
+  science: "Science",
+  social_sciences: "Social sciences",
+  humanities: "Humanities",
+  business: "Business and commerce",
+  other: "Other program",
+};
+
+export const COMPENSATION_PREFERENCE_ORDER = ["paid", "volunteer", "academic_credit"] as const;
+
+export type CompensationPreferenceOption = (typeof COMPENSATION_PREFERENCE_ORDER)[number];
+
+export const COMPENSATION_PREFERENCE_LABELS: Record<string, string> = {
+  paid: "Paid positions",
+  volunteer: "Volunteer or unpaid positions",
+  academic_credit: "Positions for academic credit",
+};
+
+export const REVIEW_TASK_ORDER = [
+  "screening",
+  "data_extraction",
+  "risk_of_bias",
+  "manuscript_writing",
+  "search_strategy",
+  "statistical_analysis",
+  "reference_management",
+  "other",
+] as const;
+
+export type ReviewTaskOption = (typeof REVIEW_TASK_ORDER)[number];
+
+export const REVIEW_TASK_LABELS: Record<string, string> = {
+  screening: "Screening",
+  data_extraction: "Data extraction",
+  risk_of_bias: "Risk of bias assessment",
+  manuscript_writing: "Manuscript writing",
+  search_strategy: "Search strategy",
+  statistical_analysis: "Statistical analysis",
+  reference_management: "Reference management",
+  other: "Something else",
+};
+
+export const OPPORTUNITY_KIND_LABELS: Record<string, string> = {
+  research_position: "Research position",
+  review_project: "Review",
+};
+
 export const SEMESTER_OPTIONS = ["Fall", "Winter", "Spring", "Summer"] as const;
 
 export function labelOr(map: Record<string, string>, key: string | null | undefined, fallback = "Not specified"): string {

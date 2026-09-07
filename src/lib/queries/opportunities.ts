@@ -4,9 +4,11 @@ import {
   db,
   opportunities,
   opportunityCriteria,
+  opportunityDurations,
   opportunityFields,
   opportunityQuestions,
   opportunityResearchMaterials,
+  opportunityReviewTasks,
   opportunitySkills,
   researcherFields,
   researcherProfiles,
@@ -17,6 +19,10 @@ import {
 
 export type OpportunityFilters = {
   q?: string;
+  kind?: "research_position" | "review_project";
+  durations?: string[];
+  authorshipOnly?: boolean;
+  reviewTasks?: string[];
   fields?: string[];
   departments?: string[];
   compensation?: string[];
@@ -35,6 +41,7 @@ export type OpportunityFilters = {
 
 export type OpportunityListItem = {
   id: string;
+  kind: string;
   slug: string;
   title: string;
   summary: string;
@@ -48,6 +55,7 @@ export type OpportunityListItem = {
   compensationType: string;
   beginnerFriendly: boolean;
   priorResearchRequired: boolean;
+  authorshipOffered: boolean;
   numberOfOpenings: number;
   publishedAt: Date | null;
   researcherFirstName: string;
@@ -56,6 +64,8 @@ export type OpportunityListItem = {
   researcherType: string | null;
   fieldNames: string[];
   skillNames: string[];
+  durations: string[];
+  reviewTasks: string[];
 };
 
 const PER_PAGE = 12;
@@ -83,6 +93,42 @@ function baseConditions(filters: OpportunityFilters): SQL[] {
     );
     if (search) conditions.push(search);
   }
+
+  conditions.push(eq(opportunities.kind, filters.kind ?? "research_position"));
+
+  if (filters.durations?.length) {
+    conditions.push(
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(opportunityDurations)
+          .where(
+            and(
+              eq(opportunityDurations.opportunityId, opportunities.id),
+              inArray(opportunityDurations.duration, filters.durations as never[]),
+            ),
+          ),
+      ),
+    );
+  }
+
+  if (filters.reviewTasks?.length) {
+    conditions.push(
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(opportunityReviewTasks)
+          .where(
+            and(
+              eq(opportunityReviewTasks.opportunityId, opportunities.id),
+              inArray(opportunityReviewTasks.task, filters.reviewTasks as never[]),
+            ),
+          ),
+      ),
+    );
+  }
+
+  if (filters.authorshipOnly) conditions.push(eq(opportunities.authorshipOffered, true));
 
   if (filters.fields?.length) {
     conditions.push(
@@ -145,6 +191,7 @@ export async function searchOpportunities(filters: OpportunityFilters) {
   const rows = await db
     .select({
       id: opportunities.id,
+      kind: opportunities.kind,
       slug: opportunities.slug,
       title: opportunities.title,
       summary: opportunities.summary,
@@ -158,6 +205,7 @@ export async function searchOpportunities(filters: OpportunityFilters) {
       compensationType: opportunities.compensationType,
       beginnerFriendly: opportunities.beginnerFriendly,
       priorResearchRequired: opportunities.priorResearchRequired,
+      authorshipOffered: opportunities.authorshipOffered,
       numberOfOpenings: opportunities.numberOfOpenings,
       publishedAt: opportunities.publishedAt,
       researcherFirstName: researcherProfiles.firstName,
@@ -179,7 +227,7 @@ export async function searchOpportunities(filters: OpportunityFilters) {
     .where(and(...conditions));
 
   const ids = rows.map((row) => row.id);
-  const [fieldRows, skillRows] = ids.length
+  const [fieldRows, skillRows, durationRows, taskRows] = ids.length
     ? await Promise.all([
         db
           .select({ opportunityId: opportunityFields.opportunityId, name: researchFields.name })
@@ -195,8 +243,16 @@ export async function searchOpportunities(filters: OpportunityFilters) {
           .from(opportunitySkills)
           .innerJoin(skills, eq(skills.id, opportunitySkills.skillId))
           .where(inArray(opportunitySkills.opportunityId, ids)),
+        db
+          .select({ opportunityId: opportunityDurations.opportunityId, duration: opportunityDurations.duration })
+          .from(opportunityDurations)
+          .where(inArray(opportunityDurations.opportunityId, ids)),
+        db
+          .select({ opportunityId: opportunityReviewTasks.opportunityId, task: opportunityReviewTasks.task })
+          .from(opportunityReviewTasks)
+          .where(inArray(opportunityReviewTasks.opportunityId, ids)),
       ])
-    : [[], []];
+    : [[], [], [], []];
 
   const fieldsByOpportunity = new Map<string, string[]>();
   for (const row of fieldRows) {
@@ -208,10 +264,21 @@ export async function searchOpportunities(filters: OpportunityFilters) {
     skillsByOpportunity.set(row.opportunityId, [...(skillsByOpportunity.get(row.opportunityId) ?? []), row.name]);
   }
 
+  const durationsByOpportunity = new Map<string, string[]>();
+  for (const row of durationRows) {
+    durationsByOpportunity.set(row.opportunityId, [...(durationsByOpportunity.get(row.opportunityId) ?? []), row.duration]);
+  }
+  const tasksByOpportunity = new Map<string, string[]>();
+  for (const row of taskRows) {
+    tasksByOpportunity.set(row.opportunityId, [...(tasksByOpportunity.get(row.opportunityId) ?? []), row.task]);
+  }
+
   const items: OpportunityListItem[] = rows.map((row) => ({
     ...row,
     fieldNames: fieldsByOpportunity.get(row.id) ?? [],
     skillNames: skillsByOpportunity.get(row.id) ?? [],
+    durations: durationsByOpportunity.get(row.id) ?? [],
+    reviewTasks: tasksByOpportunity.get(row.id) ?? [],
   }));
 
   return { items, total, page, perPage, pageCount: Math.max(1, Math.ceil(total / perPage)) };
@@ -244,7 +311,16 @@ export async function loadOpportunityDetail(opportunityId: string) {
   const row = rows[0];
   if (!row) return null;
 
-  const [fieldRows, skillRows, criteriaRows, questionRows, materialRows, researcherFieldRows] = await Promise.all([
+  const [
+    fieldRows,
+    skillRows,
+    criteriaRows,
+    questionRows,
+    materialRows,
+    researcherFieldRows,
+    durationRows,
+    reviewTaskRows,
+  ] = await Promise.all([
     db
       .select({ id: researchFields.id, name: researchFields.name, slug: researchFields.slug })
       .from(opportunityFields)
@@ -282,6 +358,14 @@ export async function loadOpportunityDetail(opportunityId: string) {
       .innerJoin(researchFields, eq(researchFields.id, researcherFields.researchFieldId))
       .where(eq(researcherFields.researcherId, row.researcher.userId))
       .orderBy(asc(researchFields.name)),
+    db
+      .select({ duration: opportunityDurations.duration })
+      .from(opportunityDurations)
+      .where(eq(opportunityDurations.opportunityId, opportunityId)),
+    db
+      .select({ task: opportunityReviewTasks.task })
+      .from(opportunityReviewTasks)
+      .where(eq(opportunityReviewTasks.opportunityId, opportunityId)),
   ]);
 
   return {
@@ -293,6 +377,8 @@ export async function loadOpportunityDetail(opportunityId: string) {
     questions: questionRows,
     materials: materialRows,
     researcherFields: researcherFieldRows.map((field) => field.name),
+    durations: durationRows.map((entry) => entry.duration),
+    reviewTasks: reviewTaskRows.map((entry) => entry.task),
   };
 }
 

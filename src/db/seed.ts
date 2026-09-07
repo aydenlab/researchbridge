@@ -118,6 +118,25 @@ async function reset() {
   `);
 }
 
+
+/**
+ * The demo listings were written before durations were structured, so their
+ * free text is the source of truth here. Reading it back is the same mapping the
+ * migration applies to real rows, which keeps seeded data honest about what a
+ * real backfill would produce.
+ */
+function durationsFromText(text: string): ("one_semester" | "two_semesters" | "summer_only" | "one_year" | "multi_year")[] {
+  const value = text.toLowerCase();
+  const result = new Set<"one_semester" | "two_semesters" | "summer_only" | "one_year" | "multi_year">();
+  if (/multi[- ]?year|ongoing|indefinite/.test(value)) result.add("multi_year");
+  if (/summer/.test(value)) result.add(value.includes("term") || value.includes("month") ? "one_semester" : "summer_only");
+  if (/eight months|two terms|twelve weeks|sixteen weeks/.test(value)) result.add("two_semesters");
+  if (/one academic term|one term|one to two terms|twelve weeks/.test(value)) result.add("one_semester");
+  if (/one year|twelve months|full academic year/.test(value)) result.add("one_year");
+  if (result.size === 0) result.add("one_semester");
+  return [...result];
+}
+
 async function main() {
   console.log("seeding ResearchBridge");
   await reset();
@@ -362,6 +381,10 @@ async function main() {
       graduationYear: 2028,
       weeklyHours: 10,
       location: "hybrid" as const,
+      programCategory: "health_sciences" as const,
+      durations: ["one_semester", "two_semesters"] as const,
+      compensationPreferences: ["paid", "academic_credit"] as const,
+      courseTypes: ["honours_thesis", "thesis_course"] as const,
       summary:
         "I am drawn to questions about why patients with similar diagnoses have very different outcomes after discharge. I would like to spend more time with real clinical data.",
       skills: [["Python", "working"], ["Data analysis", "working"], ["Statistics", "exposure"], ["Literature reviews", "working"]],
@@ -393,6 +416,10 @@ async function main() {
       graduationYear: 2027,
       weeklyHours: 12,
       location: "in_person" as const,
+      programCategory: "life_sciences" as const,
+      durations: ["two_semesters", "one_year"] as const,
+      compensationPreferences: ["paid"] as const,
+      courseTypes: ["one_semester_coursework", "volunteer"] as const,
       summary:
         "I want a bench project where I can build real technical skill. I have spent two terms in a teaching lab and I am comfortable with sterile technique.",
       skills: [["Cell culture", "working"], ["PCR", "proficient"], ["Western blot", "working"], ["Wet lab", "proficient"], ["Microscopy", "exposure"]],
@@ -424,6 +451,10 @@ async function main() {
       graduationYear: 2029,
       weeklyHours: 6,
       location: "hybrid" as const,
+      programCategory: "health_sciences" as const,
+      durations: ["summer_only", "one_semester"] as const,
+      compensationPreferences: ["volunteer", "academic_credit"] as const,
+      courseTypes: ["two_semester_coursework"] as const,
       summary:
         "This is my first year and I have not done research before. I read a lot about public health policy and I would like to find a project where I can start learning properly.",
       skills: [["Literature reviews", "exposure"], ["Scientific writing", "working"]],
@@ -443,6 +474,10 @@ async function main() {
       graduationYear: 2026,
       weeklyHours: 15,
       location: "remote" as const,
+      programCategory: "science" as const,
+      durations: ["one_year", "multi_year"] as const,
+      compensationPreferences: ["paid", "volunteer", "academic_credit"] as const,
+      courseTypes: ["volunteer"] as const,
       summary:
         "I like problems where the biology and the computation are both hard. I have written pipelines for sequence data and I am comfortable on the command line.",
       skills: [["Python", "advanced"], ["R", "proficient"], ["Bioinformatics", "proficient"], ["SQL", "working"], ["Machine learning", "working"], ["Data visualization", "proficient"]],
@@ -485,6 +520,10 @@ async function main() {
       graduationYear: 2027,
       weeklyHours: 8,
       location: "in_person" as const,
+      programCategory: "kinesiology" as const,
+      durations: ["one_semester"] as const,
+      compensationPreferences: ["academic_credit"] as const,
+      courseTypes: ["honours_thesis"] as const,
       summary:
         "I coach a community running group and I am interested in how exercise programs actually change mobility for older adults, not just in a lab setting.",
       skills: [["Data analysis", "exposure"], ["Patient recruitment", "working"], ["Presentation", "proficient"], ["SPSS", "exposure"]],
@@ -504,6 +543,10 @@ async function main() {
       graduationYear: 2027,
       weeklyHours: 10,
       location: "in_person" as const,
+      programCategory: "social_sciences" as const,
+      durations: ["one_semester", "two_semesters", "summer_only", "one_year", "multi_year"] as const,
+      compensationPreferences: ["paid", "academic_credit"] as const,
+      courseTypes: ["medical_student_elective", "volunteer"] as const,
       summary:
         "I am interested in how attention changes through adolescence, and I would like hands-on experience with imaging data rather than only reading about it.",
       skills: [["MATLAB", "working"], ["Python", "working"], ["Statistics", "working"], ["Neuroimaging analysis", "exposure"]],
@@ -535,6 +578,10 @@ async function main() {
       graduationYear: 2028,
       weeklyHours: 6,
       location: "in_person" as const,
+      programCategory: "nursing" as const,
+      durations: ["one_semester", "two_semesters"] as const,
+      compensationPreferences: ["paid"] as const,
+      courseTypes: ["phd_thesis"] as const,
       summary:
         "I work with patients on placement and I keep noticing gaps between what is charted and what actually happens. I want to look at that properly.",
       skills: [["Chart review", "exposure"], ["REDCap", "exposure"], ["Scientific writing", "working"], ["Patient recruitment", "exposure"]],
@@ -554,6 +601,10 @@ async function main() {
       graduationYear: 2027,
       weeklyHours: 14,
       location: "hybrid" as const,
+      programCategory: "health_policy" as const,
+      durations: ["two_semesters", "one_year"] as const,
+      compensationPreferences: ["volunteer", "academic_credit"] as const,
+      courseTypes: ["honours_thesis", "thesis_course"] as const,
       summary:
         "My thesis is on screening uptake in newcomer communities. I have run two systematic searches and I am comfortable with grey literature.",
       skills: [["Systematic reviews", "advanced"], ["Literature reviews", "advanced"], ["R", "working"], ["Statistics", "proficient"], ["Qualitative coding", "working"], ["Survey design", "working"]],
@@ -585,6 +636,10 @@ async function main() {
       graduationYear: 2028,
       weeklyHours: 9,
       location: "in_person" as const,
+      programCategory: "life_sciences" as const,
+      durations: ["summer_only", "one_semester"] as const,
+      compensationPreferences: ["paid", "volunteer", "academic_credit"] as const,
+      courseTypes: ["one_semester_coursework", "volunteer"] as const,
       summary:
         "I have not worked in a research lab yet. I enjoyed my biochemistry labs more than anything else this year and I want to keep going.",
       skills: [["Wet lab", "exposure"], ["Scientific writing", "exposure"]],
@@ -604,6 +659,10 @@ async function main() {
       graduationYear: 2026,
       weeklyHours: 11,
       location: "hybrid" as const,
+      programCategory: "science" as const,
+      durations: ["one_year", "multi_year"] as const,
+      compensationPreferences: ["academic_credit"] as const,
+      courseTypes: ["two_semester_coursework"] as const,
       summary:
         "I like reading widely and synthesizing. I would rather write a good review than run one more gel, though I am happy to do both.",
       skills: [["Literature reviews", "proficient"], ["Systematic reviews", "working"], ["Scientific writing", "proficient"], ["R", "exposure"], ["Wet lab", "working"]],
@@ -656,9 +715,22 @@ async function main() {
       semesters: ["Fall", "Winter"],
       summerAvailable: true,
       locationPreference: seed.location,
+      programCategory: seed.programCategory,
       profileCompletion: seed.experiences.length > 0 ? 100 : 85,
       onboardingStep: 8,
     });
+
+    await db
+      .insert(s.studentDurations)
+      .values(seed.durations.map((duration) => ({ studentId: user.id, duration })));
+
+    await db
+      .insert(s.studentCompensationPreferences)
+      .values(seed.compensationPreferences.map((preference) => ({ studentId: user.id, preference })));
+
+    await db
+      .insert(s.studentCourseTypes)
+      .values(seed.courseTypes.map((courseType) => ({ studentId: user.id, courseType })));
 
     if (seed.gpa) {
       await db.insert(s.studentAcademicRecords).values({
@@ -1534,6 +1606,10 @@ async function main() {
     opportunityIds[seed.key] = opportunity.id;
 
     await db
+      .insert(s.opportunityDurations)
+      .values(durationsFromText(seed.duration).map((duration) => ({ opportunityId: opportunity.id, duration })));
+
+    await db
       .insert(s.opportunityFields)
       .values(seed.fields.map((name) => ({ opportunityId: opportunity.id, researchFieldId: fields[name] })));
 
@@ -1600,6 +1676,70 @@ async function main() {
       });
     }
   }
+
+
+  // Review postings. Separate from research positions on purpose: four fields,
+  // no criteria, no questions, and the answer about authorship stated up front.
+  const reviewSeeds = [
+    {
+      key: "cardiac-rehab-scoping",
+      researcher: "okonjoa@example.edu",
+      title: "Scoping review of remote cardiac rehabilitation programs",
+      summary:
+        "We have about nine hundred abstracts from the search and need a second screener. Expect roughly six weeks at four to six hours a week, then a fortnight of extraction once the included set is settled. Screening is done in Covidence and I will train you on the first fifty together.",
+      authorshipOffered: true,
+      tasks: ["screening", "data_extraction"] as const,
+    },
+    {
+      key: "sleep-systematic",
+      researcher: "delacruzm@example.edu",
+      title: "Systematic review of behavioural sleep interventions in adolescents",
+      summary:
+        "Extraction is half done and the risk of bias assessment has not started. I need somebody to run the second independent assessment using RoB 2 and to help reconcile the disagreements. Around three weeks of work, and the protocol is already registered.",
+      authorshipOffered: true,
+      tasks: ["risk_of_bias", "data_extraction"] as const,
+    },
+    {
+      key: "workforce-general",
+      researcher: "okonjoa@example.edu",
+      title: "General review of health workforce retention in rural settings",
+      summary:
+        "A narrative review for a policy brief rather than a journal. I need help building the search and organising the reference library. It is short, it is genuinely useful, and I would rather say plainly that there is no authorship on this one than imply otherwise.",
+      authorshipOffered: false,
+      tasks: ["search_strategy", "reference_management"] as const,
+    },
+  ];
+
+  for (const seed of reviewSeeds) {
+    const [review] = await db
+      .insert(s.opportunities)
+      .values({
+        institutionId: pilotInstitution.id,
+        researcherId: researcherIds[seed.researcher],
+        kind: "review_project",
+        title: seed.title,
+        slug: `${slugify(seed.title)}-${seed.key}`,
+        summary: seed.summary,
+        authorshipOffered: seed.authorshipOffered,
+        status: "published",
+        compensationType: "volunteer",
+        draftStep: 1,
+        publishedAt: new Date(now.getTime() - 6 * 86400000),
+        viewCount: 18,
+      })
+      .returning();
+
+    await db
+      .insert(s.opportunityReviewTasks)
+      .values(seed.tasks.map((task) => ({ opportunityId: review.id, task })));
+  }
+
+  // One referral, so the profile section is not empty in the demo.
+  await db.insert(s.profileReferrals).values({
+    subjectId: studentIds["adeyemij@example.edu"],
+    referrerId: researcherIds["okonjoa@example.edu"],
+    note: "Jordan volunteered with our reading group for two terms and did the unglamorous half of the work without being asked twice. I would take them in the lab.",
+  });
 
   const applicationSeeds = [
     {
@@ -1968,6 +2108,7 @@ async function main() {
   console.log(`  researchers: ${researcherSeeds.length}`);
   console.log(`  students: ${studentSeeds.length}`);
   console.log(`  opportunities: ${opportunitySeeds.length}`);
+  console.log(`  reviews: ${reviewSeeds.length}`);
   console.log(`  applications: ${applicationSeeds.length}`);
   console.log(`  admin sign-in email: admin@myresearchbridge.com`);
   process.exit(0);

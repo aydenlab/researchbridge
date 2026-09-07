@@ -33,10 +33,23 @@ export const roleStepSchema = z.object({
   learningOpportunities: optionalText(1200),
 });
 
+export const durationOptionSchema = z.enum([
+  "one_semester",
+  "two_semesters",
+  "summer_only",
+  "one_year",
+  "multi_year",
+]);
+
 export const logisticsStepSchema = z
   .object({
     numberOfOpenings: z.coerce.number().int().min(1, "There must be at least one opening.").max(50),
     startDate: optionalText(20),
+    preferredDurations: arrayField(durationOptionSchema, {
+      min: 1,
+      max: 5,
+      message: "Choose at least one length. Select them all if you are open to any of them.",
+    }),
     duration: optionalText(160),
     hoursPerWeekMin: z.coerce.number().int().min(0).max(60),
     hoursPerWeekMax: z.coerce.number().int().min(0).max(60),
@@ -60,6 +73,33 @@ export const logisticsStepSchema = z
     message: "Describe the pay arrangement so students know what is offered before applying.",
     path: ["compensationDetails"],
   });
+
+export const reviewTaskSchema = z.enum([
+  "screening",
+  "data_extraction",
+  "risk_of_bias",
+  "manuscript_writing",
+  "search_strategy",
+  "statistical_analysis",
+  "reference_management",
+  "other",
+]);
+
+/**
+ * A review posting is deliberately five fields. The whole value of this posting
+ * type is that a supervisor can put one up in under two minutes, so anything
+ * that is not strictly needed to decide whether to help is left off.
+ */
+export const reviewPostingSchema = z.object({
+  title: requiredText("Title", 180, 8),
+  summary: requiredText("Short summary", 1200, 30),
+  authorshipOffered: z.coerce.boolean().default(false),
+  reviewTasks: arrayField(reviewTaskSchema, {
+    min: 1,
+    max: 8,
+    message: "Choose at least one part you need help with.",
+  }),
+});
 
 export const criterionInputSchema = z.object({
   type: z.enum([

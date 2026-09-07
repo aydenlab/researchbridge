@@ -6,7 +6,14 @@ import { OpportunityCard } from "@/components/app/opportunity-card";
 import { OpportunityFilters, type FilterGroup } from "@/components/app/opportunity-filters";
 import { ButtonLink } from "@/components/ui/button";
 import { currentUser } from "@/lib/auth/permissions";
-import { COMPENSATION_LABELS, COMPENSATION_ORDER, LOCATION_LABELS, RESEARCHER_TYPE_LABELS } from "@/lib/labels";
+import {
+  COMPENSATION_LABELS,
+  COMPENSATION_ORDER,
+  DURATION_LABELS,
+  DURATION_ORDER,
+  LOCATION_LABELS,
+  RESEARCHER_TYPE_LABELS,
+} from "@/lib/labels";
 import { searchOpportunities, type OpportunityFilters as Filters } from "@/lib/queries/opportunities";
 import { listResearchFields, listSkills } from "@/lib/queries/taxonomy";
 
@@ -33,6 +40,7 @@ export default async function OpportunitiesPage({
   const filters: Filters = {
     q: typeof params.q === "string" ? params.q.trim() : undefined,
     fields: toArray(params.field),
+    durations: toArray(params.duration),
     compensation: toArray(params.compensation),
     location: toArray(params.location),
     skills: toArray(params.skill),
@@ -77,6 +85,11 @@ export default async function OpportunitiesPage({
       options: fields.slice(0, 16).map((field) => ({ value: field.slug, label: field.name })),
     },
     {
+      key: "duration",
+      label: "How long it runs",
+      options: DURATION_ORDER.map((value) => ({ value, label: DURATION_LABELS[value] })),
+    },
+    {
       key: "compensation",
       label: "Compensation",
       options: COMPENSATION_ORDER.map((value) => ({ value, label: COMPENSATION_LABELS[value] })),
@@ -111,6 +124,7 @@ export default async function OpportunitiesPage({
 
   const activeCount =
     (filters.fields?.length ?? 0) +
+    (filters.durations?.length ?? 0) +
     (filters.compensation?.length ?? 0) +
     (filters.location?.length ?? 0) +
     (filters.skills?.length ?? 0) +
@@ -154,9 +168,16 @@ export default async function OpportunitiesPage({
             </p>
             {user?.role === "researcher" ? (
               <ButtonLink href="/researcher/opportunities/new" size="sm" variant="outline">
-                Post opportunity
+                Post a position
               </ButtonLink>
-            ) : null}
+            ) : (
+              <Link
+                href="/reviews"
+                className="text-[13px] text-forest underline decoration-line-strong underline-offset-4 hover:text-ink"
+              >
+                Looking for a short review project instead?
+              </Link>
+            )}
           </div>
 
           {results.items.length === 0 ? (

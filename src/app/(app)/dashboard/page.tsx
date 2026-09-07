@@ -124,9 +124,10 @@ export default async function StudentDashboardPage() {
                 {recommendations.map((recommendation) => (
                   <div key={recommendation.item.id} className="border-b border-line last:border-b-0">
                     <OpportunityCard item={recommendation.item} className="border-b-0" />
-                    {recommendation.reasons.length > 0 ? (
+                    {recommendation.reasons.length > 0 || recommendation.percent !== null ? (
                       <p className="px-4 pb-4 text-[12.5px] leading-5 text-muted sm:px-5">
-                        Why this appears: {recommendation.reasons.join(". ")}.
+                        {recommendation.percent !== null ? `${recommendation.percent}% match. ` : ""}
+                        {recommendation.reasons.length > 0 ? `Why this appears: ${recommendation.reasons.join(". ")}.` : ""}
                       </p>
                     ) : null}
                   </div>

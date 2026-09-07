@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
+import { FileText } from "lucide-react";
 import { db, researchFields, researcherFields, studentResearchInterests } from "@/db";
 import { FollowButton } from "@/components/app/follow-button";
 import { PersonRow } from "@/components/app/person-row";
 import { Badge, Tag } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, SectionTitle } from "@/components/ui/card";
 import { requireOnboardedUser } from "@/lib/auth/permissions";
 import { listConfirmedProfileReferences } from "@/lib/queries/references";
-import { listReviewsFor, reviewSummary } from "@/lib/queries/reviews";
+import { listReferralsFor, referralByReferrer } from "@/lib/queries/referrals";
+import { canMessage } from "@/lib/queries/messages";
 import { formatShortDate } from "@/lib/format";
 import {
   followCounts,
@@ -19,6 +22,7 @@ import {
   loadPeople,
   sharedConnectionIds,
 } from "@/lib/queries/social";
+import { ReferralControls } from "./referral-controls";
 
 export const metadata: Metadata = {
   title: "Profile",
@@ -60,15 +64,21 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
     fieldsFor(userId, person.role),
   ]);
 
-  const [confirmedReferences, reviews, ratings] = await Promise.all([
+  const [confirmedReferences, referrals, myReferral, messaging] = await Promise.all([
     listConfirmedProfileReferences(userId),
-    listReviewsFor(userId),
-    reviewSummary(userId),
+    listReferralsFor(userId),
+    isSelf ? Promise.resolve(null) : referralByReferrer(userId, viewer.id),
+    isSelf ? Promise.resolve({ allowed: false as const, reason: "" }) : canMessage(viewer, userId),
   ]);
+
   const [followerIds, followingIds] = await Promise.all([listFollowerIds(userId), listFollowingIds(userId)]);
   const connectionIds = [...new Set([...followerIds, ...followingIds])].slice(0, 12);
   const connectionPeople = await loadPeople([...new Set([...connectionIds, ...sharedIds])]);
   const viewerFollowing = new Set(await listFollowingIds(viewer.id));
+
+  // Reference letters are for whoever is assessing this person, and for the
+  // person themselves. Other students never see the link at all.
+  const canReadLetters = isSelf || viewer.role === "researcher" || viewer.role === "admin";
 
   return (
     <div className="mx-auto max-w-[900px] px-4 py-8 sm:px-6 sm:py-10">
@@ -91,17 +101,28 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
           </p>
           <p className="mt-2 text-[13px] text-subtle">
             {counts.followers} {counts.followers === 1 ? "follower" : "followers"} · {counts.following} following
-            {ratings.average !== null
-              ? ` (rated ${ratings.average.toFixed(1)} of 5 across ${ratings.count} ${ratings.count === 1 ? "review" : "reviews"})`
-              : ""}
+            {referrals.length > 0 ? ` · ${referrals.length} ${referrals.length === 1 ? "referral" : "referrals"}` : ""}
           </p>
         </div>
         {isSelf ? (
           <Badge tone="neutral">This is you</Badge>
         ) : (
-          <FollowButton userId={userId} following={following} />
+          <div className="flex flex-wrap items-center gap-2">
+            <FollowButton userId={userId} following={following} />
+            {messaging.allowed ? (
+              <ButtonLink href={`/messages/${userId}`} size="sm" variant="outline">
+                Message
+              </ButtonLink>
+            ) : null}
+          </div>
         )}
       </div>
+
+      {!isSelf && !messaging.allowed ? (
+        <p className="mt-4 rounded-[10px] border border-line bg-shell px-4 py-3 text-[13px] leading-6 text-muted">
+          {messaging.reason}
+        </p>
+      ) : null}
 
       {fields.length > 0 ? (
         <Card className="mt-6">
@@ -118,32 +139,60 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
         </Card>
       ) : null}
 
-      {reviews.length > 0 ? (
-        <Card className="mt-5">
-          <CardHeader>
-            <SectionTitle>Reviews from people who worked with them</SectionTitle>
-          </CardHeader>
-          <CardBody>
+      <Card className="mt-5">
+        <CardHeader>
+          <SectionTitle>Referrals</SectionTitle>
+        </CardHeader>
+        <CardBody>
+          {referrals.length === 0 ? (
+            <p className="text-[13.5px] leading-6 text-muted">
+              Nobody has referred {isSelf ? "you" : person.displayName} yet.
+            </p>
+          ) : (
             <ul className="flex flex-col gap-4">
-              {reviews.map((entry) => (
-                <li key={entry.review.id} className="border-b border-line pb-4 last:border-b-0 last:pb-0">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[13.5px] text-ink">{entry.opportunityTitle}</p>
-                    <Badge tone="neutral">{entry.review.rating} of 5</Badge>
-                  </div>
-                  {entry.review.comment ? (
-                    <p className="rb-measure mt-2 text-[14px] leading-7 text-muted">{entry.review.comment}</p>
+              {referrals.map((referral) => (
+                <li key={referral.id} className="border-b border-line pb-4 last:border-b-0 last:pb-0">
+                  <p className="text-[14.5px] text-ink">
+                    This student has been referred by{" "}
+                    <Link
+                      href={`/people/${referral.referrerId}`}
+                      className="font-medium underline decoration-line-strong underline-offset-4 hover:text-forest"
+                    >
+                      {referral.referrerName}
+                    </Link>
+                  </p>
+                  {referral.referrerHeadline ? (
+                    <p className="mt-0.5 text-[12.5px] text-subtle">{referral.referrerHeadline}</p>
                   ) : null}
-                  <p className="mt-1.5 text-[12px] text-subtle">{formatShortDate(entry.review.createdAt)}</p>
+                  {referral.note ? (
+                    <p className="rb-measure mt-2 text-[14px] leading-7 text-muted">{referral.note}</p>
+                  ) : null}
+                  {referral.letterFileId && canReadLetters ? (
+                    <a
+                      href={`/api/files/by-id/${referral.letterFileId}`}
+                      className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-forest underline decoration-line-strong underline-offset-4"
+                    >
+                      <FileText className="size-3.5" aria-hidden="true" />
+                      {referral.letterFileName}
+                    </a>
+                  ) : null}
+                  <p className="mt-1.5 text-[12px] text-subtle">{formatShortDate(referral.createdAt)}</p>
                 </li>
               ))}
             </ul>
-            <p className="mt-3 border-t border-line pt-3 text-[12px] leading-5 text-subtle">
-              Only somebody who took part in the same placement can leave one of these.
-            </p>
-          </CardBody>
-        </Card>
-      ) : null}
+          )}
+
+          {!isSelf ? (
+            <div className="mt-4 border-t border-line pt-4">
+              <ReferralControls
+                subjectId={userId}
+                subjectName={person.displayName}
+                existing={myReferral ? { note: myReferral.note, hasLetter: Boolean(myReferral.letterFileId) } : null}
+              />
+            </div>
+          ) : null}
+        </CardBody>
+      </Card>
 
       {confirmedReferences.length > 0 ? (
         <Card className="mt-5">
@@ -170,6 +219,7 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
           </CardBody>
         </Card>
       ) : null}
+
       {sharedIds.length > 0 ? (
         <Card className="mt-5">
           <CardHeader>

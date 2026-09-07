@@ -5,6 +5,7 @@ import {
   applications,
   db,
   opportunities,
+  profileReferrals,
   storedFiles,
   studentProfiles,
 } from "@/db";
@@ -23,6 +24,19 @@ async function isAuthorized(fileId: string, userId: string, role: string | null)
     .where(and(eq(storedFiles.id, fileId), eq(storedFiles.ownerId, userId)))
     .limit(1);
   if (owned.length > 0) return true;
+
+  // A reference letter attached to a referral is meant to be read by whoever is
+  // assessing that person, plus the person it is about. It is deliberately not
+  // open to other students: it is somebody's private assessment of a peer.
+  const referralLetter = await db
+    .select({ subjectId: profileReferrals.subjectId })
+    .from(profileReferrals)
+    .where(eq(profileReferrals.letterFileId, fileId))
+    .limit(1);
+  if (referralLetter.length > 0) {
+    if (referralLetter[0].subjectId === userId) return true;
+    if (role === "researcher") return true;
+  }
 
   if (role !== "researcher") return false;
 

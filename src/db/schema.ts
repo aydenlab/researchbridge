@@ -110,7 +110,74 @@ export const researchMaterialType = pgEnum("research_material_type", [
 export const courseStatus = pgEnum("course_status", ["completed", "in_progress", "planned"]);
 export const skillProficiency = pgEnum("skill_proficiency", ["exposure", "working", "proficient", "advanced"]);
 export const referenceStatus = pgEnum("reference_status", ["pending", "approved", "declined"]);
-export const reviewDirection = pgEnum("review_direction", ["researcher_to_student", "student_to_researcher"]);
+/**
+ * How long a placement runs. This used to be free text on the listing, which
+ * made it unusable for matching: "8 months" and "two terms" are the same answer
+ * written two ways. Both sides now pick from this list, and overlap on any one
+ * value counts as a match.
+ */
+export const durationOption = pgEnum("duration_option", [
+  "one_semester",
+  "two_semesters",
+  "summer_only",
+  "one_year",
+  "multi_year",
+]);
+
+/** The academic vehicle a placement is taken for. Researchers filter on it. */
+export const courseType = pgEnum("course_type", [
+  "honours_thesis",
+  "thesis_course",
+  "one_semester_coursework",
+  "two_semester_coursework",
+  "volunteer",
+  "phd_thesis",
+  "medical_student_elective",
+]);
+
+/**
+ * A coarse bucket over the free-text program name. Some researchers only take
+ * students from particular programs, and they need to filter on that directly
+ * rather than guessing at the spelling somebody used.
+ */
+export const programCategory = pgEnum("program_category", [
+  "life_sciences",
+  "health_sciences",
+  "human_resources_management",
+  "health_policy",
+  "kinesiology",
+  "nursing",
+  "medicine",
+  "engineering",
+  "science",
+  "social_sciences",
+  "humanities",
+  "business",
+  "other",
+]);
+
+/** What a student will accept in return for the work. Multi-select. */
+export const compensationPreference = pgEnum("compensation_preference", ["paid", "volunteer", "academic_credit"]);
+
+/**
+ * Review postings are a separate posting type, not a research position with
+ * fields left blank. They are short, fast, and the clearest path to authorship,
+ * so the form is deliberately tiny and the publish checks differ.
+ */
+export const opportunityKind = pgEnum("opportunity_kind", ["research_position", "review_project"]);
+
+/** The parts of a review a student can be asked to help with. */
+export const reviewTask = pgEnum("review_task", [
+  "screening",
+  "data_extraction",
+  "risk_of_bias",
+  "manuscript_writing",
+  "search_strategy",
+  "statistical_analysis",
+  "reference_management",
+  "other",
+]);
+
 export const waitlistKind = pgEnum("waitlist_kind", ["student", "researcher"]);
 export const waitlistStatus = pgEnum("waitlist_status", ["new", "contacted", "invited", "converted", "declined"]);
 
@@ -232,6 +299,7 @@ export const studentProfiles = pgTable(
     preferredName: text("preferred_name"),
     degreeLevel: degreeLevel("degree_level"),
     program: text("program"),
+    programCategory: programCategory("program_category"),
     faculty: text("faculty"),
     specialization: text("specialization"),
     yearLevel: integer("year_level"),
@@ -258,6 +326,7 @@ export const studentProfiles = pgTable(
   },
   (t) => [
     index("student_profiles_program_idx").on(t.program),
+    index("student_profiles_program_category_idx").on(t.programCategory),
     check("student_profiles_weekly_hours_nonnegative", sql`${t.weeklyHours} is null or ${t.weeklyHours} >= 0`),
     check("student_profiles_year_level_range", sql`${t.yearLevel} is null or (${t.yearLevel} >= 1 and ${t.yearLevel} <= 12)`),
     check("student_profiles_completion_range", sql`${t.profileCompletion} >= 0 and ${t.profileCompletion} <= 100`),
@@ -453,12 +522,19 @@ export const opportunities = pgTable(
     learningOpportunities: text("learning_opportunities"),
     department: text("department"),
     labName: text("lab_name"),
+    kind: opportunityKind("kind").notNull().default("research_position"),
     status: opportunityStatus("status").notNull().default("draft"),
     numberOfOpenings: integer("number_of_openings").notNull().default(1),
     locationMode: locationMode("location_mode").notNull().default("in_person"),
     location: text("location"),
     startDate: date("start_date"),
+    /**
+     * Free-text detail that sits alongside the structured durations below.
+     * Matching never reads this; it is only ever shown to a person.
+     */
     duration: text("duration"),
+    /** Review postings only: whether helping earns a place on the author list. */
+    authorshipOffered: boolean("authorship_offered").notNull().default(false),
     hoursPerWeekMin: integer("hours_per_week_min"),
     hoursPerWeekMax: integer("hours_per_week_max"),
     deadline: date("deadline"),
@@ -481,6 +557,7 @@ export const opportunities = pgTable(
   (t) => [
     uniqueIndex("opportunities_slug_key").on(t.slug),
     index("opportunities_status_idx").on(t.status),
+    index("opportunities_kind_idx").on(t.kind),
     index("opportunities_institution_idx").on(t.institutionId),
     index("opportunities_researcher_idx").on(t.researcherId),
     index("opportunities_deadline_idx").on(t.deadline),
@@ -966,35 +1043,118 @@ export const profileReferences = pgTable(
 );
 
 /**
- * A review is anchored to the application that produced the working
- * relationship, not to a pair of accounts. That is what makes "you actually
- * worked together" checkable rather than asserted, and it caps each side at one
- * review per placement.
+ * Durations a listing is offering. A join table rather than one column because
+ * a supervisor is often open to either a single term or a full year, and
+ * collapsing that to one value throws away the flexibility that produces
+ * matches.
  */
-export const placementReviews = pgTable(
-  "placement_reviews",
+export const opportunityDurations = pgTable(
+  "opportunity_durations",
+  {
+    opportunityId: uuid("opportunity_id")
+      .notNull()
+      .references(() => opportunities.id, { onDelete: "cascade" }),
+    duration: durationOption("duration").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.opportunityId, t.duration] })],
+);
+
+/** Durations a student is looking for. Same shape, other side of the match. */
+export const studentDurations = pgTable(
+  "student_durations",
+  {
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => studentProfiles.userId, { onDelete: "cascade" }),
+    duration: durationOption("duration").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.studentId, t.duration] })],
+);
+
+/** The kinds of placement a student is looking to do it as. */
+export const studentCourseTypes = pgTable(
+  "student_course_types",
+  {
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => studentProfiles.userId, { onDelete: "cascade" }),
+    courseType: courseType("course_type").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.studentId, t.courseType] })],
+);
+
+/** Paid, volunteer, for credit, or any combination. Feeds matching. */
+export const studentCompensationPreferences = pgTable(
+  "student_compensation_preferences",
+  {
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => studentProfiles.userId, { onDelete: "cascade" }),
+    preference: compensationPreference("preference").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.studentId, t.preference] })],
+);
+
+/** Which parts of a review posting the researcher wants help with. */
+export const opportunityReviewTasks = pgTable(
+  "opportunity_review_tasks",
+  {
+    opportunityId: uuid("opportunity_id")
+      .notNull()
+      .references(() => opportunities.id, { onDelete: "cascade" }),
+    task: reviewTask("task").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.opportunityId, t.task] })],
+);
+
+/**
+ * One person vouching for another by name, on the profile rather than per
+ * application. Unlike a profile reference, the referrer holds an account here,
+ * so the name shown is verified by their own login rather than an emailed link.
+ */
+export const profileReferrals = pgTable(
+  "profile_referrals",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    applicationId: uuid("application_id")
-      .notNull()
-      .references(() => applications.id, { onDelete: "cascade" }),
-    direction: reviewDirection("direction").notNull(),
-    authorId: uuid("author_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
     subjectId: uuid("subject_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    rating: integer("rating").notNull(),
-    comment: text("comment"),
+    referrerId: uuid("referrer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    note: text("note"),
+    letterFileId: uuid("letter_file_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("placement_reviews_once").on(t.applicationId, t.direction),
-    index("placement_reviews_subject_idx").on(t.subjectId),
-    index("placement_reviews_author_idx").on(t.authorId),
-    check("placement_reviews_rating_range", sql`"placement_reviews"."rating" between 1 and 5`),
-    check("placement_reviews_not_self", sql`"placement_reviews"."author_id" <> "placement_reviews"."subject_id"`),
+    uniqueIndex("profile_referrals_once").on(t.subjectId, t.referrerId),
+    index("profile_referrals_subject_idx").on(t.subjectId),
+    check("profile_referrals_not_self", sql`"profile_referrals"."subject_id" <> "profile_referrals"."referrer_id"`),
+  ],
+);
+
+/**
+ * Direct messages between two accounts. Stored flat rather than as threads: a
+ * conversation is defined by the pair of people in it, and there is never more
+ * than one, so a threads table would only be a second place for the same fact.
+ */
+export const directMessages = pgTable(
+  "direct_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    senderId: uuid("sender_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    recipientId: uuid("recipient_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("direct_messages_recipient_idx").on(t.recipientId, t.readAt),
+    index("direct_messages_pair_idx").on(t.senderId, t.recipientId, t.createdAt),
+    check("direct_messages_not_self", sql`"direct_messages"."sender_id" <> "direct_messages"."recipient_id"`),
   ],
 );

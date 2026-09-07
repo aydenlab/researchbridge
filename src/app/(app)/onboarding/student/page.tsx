@@ -4,7 +4,14 @@ import { OnboardingShell, type Step } from "@/components/app/onboarding-shell";
 import { requireUser } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format";
 import { GRADE_SCALES, scaleForMetric } from "@/lib/gpa";
-import { DEGREE_LABELS, LOCATION_LABELS, labelOr } from "@/lib/labels";
+import {
+  COMPENSATION_PREFERENCE_LABELS,
+  COURSE_TYPE_LABELS,
+  DEGREE_LABELS,
+  DURATION_LABELS,
+  LOCATION_LABELS,
+  labelOr,
+} from "@/lib/labels";
 import { computeProfileCompletion, loadStudentProfile, missingProfileItems, toAcademicMetrics } from "@/lib/queries/student";
 import { listCourses, listFaculties, listResearchFields, listSkills, loadInstitution } from "@/lib/queries/taxonomy";
 import {
@@ -29,7 +36,7 @@ const STEPS: Step[] = [
   { number: 3, label: "Skills", description: "What you can do, at the level you can currently do it." },
   { number: 4, label: "Research interests", description: "The areas and the questions that actually interest you." },
   { number: 5, label: "Experience", description: "Any previous research. This step is optional." },
-  { number: 6, label: "Availability", description: "When you can start, and how many hours you can commit." },
+  { number: 6, label: "Availability and fit", description: "When you can start, how long for, how many hours, and whether you need paid work." },
   { number: 7, label: "Resume", description: "Optional. Some positions ask for one, many do not." },
   { number: 8, label: "Review", description: "Check what researchers will see alongside your applications." },
 ];
@@ -65,6 +72,7 @@ export default async function StudentOnboardingPage({
     preferredName: bundle.profile.preferredName,
     degreeLevel: bundle.profile.degreeLevel,
     program: bundle.profile.program,
+    programCategory: bundle.profile.programCategory,
     faculty: bundle.profile.faculty,
     specialization: bundle.profile.specialization,
     yearLevel: bundle.profile.yearLevel,
@@ -80,6 +88,9 @@ export default async function StudentOnboardingPage({
     resumeFileId: bundle.profile.resumeFileId,
     linkedinUrl: bundle.profile.linkedinUrl,
     orcidId: bundle.profile.orcidId,
+    preferredDurations: bundle.durations as string[],
+    courseTypes: bundle.courseTypes as string[],
+    compensationPreferences: bundle.compensationPreferences as string[],
   };
 
   const metrics = toAcademicMetrics(bundle.academicRecords);
@@ -113,6 +124,18 @@ export default async function StudentOnboardingPage({
           : "Not set",
     },
     { label: "Desired start", value: profile.desiredStartDate ? formatDate(profile.desiredStartDate) : "Not set" },
+    {
+      label: "Placement length",
+      value: bundle.durations.map((value) => DURATION_LABELS[value]).join(", ") || "Not set",
+    },
+    {
+      label: "Paid or volunteer",
+      value: bundle.compensationPreferences.map((value) => COMPENSATION_PREFERENCE_LABELS[value]).join(", ") || "Not set",
+    },
+    {
+      label: "Course type",
+      value: bundle.courseTypes.map((value) => COURSE_TYPE_LABELS[value]).join(", ") || "Not stated",
+    },
     { label: "Resume", value: profile.resumeFileId ? "Uploaded" : "Not uploaded" },
   ];
 

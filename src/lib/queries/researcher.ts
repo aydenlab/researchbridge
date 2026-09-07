@@ -8,6 +8,8 @@ export async function researcherOpportunities(researcherId: string) {
       slug: opportunities.slug,
       title: opportunities.title,
       summary: opportunities.summary,
+      kind: opportunities.kind,
+      authorshipOffered: opportunities.authorshipOffered,
       status: opportunities.status,
       deadline: opportunities.deadline,
       numberOfOpenings: opportunities.numberOfOpenings,

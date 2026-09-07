@@ -3,12 +3,21 @@
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { StatusPill } from "@/components/app/status-pill";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/components/ui/cn";
 import { Input, Select } from "@/components/ui/field";
 import type { ApplicationStatus } from "@/lib/application-status";
 import { formatShortDate } from "@/lib/format";
+import {
+  COURSE_TYPE_LABELS,
+  COURSE_TYPE_ORDER,
+  DURATION_LABELS,
+  PROGRAM_CATEGORY_LABELS,
+  PROGRAM_CATEGORY_ORDER,
+  labelOr,
+} from "@/lib/labels";
 import type { ApplicantRow } from "@/lib/queries/applications";
 
 const FILTERS = [
@@ -18,11 +27,29 @@ const FILTERS = [
   { value: "declined", label: "Not moving forward" },
 ];
 
+/**
+ * Filtering happens in the browser rather than the URL because the whole
+ * applicant list is already loaded for the rail. A round trip per checkbox
+ * would make narrowing a pool of forty people feel slower than reading it.
+ */
 export function ApplicantRail({ opportunityId, applicants }: { opportunityId: string; applicants: ApplicantRow[] }) {
   const pathname = usePathname();
   const params = useParams<{ applicationId?: string }>();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
+  const [courseTypes, setCourseTypes] = useState<string[]>([]);
+  const [programs, setPrograms] = useState<string[]>([]);
+
+  // Only offer the values that are actually present in this pool. A filter that
+  // can only ever return nothing is noise on the screen.
+  const availableCourseTypes = useMemo(
+    () => COURSE_TYPE_ORDER.filter((value) => applicants.some((applicant) => applicant.courseTypes.includes(value))),
+    [applicants],
+  );
+  const availablePrograms = useMemo(
+    () => PROGRAM_CATEGORY_ORDER.filter((value) => applicants.some((applicant) => applicant.programCategory === value)),
+    [applicants],
+  );
 
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -32,6 +59,8 @@ export function ApplicantRail({ opportunityId, applicants }: { opportunityId: st
         return false;
       }
       if (filter === "declined" && !["declined", "withdrawn", "position_filled"].includes(applicant.status)) return false;
+      if (courseTypes.length > 0 && !courseTypes.some((value) => applicant.courseTypes.includes(value))) return false;
+      if (programs.length > 0 && !(applicant.programCategory && programs.includes(applicant.programCategory))) return false;
       if (!term) return true;
       const haystack = [applicant.firstName, applicant.lastName, applicant.preferredName, applicant.program]
         .filter(Boolean)
@@ -39,10 +68,15 @@ export function ApplicantRail({ opportunityId, applicants }: { opportunityId: st
         .toLowerCase();
       return haystack.includes(term);
     });
-  }, [applicants, filter, query]);
+  }, [applicants, courseTypes, filter, programs, query]);
 
   const selected = params.applicationId;
   const isIndex = pathname.endsWith("/applicants");
+  const structuralCount = courseTypes.length + programs.length;
+
+  function toggle(list: string[], setList: (next: string[]) => void, value: string) {
+    setList(list.includes(value) ? list.filter((item) => item !== value) : [...list, value]);
+  }
 
   return (
     <aside className={cn("min-w-0", selected && !isIndex ? "hidden xl:block" : "block")}>
@@ -74,9 +108,75 @@ export function ApplicantRail({ opportunityId, applicants }: { opportunityId: st
               ))}
             </Select>
           </div>
-          <p className="mt-2.5 text-[12.5px] text-muted" aria-live="polite">
-            Showing {visible.length} of {applicants.length}
-          </p>
+
+          {availableCourseTypes.length > 0 ? (
+            <fieldset className="mt-3">
+              <legend className="mb-1.5 text-[11.5px] font-medium text-subtle">Course type</legend>
+              <div className="flex flex-wrap gap-1.5">
+                {availableCourseTypes.map((value) => {
+                  const active = courseTypes.includes(value);
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => toggle(courseTypes, setCourseTypes, value)}
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 text-[11.5px] transition-colors",
+                        active ? "border-forest bg-moss text-forest" : "border-line-strong bg-white text-ink hover:bg-shell",
+                      )}
+                    >
+                      {COURSE_TYPE_LABELS[value]}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ) : null}
+
+          {availablePrograms.length > 0 ? (
+            <fieldset className="mt-3">
+              <legend className="mb-1.5 text-[11.5px] font-medium text-subtle">Program</legend>
+              <div className="flex flex-wrap gap-1.5">
+                {availablePrograms.map((value) => {
+                  const active = programs.includes(value);
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => toggle(programs, setPrograms, value)}
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 text-[11.5px] transition-colors",
+                        active ? "border-forest bg-moss text-forest" : "border-line-strong bg-white text-ink hover:bg-shell",
+                      )}
+                    >
+                      {PROGRAM_CATEGORY_LABELS[value]}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ) : null}
+
+          <div className="mt-2.5 flex items-center justify-between gap-2">
+            <p className="text-[12.5px] text-muted" aria-live="polite">
+              Showing {visible.length} of {applicants.length}
+            </p>
+            {structuralCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setCourseTypes([]);
+                  setPrograms([]);
+                }}
+                className="inline-flex items-center gap-1 text-[12px] text-muted hover:text-ink"
+              >
+                <X className="size-3" aria-hidden="true" />
+                Clear {structuralCount}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {visible.length === 0 ? (
@@ -117,6 +217,22 @@ export function ApplicantRail({ opportunityId, applicants }: { opportunityId: st
                       {applicant.weeklyHours !== null ? `${applicant.weeklyHours} hours per week` : "Availability not set"}
                       {applicant.submittedAt ? `, ${formatShortDate(applicant.submittedAt)}` : ""}
                     </p>
+
+                    {applicant.courseTypes.length > 0 || applicant.durations.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {applicant.courseTypes.map((value) => (
+                          <Badge key={value} tone="neutral">
+                            {labelOr(COURSE_TYPE_LABELS, value)}
+                          </Badge>
+                        ))}
+                        {applicant.durations.map((value) => (
+                          <Badge key={value} tone="outline">
+                            {labelOr(DURATION_LABELS, value)}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <StatusPill status={applicant.status as ApplicationStatus} />
                       {applicant.noteCount > 0 ? (

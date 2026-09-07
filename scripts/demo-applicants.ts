@@ -370,6 +370,10 @@ async function main() {
       })
       .returning();
 
+    await db
+      .insert(s.opportunityDurations)
+      .values((["two_semesters"] as const).map((duration) => ({ opportunityId: opportunity.id, duration })));
+
     await db.insert(s.opportunityFields).values(
       ["neuroscience", "psychology"]
         .filter((slug) => fieldBySlug.has(slug))

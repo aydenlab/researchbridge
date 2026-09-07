@@ -11,6 +11,7 @@ import { deadlineNote, formatDate, hoursLabel } from "@/lib/format";
 import {
   COMPENSATION_LABELS,
   CRITERION_TYPE_LABELS,
+  DURATION_LABELS,
   LOCATION_LABELS,
   PAID_COMPENSATION,
   QUESTION_TYPE_LABELS,
@@ -134,6 +135,7 @@ export default async function EditOpportunityPage({
             numberOfOpenings: detail.opportunity.numberOfOpenings,
             startDate: detail.opportunity.startDate ?? "",
             duration: detail.opportunity.duration ?? "",
+            preferredDurations: detail.durations,
             hoursPerWeekMin: detail.opportunity.hoursPerWeekMin === null ? "" : String(detail.opportunity.hoursPerWeekMin),
             hoursPerWeekMax: detail.opportunity.hoursPerWeekMax === null ? "" : String(detail.opportunity.hoursPerWeekMax),
             deadline: detail.opportunity.deadline ?? "",
@@ -234,7 +236,13 @@ export default async function EditOpportunityPage({
                 { label: "Time commitment", value: hoursLabel(detail.opportunity.hoursPerWeekMin, detail.opportunity.hoursPerWeekMax) },
                 { label: "Location", value: labelOr(LOCATION_LABELS, detail.opportunity.locationMode) },
                 { label: "Expected start", value: formatDate(detail.opportunity.startDate) },
-                { label: "Duration", value: detail.opportunity.duration ?? "Not specified" },
+                {
+                  label: "Duration",
+                  value:
+                    detail.durations.map((value) => DURATION_LABELS[value]).join(", ") ||
+                    detail.opportunity.duration ||
+                    "Not specified",
+                },
                 { label: "Openings", value: String(detail.opportunity.numberOfOpenings) },
                 { label: "Deadline", value: formatDate(detail.opportunity.deadline) },
               ].map((item) => (

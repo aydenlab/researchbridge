@@ -19,10 +19,19 @@ export function OpportunityFilters({
   groups,
   total,
   activeCount,
+  basePath = "/opportunities",
+  sortOptions,
+  showMaxHours = true,
+  itemNoun = "shown",
 }: {
   groups: FilterGroup[];
   total: number;
   activeCount: number;
+  /** Where the filter form submits. The same control drives several listings. */
+  basePath?: string;
+  sortOptions?: { value: string; label: string }[];
+  showMaxHours?: boolean;
+  itemNoun?: string;
 }) {
   const params = useSearchParams();
   const router = useRouter();
@@ -33,7 +42,7 @@ export function OpportunityFilters({
   function apply(next: URLSearchParams) {
     next.delete("page");
     const query = next.toString();
-    router.push(query ? `/opportunities?${query}` : "/opportunities");
+    router.push(query ? `${basePath}?${query}` : basePath);
   }
 
   function toggle(key: string, value: string) {
@@ -55,13 +64,13 @@ export function OpportunityFilters({
   }
 
   function clearAll() {
-    router.push("/opportunities");
+    router.push(basePath);
   }
 
   return (
     <div className="lg:sticky lg:top-[68px]">
       <form
-        action="/opportunities"
+        action={basePath}
         method="get"
         className="flex gap-2"
         onSubmit={() => setOpen(false)}
@@ -81,7 +90,13 @@ export function OpportunityFilters({
             name="q"
             type="search"
             defaultValue={params.get("q") ?? ""}
-            placeholder="Project, researcher, lab, or field"
+            placeholder={
+              basePath === "/directory/students"
+                ? "Name, program, interest, or skill"
+                : basePath === "/directory/researchers"
+                  ? "Name, lab, department, or field"
+                  : "Project, researcher, lab, or field"
+            }
             className="pl-9"
           />
         </div>
@@ -105,33 +120,45 @@ export function OpportunityFilters({
             </span>
           ) : null}
         </button>
-        <p className="text-[13px] text-muted">{total} shown</p>
+        <p className="text-[13px] text-muted">
+          {total} {itemNoun}
+        </p>
       </div>
 
       <div className={cn("mt-4 flex-col gap-6", open ? "flex" : "hidden lg:flex")}>
-        <div>
-          <label htmlFor="sort" className="mb-1.5 block text-[12px] font-medium text-subtle">
-            Sort by
-          </label>
-          <Select id="sort" value={params.get("sort") ?? "recent"} onChange={(event) => setSingle("sort", event.target.value)}>
-            <option value="recent">Recently posted</option>
-            <option value="deadline">Application deadline</option>
-            <option value="hours">Fewest hours per week</option>
-          </Select>
-        </div>
+        {sortOptions === undefined || sortOptions.length > 0 ? (
+          <div>
+            <label htmlFor="sort" className="mb-1.5 block text-[12px] font-medium text-subtle">
+              Sort by
+            </label>
+            <Select id="sort" value={params.get("sort") ?? "recent"} onChange={(event) => setSingle("sort", event.target.value)}>
+              {(sortOptions ?? [
+                { value: "recent", label: "Recently posted" },
+                { value: "deadline", label: "Application deadline" },
+                { value: "hours", label: "Fewest hours per week" },
+              ]).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+        ) : null}
 
-        <div>
-          <label htmlFor="maxHours" className="mb-1.5 block text-[12px] font-medium text-subtle">
-            Maximum hours per week
-          </label>
-          <Select id="maxHours" value={params.get("maxHours") ?? ""} onChange={(event) => setSingle("maxHours", event.target.value)}>
-            <option value="">Any commitment</option>
-            <option value="5">Up to 5 hours</option>
-            <option value="8">Up to 8 hours</option>
-            <option value="12">Up to 12 hours</option>
-            <option value="20">Up to 20 hours</option>
-          </Select>
-        </div>
+        {showMaxHours ? (
+          <div>
+            <label htmlFor="maxHours" className="mb-1.5 block text-[12px] font-medium text-subtle">
+              Maximum hours per week
+            </label>
+            <Select id="maxHours" value={params.get("maxHours") ?? ""} onChange={(event) => setSingle("maxHours", event.target.value)}>
+              <option value="">Any commitment</option>
+              <option value="5">Up to 5 hours</option>
+              <option value="8">Up to 8 hours</option>
+              <option value="12">Up to 12 hours</option>
+              <option value="20">Up to 20 hours</option>
+            </Select>
+          </div>
+        ) : null}
 
         {groups.map((group) => (
           <fieldset key={group.key}>

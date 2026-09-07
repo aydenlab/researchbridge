@@ -7,7 +7,10 @@ import {
   db,
   researchExperiences,
   studentAcademicRecords,
+  studentCompensationPreferences,
   studentCourses,
+  studentCourseTypes,
+  studentDurations,
   studentProfiles,
   studentResearchInterests,
   studentSkills,
@@ -63,6 +66,7 @@ export async function saveBasicsAction(_prev: ActionResult | null, formData: For
         preferredName: parsed.data.preferredName,
         degreeLevel: parsed.data.degreeLevel,
         program: parsed.data.program,
+        programCategory: parsed.data.programCategory ?? null,
         faculty: parsed.data.faculty,
         specialization: parsed.data.specialization,
         yearLevel: parsed.data.yearLevel,
@@ -280,18 +284,38 @@ export async function saveAvailabilityAction(_prev: ActionResult | null, formDat
   let next = 7;
 
   try {
-    await db
-      .update(studentProfiles)
-      .set({
-        desiredStartDate: parsed.data.desiredStartDate,
-        weeklyHours: parsed.data.weeklyHours,
-        semesters: parsed.data.semesters,
-        summerAvailable: parsed.data.summerAvailable,
-        locationPreference: parsed.data.locationPreference,
-        scheduleNotes: parsed.data.scheduleNotes,
-        updatedAt: new Date(),
-      })
-      .where(eq(studentProfiles.userId, user.id));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(studentProfiles)
+        .set({
+          desiredStartDate: parsed.data.desiredStartDate,
+          weeklyHours: parsed.data.weeklyHours,
+          semesters: parsed.data.semesters,
+          summerAvailable: parsed.data.summerAvailable,
+          locationPreference: parsed.data.locationPreference,
+          scheduleNotes: parsed.data.scheduleNotes,
+          updatedAt: new Date(),
+        })
+        .where(eq(studentProfiles.userId, user.id));
+
+      await tx.delete(studentDurations).where(eq(studentDurations.studentId, user.id));
+      await tx
+        .insert(studentDurations)
+        .values(parsed.data.preferredDurations.map((duration) => ({ studentId: user.id, duration })));
+
+      await tx.delete(studentCompensationPreferences).where(eq(studentCompensationPreferences.studentId, user.id));
+      await tx
+        .insert(studentCompensationPreferences)
+        .values(parsed.data.compensationPreferences.map((preference) => ({ studentId: user.id, preference })));
+
+      await tx.delete(studentCourseTypes).where(eq(studentCourseTypes.studentId, user.id));
+      if (parsed.data.courseTypes.length > 0) {
+        await tx
+          .insert(studentCourseTypes)
+          .values(parsed.data.courseTypes.map((courseType) => ({ studentId: user.id, courseType })));
+      }
+    });
+
     next = await advance(user.id, 6);
     await refreshCompletion(user.id);
   } catch (error) {

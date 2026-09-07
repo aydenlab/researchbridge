@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, ChevronDown, Menu, X } from "lucide-react";
+import { Bell, ChevronDown, Inbox, Menu, X } from "lucide-react";
 import { Logo } from "@/components/marketing/brand";
 import { cn } from "@/components/ui/cn";
 
@@ -16,6 +16,7 @@ export function AppHeader({
   email,
   roleLabel,
   unreadCount,
+  unreadMessageCount,
 }: {
   nav: NavItem[];
   homeHref: string;
@@ -23,6 +24,7 @@ export function AppHeader({
   email: string;
   roleLabel: string;
   unreadCount: number;
+  unreadMessageCount: number;
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -61,6 +63,21 @@ export function AppHeader({
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/messages"
+            className="relative inline-flex size-9 items-center justify-center rounded-full border border-line text-muted transition-colors hover:border-ink/30 hover:text-ink"
+          >
+            <Inbox className="size-4" aria-hidden="true" />
+            {unreadMessageCount > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-clay px-1 text-[10px] font-medium leading-4 text-white">
+                {unreadMessageCount > 9 ? "9+" : unreadMessageCount}
+              </span>
+            ) : null}
+            <span className="sr-only">
+              Messages{unreadMessageCount > 0 ? `, ${unreadMessageCount} unread` : ", none unread"}
+            </span>
+          </Link>
+
           <Link
             href="/notifications"
             className="relative inline-flex size-9 items-center justify-center rounded-full border border-line text-muted transition-colors hover:border-ink/30 hover:text-ink"
@@ -142,6 +159,11 @@ export function AppHeader({
                 </Link>
               </li>
             ))}
+            <li>
+              <Link href="/messages" className="block border-b border-line py-2.5 text-[15px] text-ink">
+                Messages{unreadMessageCount > 0 ? ` (${unreadMessageCount})` : ""}
+              </Link>
+            </li>
             {nav.some((item) => item.href === "/profile") ? null : (
               <li>
                 <Link href="/profile" className="block border-b border-line py-2.5 text-[15px] text-ink">
