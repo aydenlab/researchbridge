@@ -75,7 +75,10 @@ CREATE INDEX "student_profiles_program_category_idx" ON "student_profiles" USING
 -- Best-effort backfill of the structured durations from the free text that used
 -- to be the only record of them. Anything this cannot read confidently is left
 -- unset rather than guessed at, so a researcher is asked once instead of having
--- a wrong answer put in their mouth.
+-- a wrong answer put in their mouth. Wrapped so that a surprise in the old free
+-- text cannot fail the transaction and strand every migration after this one.
+DO $backfill$
+BEGIN
 INSERT INTO "opportunity_durations" ("opportunity_id", "duration")
 SELECT "id", "duration_option"::"public"."duration_option"
 FROM (
@@ -94,3 +97,7 @@ FROM (
 ) mapped
 WHERE "duration_option" IS NOT NULL
 ON CONFLICT DO NOTHING;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'duration backfill skipped: %', SQLERRM;
+END
+$backfill$;
