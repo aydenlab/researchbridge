@@ -369,6 +369,73 @@ async function main() {
     researcherIds[seed.email] = user.id;
   }
 
+
+  // Two profiles imported from a faculty list and not yet claimed, so the admin
+  // page and the one-screen claim flow can both be seen without an import.
+  const prefilledFaculty = [
+    {
+      email: "s.rahimi@example.edu",
+      firstName: "Soraya",
+      lastName: "Rahimi",
+      title: "Associate Professor",
+      department: "Health Research Methods, Evidence, and Impact",
+      faculty: "Faculty of Health Sciences",
+      labName: "Health Systems Evaluation Group",
+      biography:
+        "Works on how health systems measure their own performance, with a focus on whether routinely collected administrative data can answer the questions it is asked to answer.",
+      fields: ["Public Health", "Epidemiology"],
+    },
+    {
+      email: "d.oyelaran@example.edu",
+      firstName: "Dele",
+      lastName: "Oyelaran",
+      title: "Assistant Professor",
+      department: "Kinesiology",
+      faculty: "Faculty of Science",
+      labName: "Movement and Ageing Laboratory",
+      biography:
+        "Studies how balance and gait change with age, and whether measurements taken at home tell you anything a clinic visit does not.",
+      fields: ["Kinesiology", "Rehabilitation Science"],
+    },
+  ];
+
+  for (const seed of prefilledFaculty) {
+    const [user] = await db
+      .insert(s.users)
+      .values({
+        email: seed.email,
+        role: "researcher",
+        // Pending until they sign in: an imported row is an invitation, not a user.
+        accountStatus: "pending",
+        institutionId: pilotInstitution.id,
+      })
+      .returning();
+
+    await db.insert(s.researcherProfiles).values({
+      userId: user.id,
+      firstName: seed.firstName,
+      lastName: seed.lastName,
+      researcherType: "professor",
+      title: seed.title,
+      department: seed.department,
+      faculty: seed.faculty,
+      labName: seed.labName,
+      biography: seed.biography,
+      verificationStatus: "verified",
+      approvedAt: now,
+      prefilledSource: "mcmaster_experts",
+      prefilledAt: now,
+      onboardingStep: 1,
+    });
+
+    const known = seed.fields.filter((name) => fields[name]);
+    if (known.length > 0) {
+      await db
+        .insert(s.researcherFields)
+        .values(known.map((name) => ({ researcherId: user.id, researchFieldId: fields[name] })));
+    }
+  }
+
   const studentSeeds = [
     {
       email: "adeyemij@example.edu",
@@ -2106,6 +2173,7 @@ async function main() {
   console.log("seed complete");
   console.log(`  institutions: 2`);
   console.log(`  researchers: ${researcherSeeds.length}`);
+  console.log(`  faculty awaiting claim: ${prefilledFaculty.length}`);
   console.log(`  students: ${studentSeeds.length}`);
   console.log(`  opportunities: ${opportunitySeeds.length}`);
   console.log(`  reviews: ${reviewSeeds.length}`);

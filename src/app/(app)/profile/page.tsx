@@ -126,6 +126,14 @@ export default async function ProfilePage() {
                 { label: "LinkedIn", value: profile.linkedinUrl ?? "Not set" },
                 { label: "ORCID iD", value: profile.orcidId ?? "Not set" },
                 { label: "Contact email", value: profile.contactEmail ?? user.email },
+                ...(profile.prefilledSource
+                  ? [
+                      {
+                        label: "Details imported from",
+                        value: `${profile.prefilledSource.replace(/_/g, " ")}${profile.claimedAt ? ", confirmed by you" : ", not yet confirmed"}`,
+                      },
+                    ]
+                  : []),
               ]}
             />
           </Panel>
@@ -139,6 +147,18 @@ export default async function ProfilePage() {
                   <Tag key={field.name}>{field.name}</Tag>
                 ))}
               </div>
+            )}
+          </Panel>
+
+          <Panel title="What you are looking for" editHref="/onboarding/researcher?step=1">
+            {profile.recruitingNeeds ? (
+              <p className="rb-measure whitespace-pre-line text-[14.5px] leading-7 text-muted">
+                {profile.recruitingNeeds}
+              </p>
+            ) : (
+              <p className="text-[13.5px] leading-6 text-muted">
+                Not set. Students read this before anything else on your profile.
+              </p>
             )}
           </Panel>
 

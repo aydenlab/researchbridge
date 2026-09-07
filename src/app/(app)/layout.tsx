@@ -31,6 +31,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/researchers", label: "Researchers" },
+  { href: "/admin/faculty", label: "Faculty list" },
   { href: "/admin/opportunities", label: "Opportunities" },
   { href: "/admin/applications", label: "Applications" },
   { href: "/admin/institutions", label: "Institutions" },

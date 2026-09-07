@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq, sql } from "drizzle-orm";
-import { applications, applicationStatusHistory, db, notifications } from "@/db";
-import { runWeeklyDigest } from "@/lib/notifications/digest";
+import { applications, applicationStatusHistory, db, digestRuns, notifications } from "@/db";
+import { isoWeekKey, runWeeklyDigest } from "@/lib/notifications/digest";
 import { createApplication, createOpportunity, createResearcher, createStudent } from "../fixtures";
 
 async function clearNotifications() {
   await db.delete(notifications);
+}
+
+/** Each test is its own period, so the once-per-week guard never masks a case. */
+async function resetPeriods() {
+  await db.delete(digestRuns);
 }
 
 async function notificationsOfType(userId: string, type: string) {
@@ -27,6 +32,7 @@ describe("weekly researcher digest", () => {
   beforeEach(async () => {
     await db.delete(applications);
     await clearNotifications();
+    await resetPeriods();
   });
 
   it("tells a researcher how many applications arrived and how many are waiting", async () => {
@@ -73,6 +79,7 @@ describe("student status digest", () => {
   beforeEach(async () => {
     await db.delete(applications);
     await clearNotifications();
+    await resetPeriods();
   });
 
   it("writes to a student when their application moved this week", async () => {
@@ -155,5 +162,69 @@ describe("student status digest", () => {
     const result = await runWeeklyDigest();
     expect(result.failures).toBeGreaterThan(0);
     spy.mockRestore();
+  });
+});
+
+describe("running exactly once per week", () => {
+  beforeEach(async () => {
+    await db.delete(applications);
+    await clearNotifications();
+    await resetPeriods();
+  });
+
+  it("keys periods by ISO week, so a run an hour late is the same week", () => {
+    // 2026-09-07 is a Monday; the following Sunday is still that week.
+    expect(isoWeekKey(new Date("2026-09-07T00:30:00Z"))).toBe(isoWeekKey(new Date("2026-09-13T23:30:00Z")));
+    expect(isoWeekKey(new Date("2026-09-13T23:30:00Z"))).not.toBe(isoWeekKey(new Date("2026-09-14T00:30:00Z")));
+  });
+
+  it("sends nothing the second time a scheduler fires in the same week", async () => {
+    const researcher = await createResearcher();
+    const opportunity = await createOpportunity(researcher.id);
+    await createApplication(opportunity.id, (await createStudent()).id, {
+      status: "submitted",
+      submittedAt: new Date(),
+    });
+
+    const first = await runWeeklyDigest();
+    expect(first.researchersNotified).toBe(1);
+
+    const second = await runWeeklyDigest();
+    expect(second.skipped).toBe("already_ran");
+    expect(second.researchersNotified).toBe(0);
+
+    // One notification, not two: a retrying scheduler must not double-email.
+    expect(await notificationsOfType(researcher.id, "weekly_digest")).toHaveLength(1);
+  });
+
+  it("sends again when a period is forced, for a run that has to be repeated", async () => {
+    const researcher = await createResearcher();
+    const opportunity = await createOpportunity(researcher.id);
+    await createApplication(opportunity.id, (await createStudent()).id, {
+      status: "submitted",
+      submittedAt: new Date(),
+    });
+
+    await runWeeklyDigest();
+    const forced = await runWeeklyDigest({ force: true });
+
+    expect(forced.skipped).toBeUndefined();
+    expect(forced.researchersNotified).toBe(1);
+    expect(await notificationsOfType(researcher.id, "weekly_digest")).toHaveLength(2);
+  });
+
+  it("records what the run did, so a missed week is visible afterwards", async () => {
+    const researcher = await createResearcher();
+    const opportunity = await createOpportunity(researcher.id);
+    await createApplication(opportunity.id, (await createStudent()).id, {
+      status: "submitted",
+      submittedAt: new Date(),
+    });
+
+    const result = await runWeeklyDigest();
+    const [run] = await db.select().from(digestRuns).where(eq(digestRuns.periodKey, result.periodKey));
+
+    expect(run.completedAt).not.toBeNull();
+    expect(run.researchersNotified).toBe(1);
   });
 });

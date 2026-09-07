@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { FileText } from "lucide-react";
-import { db, researchFields, researcherFields, studentResearchInterests } from "@/db";
+import { db, researcherProfiles, researchFields, researcherFields, studentResearchInterests } from "@/db";
 import { FollowButton } from "@/components/app/follow-button";
 import { PersonRow } from "@/components/app/person-row";
 import { Badge, Tag } from "@/components/ui/badge";
@@ -80,6 +80,16 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
   // person themselves. Other students never see the link at all.
   const canReadLetters = isSelf || viewer.role === "researcher" || viewer.role === "admin";
 
+  const needsRows =
+    person.role === "researcher"
+      ? await db
+          .select({ recruitingNeeds: researcherProfiles.recruitingNeeds, biography: researcherProfiles.biography })
+          .from(researcherProfiles)
+          .where(eq(researcherProfiles.userId, userId))
+          .limit(1)
+      : [];
+  const researcher = needsRows[0];
+
   return (
     <div className="mx-auto max-w-[900px] px-4 py-8 sm:px-6 sm:py-10">
       <nav aria-label="Breadcrumb" className="mb-5">
@@ -124,8 +134,32 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
         </p>
       ) : null}
 
-      {fields.length > 0 ? (
+      {researcher?.recruitingNeeds ? (
         <Card className="mt-6">
+          <CardHeader>
+            <SectionTitle>What they are looking for</SectionTitle>
+          </CardHeader>
+          <CardBody>
+            <p className="rb-measure whitespace-pre-line text-[14.5px] leading-7 text-muted">
+              {researcher.recruitingNeeds}
+            </p>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {researcher?.biography ? (
+        <Card className="mt-5">
+          <CardHeader>
+            <SectionTitle>About them</SectionTitle>
+          </CardHeader>
+          <CardBody>
+            <p className="rb-measure text-[14.5px] leading-7 text-muted">{researcher.biography}</p>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {fields.length > 0 ? (
+        <Card className="mt-5">
           <CardHeader>
             <SectionTitle>{person.role === "researcher" ? "Research areas" : "Research interests"}</SectionTitle>
           </CardHeader>

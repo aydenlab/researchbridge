@@ -1,0 +1,58 @@
+name: Weekly digest
+
+# The digest runs from here rather than from a timer inside the web process, so
+# a restart or a second Railway worker cannot skip or duplicate a week. The
+# endpoint is idempotent per ISO week regardless, so a retry is harmless.
+on:
+  schedule:
+    # 13:00 UTC Monday, which is a reasonable Monday morning across Canada.
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Send this week again even if it has already gone out"
+        type: boolean
+        default: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger the digest
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${APP_URL:-}" ]; then
+            echo "APP_URL repository variable is not set." >&2
+            exit 1
+          fi
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "CRON_SECRET repository secret is not set." >&2
+            exit 1
+          fi
+
+          url="${APP_URL%/}/api/cron/weekly-digest"
+          if [ "${FORCE:-false}" = "true" ]; then
+            url="${url}?force=1"
+          fi
+
+          # Separate the body from the status so a non-2xx response fails the
+          # job loudly instead of being swallowed by curl's exit code.
+          response=$(curl --silent --show-error --max-time 300 \
+            --write-out "\n%{http_code}" \
+            --request POST "$url" \
+            --header "Authorization: Bearer ${CRON_SECRET}")
+
+          status=$(printf '%s' "$response" | tail -n 1)
+          body=$(printf '%s' "$response" | sed '$d')
+
+          echo "$body"
+
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "Digest endpoint returned HTTP $status." >&2
+            exit 1
+          fi

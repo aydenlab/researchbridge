@@ -8,7 +8,7 @@ import { parseForm, toActionError } from "@/lib/action-utils";
 import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
 import { storeFile } from "@/lib/storage";
-import { researcherProfileSchema } from "@/lib/validation/profile";
+import { facultyClaimSchema, researcherProfileSchema } from "@/lib/validation/profile";
 
 const TOTAL_STEPS = 3;
 
@@ -106,4 +106,85 @@ export async function submitResearcherForReviewAction(_prev: ActionResult | null
   // fewer steps between finishing a profile and having a position written, the
   // fewer people stop here.
   redirect("/researcher/opportunities/new");
+}
+
+/**
+ * Confirms a profile that was imported from a faculty list.
+ *
+ * One screen and one submit, because the entire promise of pre-population is
+ * that a professor does not have to fill in a form. Marking `claimedAt` also
+ * takes the profile out of reach of any future re-import: from here on these
+ * are their words, not the list's.
+ *
+ * Verification is not re-run. The account came off the institution's own
+ * faculty list, which is a stronger check than the manual one done for a
+ * self-signup, so making them wait for approval would be theatre.
+ */
+export async function claimFacultyProfileAction(_prev: ActionResult | null, formData: FormData) {
+  const parsed = parseForm(facultyClaimSchema, formData);
+  if (!parsed.ok) return parsed.result;
+  const user = await requireUser();
+
+  try {
+    const rows = await db.select().from(researcherProfiles).where(eq(researcherProfiles.userId, user.id)).limit(1);
+    const profile = rows[0];
+    if (!profile) return { ok: false as const, error: "That profile could not be found." };
+    if (!profile.prefilledSource) {
+      return { ok: false as const, error: "This profile was not imported, so there is nothing to confirm." };
+    }
+
+    const now = new Date();
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(researcherProfiles)
+        .set({
+          firstName: parsed.data.firstName,
+          lastName: parsed.data.lastName,
+          title: parsed.data.title,
+          department: parsed.data.department,
+          labName: parsed.data.labName,
+          labWebsite: parsed.data.labWebsite,
+          biography: parsed.data.biography,
+          recruitingNeeds: parsed.data.recruitingNeeds,
+          recruitingOnBehalfOf: parsed.data.recruitingOnBehalfOf,
+          verificationStatus: "verified",
+          approvedAt: profile.approvedAt ?? now,
+          claimedAt: now,
+          onboardingStep: 3,
+          updatedAt: now,
+        })
+        .where(eq(researcherProfiles.userId, user.id));
+
+      await tx.delete(researcherFields).where(eq(researcherFields.researcherId, user.id));
+      await tx
+        .insert(researcherFields)
+        .values(parsed.data.researchFieldIds.map((researchFieldId) => ({ researcherId: user.id, researchFieldId })));
+
+      await tx
+        .update(users)
+        .set({ onboardingCompletedAt: now, accountStatus: "active", updatedAt: now })
+        .where(eq(users.id, user.id));
+    });
+
+    await recordEvent({
+      name: "researcher_profile_completed",
+      userId: user.id,
+      institutionId: user.institutionId,
+      subjectType: "researcher_profile",
+      subjectId: user.id,
+      properties: { claimed: true, source: profile.prefilledSource },
+    });
+    await recordAudit({
+      actorId: user.id,
+      action: "faculty_profile_claimed",
+      subjectType: "researcher_profile",
+      subjectId: user.id,
+      detail: { source: profile.prefilledSource },
+    });
+  } catch (error) {
+    return toActionError(error, "faculty_claim_failed");
+  }
+
+  redirect("/researcher?claimed=1");
 }

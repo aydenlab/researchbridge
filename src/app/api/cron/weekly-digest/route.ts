@@ -30,7 +30,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await runWeeklyDigest();
+    // `?force=1` resends a period that has already gone out. Deliberately a
+    // query parameter rather than the default, so a retrying scheduler cannot
+    // ask for it by accident.
+    const force = new URL(request.url).searchParams.get("force") === "1";
+    const result = await runWeeklyDigest({ force });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     log.error("cron_weekly_digest_failed", { error });

@@ -478,7 +478,22 @@ export const researcherProfiles = pgTable(
     contactEmail: text("contact_email"),
     biography: text("biography"),
     recruitingOnBehalfOf: text("recruiting_on_behalf_of"),
+    /** What this person actually wants from a student. Asked once, on claim. */
+    recruitingNeeds: text("recruiting_needs"),
     photoFileId: uuid("photo_file_id"),
+    /**
+     * Set when the profile was imported from a faculty list rather than typed.
+     * Names the source so the person can see where a wrong detail came from,
+     * and so a re-import knows which rows it is allowed to refresh.
+     */
+    prefilledSource: text("prefilled_source"),
+    prefilledAt: timestamp("prefilled_at", { withTimezone: true }),
+    /**
+     * When the professor confirmed the imported details. Until this is set the
+     * profile is somebody else's description of them, and a re-import may
+     * update it; afterwards it is theirs and an import never touches it.
+     */
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
     verificationStatus: verificationStatus("verification_status").notNull().default("pending"),
     verificationNotes: text("verification_notes"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
@@ -487,7 +502,10 @@ export const researcherProfiles = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("researcher_profiles_status_idx").on(t.verificationStatus)],
+  (t) => [
+    index("researcher_profiles_status_idx").on(t.verificationStatus),
+    index("researcher_profiles_prefilled_idx").on(t.prefilledSource, t.claimedAt),
+  ],
 );
 
 export const researcherFields = pgTable(
@@ -1157,4 +1175,26 @@ export const directMessages = pgTable(
     index("direct_messages_pair_idx").on(t.senderId, t.recipientId, t.createdAt),
     check("direct_messages_not_self", sql`"direct_messages"."sender_id" <> "direct_messages"."recipient_id"`),
   ],
+);
+
+/**
+ * One row per completed digest period, so the weekly run is idempotent.
+ *
+ * The scheduler is external and may fire twice, be retried by hand, or be
+ * pointed at a second environment. Claiming the period first means the second
+ * caller finds the row already there and does nothing, rather than sending
+ * everybody a duplicate.
+ */
+export const digestRuns = pgTable(
+  "digest_runs",
+  {
+    /** ISO week key, for example 2026-W37. One digest per period, forever. */
+    periodKey: text("period_key").primaryKey(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    researchersNotified: integer("researchers_notified").notNull().default(0),
+    studentsNotified: integer("students_notified").notNull().default(0),
+    failures: integer("failures").notNull().default(0),
+  },
+  (t) => [index("digest_runs_started_idx").on(t.startedAt)],
 );

@@ -218,5 +218,25 @@ export const researcherProfileSchema = z.object({
   researchFieldIds: arrayField(z.string().uuid(), { min: 1, max: 12, message: "Choose at least one research area." }),
 });
 
+/**
+ * The claim form for a pre-filled faculty profile.
+ *
+ * Everything except the needs is already on the screen with an answer in it, so
+ * this asks for the one thing an import can never know. The rest is validated
+ * only enough to stop an import's mistake being saved back as the person's own.
+ */
+export const facultyClaimSchema = z.object({
+  firstName: requiredText("First name", 80),
+  lastName: requiredText("Last name", 80),
+  title: optionalText(160),
+  department: requiredText("Department", 160),
+  labName: optionalText(160),
+  labWebsite: optionalUrl,
+  biography: optionalText(2500),
+  recruitingNeeds: requiredText("What you are looking for", 2000),
+  recruitingOnBehalfOf: z.enum(["personally", "lab", "another_investigator"]).default("personally"),
+  researchFieldIds: arrayField(z.string().uuid(), { min: 1, max: 12, message: "Choose at least one research area." }),
+});
+
 export type StudentBasicsInput = z.infer<typeof studentBasicsSchema>;
 export type ResearcherProfileInput = z.infer<typeof researcherProfileSchema>;

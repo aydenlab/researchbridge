@@ -17,7 +17,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function ResearcherDashboardPage() {
+export default async function ResearcherDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ claimed?: string }>;
+}) {
+  const { claimed } = await searchParams;
   const user = await requireResearcher();
   if (user.researcherVerification !== "verified") redirect("/researcher/pending");
 
@@ -36,6 +41,16 @@ export default async function ResearcherDashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 py-8 sm:px-6 sm:py-10">
+      {claimed ? (
+        <div className="mb-6 rounded-[12px] border border-[#c2dccc] bg-moss px-5 py-4">
+          <p className="font-display text-[19px] text-forest">Your profile is live</p>
+          <p className="mt-1 text-[14px] leading-6 text-forest/85">
+            Nothing is waiting for approval. Students can find you now, and you can post a position or a review whenever
+            you are ready.
+          </p>
+        </div>
+      ) : null}
+
       <PageHeader
         title={`Hello, ${user.displayName ?? "there"}`}
         lede="Your open positions and the candidates waiting on you."

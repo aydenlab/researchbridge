@@ -8,9 +8,16 @@ import { runWeeklyDigest } from "../src/lib/notifications/digest";
  * platform scheduler runs if hitting the HTTP endpoint is inconvenient.
  */
 async function main() {
-  const result = await runWeeklyDigest();
+  const force = process.argv.includes("--force");
+  const result = await runWeeklyDigest({ force });
+
+  if (result.skipped === "already_ran") {
+    console.log(`weekly digest for ${result.periodKey} already ran. Pass --force to send it again.`);
+    process.exit(0);
+  }
+
   console.log(
-    `weekly digest sent: ${result.researchersNotified} researchers, ${result.studentsNotified} students, ${result.failures} failures`,
+    `weekly digest ${result.periodKey}: ${result.researchersNotified} researchers, ${result.studentsNotified} students, ${result.failures} failures`,
   );
   process.exit(result.failures > 0 ? 1 : 0);
 }

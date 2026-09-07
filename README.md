@@ -99,7 +99,7 @@ npm run db:migrate         # apply pending migrations
 npm run db:seed            # replace all data with development seed data
 npm run db:reset           # drop and recreate the public schema
 npm run db:studio          # browse the database
-npm run digest:weekly      # run the weekly email digest by hand
+npm run digest:weekly      # run the weekly email digest by hand (--force resends a period)
 ```
 
 `db:seed` truncates every table. Never run it against production.
@@ -160,6 +160,18 @@ Notes:
 
 ---
 
+### Scheduling the weekly digest
+
+The digest is triggered from outside the web process, so a restart or a second Railway worker cannot skip or duplicate a week.
+
+1. Generate a token: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`
+2. Set `CRON_SECRET` to it in the Railway service variables.
+3. In GitHub, add the same value as the `CRON_SECRET` repository secret, and add `APP_URL` as a repository variable pointing at the deployed site.
+
+`.github/workflows/weekly-digest.yml` then runs every Monday at 13:00 UTC, and can be triggered by hand from the Actions tab. Without `CRON_SECRET` the endpoint returns 503 rather than running open to anyone who guesses the path.
+
+---
+
 ## First sign in on a new database
 
 A freshly migrated database has no institutions, and sign in requires an email domain that belongs to one. `ADMIN_EMAILS` breaks that circle.
@@ -189,7 +201,7 @@ src/
       people/           public member profiles, referrals, follow
       applications/     student drafts, submission, status, outcome reporting
       researcher/       dashboard, 9-step opportunity builder, review posting, applicant review
-      admin/            approvals, users, listings, institutions, taxonomies, pilot metrics
+      admin/            approvals, users, listings, institutions, taxonomies, faculty import, pilot metrics
     api/                health, sign out, authorised file access, CSV export, weekly digest cron
   components/
     ui/                 buttons, fields, badges, cards
@@ -201,6 +213,7 @@ src/
     auth/               sessions, verification codes, permissions
     criteria/           types, deterministic engine, weighting
     email/              provider abstraction and templates
+    faculty/            CSV reader and the faculty-list import
     matching/           see matching.ts: the weighted dimensions both sides are scored on
     notifications/      the weekly digest run, driven by an external scheduler
     queries/            read models for each surface
@@ -273,6 +286,8 @@ Not implemented, and worth revisiting if volume grows: the Message Batches API h
 
 **Reviews are a separate posting type, not a research position with blanks.** A review posting is four fields: title, summary, whether there is authorship, and which parts need help. It publishes immediately with no draft steps and no moderation queue, because the entire value of the type is that it can go up in under two minutes.
 
+**A pre-filled faculty profile belongs to the list until the person claims it.** An admin imports a faculty list at `/admin/faculty`; each row becomes a `researcher` account that is `pending` as a user but `verified` as a profile, because coming off the institution's own faculty list is a stronger check than the manual one done for a self-signup. Nobody is emailed. When the professor signs in they get one screen, not the wizard: everything is already filled in, and the only required answer is what they are actually looking for. Confirming sets `claimedAt`, which permanently takes the profile out of reach of any future re-import. Re-running the import as the list grows is therefore safe.
+
 **Referrals replace public reviews.** There is no star rating and no public review of a person. A referral is one account vouching for another by name, optionally with a reference letter. The referrer's name is read live from their account rather than copied at referral time, so a title change does not leave a stale endorsement behind. Reference letters are readable by the person referred, by researchers, and by admins, never by other students.
 
 **There is no universal student ranking.** No `student_quality_score` field, no leaderboard, no cross-project score. A student can be highly relevant to one project and not to the next, and that is the intended behaviour.
@@ -310,8 +325,9 @@ Semantic HTML, keyboard reachable controls, visible focus outlines, labelled fie
 - The SMTP email provider is a stub. `console` and `resend` work.
 - Waitlist to account invitations are stored and exportable, but the invite email is triggered manually rather than from an admin button.
 - The end to end suite in `scripts/run-e2e.sh` runs against `next dev` because the PGlite fallback cannot be shared across the production server's workers. Point `DATABASE_URL` at a real PostgreSQL instance to run it against `next start`.
-- Pre-populated faculty profiles are not built. The intent is that a professor logs in, sets a password, states their needs, and everything else is pre-filled from McMaster Experts and LinkedIn. It is waiting on the faculty list.
-- The weekly digest is driven by an external scheduler hitting `POST /api/cron/weekly-digest`, not by an in-process timer, so a restart or a second web worker cannot skip or duplicate a week. Nothing is scheduled until you point a cron at it.
+- Faculty prefill keeps the platform's passwordless sign-in rather than adding a password, which the original note asked for. Adding password auth would mean a second credential store, a reset flow, and its own rate limiting, all to replace a six-digit code that already arrives at the same verified address. The claim flow is otherwise exactly as described: sign in, confirm, state your needs, done.
+- The faculty importer reads a CSV. Scraping McMaster Experts and LinkedIn is not built; the expectation is that the list arrives as an export.
+- The weekly digest runs from `.github/workflows/weekly-digest.yml`, which POSTs to `/api/cron/weekly-digest` every Monday at 13:00 UTC. It needs the `APP_URL` repository variable and the `CRON_SECRET` repository secret. The run is idempotent per ISO week, so a retry, a manual trigger, and a second environment pointed at the same database cannot double-send.
 - The duration backfill in migration 0008 reads the old free-text duration field. Anything it cannot read confidently is left unset rather than guessed at, so some existing listings will ask their owner for a duration the next time they are edited.
 - No formal third-party accessibility audit has been carried out, and no compliance certification is claimed.
 

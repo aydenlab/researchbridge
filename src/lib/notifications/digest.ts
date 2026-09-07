@@ -3,6 +3,7 @@ import {
   applications,
   applicationStatusHistory,
   db,
+  digestRuns,
   notifications,
   opportunities,
   researcherProfiles,
@@ -21,7 +22,25 @@ export type DigestResult = {
   researchersNotified: number;
   studentsNotified: number;
   failures: number;
+  /** Set when a run for this period had already happened and nothing was sent. */
+  skipped?: "already_ran";
+  periodKey: string;
 };
+
+/**
+ * ISO week key. Weeks rather than dates because the digest is weekly, and a
+ * scheduler that fires an hour late must not count as a new period.
+ */
+export function isoWeekKey(date: Date): string {
+  const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  // Shift to the Thursday of this week: ISO weeks are numbered by the year
+  // their Thursday falls in, which is what makes the boundary unambiguous.
+  const day = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((target.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${target.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
 
 function daysSince(date: Date | null): number {
   if (!date) return 0;
@@ -36,15 +55,56 @@ function daysSince(date: Date | null): number {
  * professor's inbox. Students hear where each open application stands, so that
  * the answer to "have they even looked at it" is never nothing at all.
  *
- * Written to be safely re-runnable: it sends nothing when there is nothing to
- * say, and a duplicate run in the same week costs at most one repeated email.
+ * Exactly once per ISO week. The period is claimed in the database before any
+ * mail goes out, so a scheduler that fires twice, a retry by hand, and a second
+ * environment pointed at the same database all find the row already there and
+ * do nothing. Pass `force` only when you mean to send a period again.
  */
-export async function runWeeklyDigest(now: Date = new Date()): Promise<DigestResult> {
+export async function runWeeklyDigest(
+  options: { now?: Date; force?: boolean } = {},
+): Promise<DigestResult> {
+  const now = options.now ?? new Date();
+  const periodKey = isoWeekKey(now);
   const since = new Date(now.getTime() - WEEK_MS);
-  const result: DigestResult = { researchersNotified: 0, studentsNotified: 0, failures: 0 };
+  const result: DigestResult = { researchersNotified: 0, studentsNotified: 0, failures: 0, periodKey };
+
+  if (!options.force) {
+    // Claim the period first. An insert that conflicts means somebody else got
+    // here, and the safe answer to "did this already run" is to assume yes.
+    const claimed = await db
+      .insert(digestRuns)
+      .values({ periodKey, startedAt: now })
+      .onConflictDoNothing()
+      .returning({ periodKey: digestRuns.periodKey });
+
+    if (claimed.length === 0) {
+      log.info("weekly_digest_skipped", { periodKey, reason: "already_ran" });
+      return { ...result, skipped: "already_ran" };
+    }
+  }
 
   await runResearcherDigest(since, result);
   await runStudentDigest(since, result);
+
+  await db
+    .insert(digestRuns)
+    .values({
+      periodKey,
+      startedAt: now,
+      completedAt: new Date(),
+      researchersNotified: result.researchersNotified,
+      studentsNotified: result.studentsNotified,
+      failures: result.failures,
+    })
+    .onConflictDoUpdate({
+      target: digestRuns.periodKey,
+      set: {
+        completedAt: new Date(),
+        researchersNotified: result.researchersNotified,
+        studentsNotified: result.studentsNotified,
+        failures: result.failures,
+      },
+    });
 
   log.info("weekly_digest_complete", { ...result });
   return result;

@@ -6,6 +6,7 @@ import { OnboardingShell, type Step } from "@/components/app/onboarding-shell";
 import { requireUser } from "@/lib/auth/permissions";
 import { RESEARCHER_TYPE_LABELS, labelOr } from "@/lib/labels";
 import { listDepartments, listFaculties, listResearchFields } from "@/lib/queries/taxonomy";
+import { FacultyClaimForm } from "./claim-form";
 import { ResearcherDetailsForm, ResearcherReviewForm } from "./forms";
 
 export const metadata: Metadata = {
@@ -36,6 +37,55 @@ export default async function ResearcherOnboardingPage({
   const rows = await db.select().from(researcherProfiles).where(eq(researcherProfiles.userId, user.id)).limit(1);
   const profile = rows[0];
   if (!profile) redirect("/onboarding");
+
+  // A profile that came off a faculty list gets one screen instead of the
+  // wizard. Everything except what they need is already answered, and walking
+  // somebody through three steps to confirm text we wrote for them is exactly
+  // the friction pre-population exists to remove.
+  if (profile.prefilledSource && !profile.claimedAt) {
+    const institution = user.institutionId;
+    const [claimFields, claimDepartments, claimSelected] = await Promise.all([
+      listResearchFields(),
+      institution ? listDepartments(institution) : Promise.resolve([]),
+      db
+        .select({ id: researchFields.id })
+        .from(researcherFields)
+        .innerJoin(researchFields, eq(researchFields.id, researcherFields.researchFieldId))
+        .where(eq(researcherFields.researcherId, user.id)),
+    ]);
+
+    return (
+      <div className="mx-auto max-w-[820px] px-4 py-8 sm:px-6 sm:py-10">
+        <header className="mb-7">
+          <p className="text-[12px] font-medium text-subtle">Researcher account</p>
+          <h1 className="mt-1.5 font-display text-[28px] text-ink sm:text-[32px]" style={{ letterSpacing: "-0.6px" }}>
+            Welcome, {profile.firstName || "and thank you for coming"}
+          </h1>
+          <p className="mt-2 max-w-2xl text-[15px] leading-7 text-muted">
+            Your profile is already written. Check it, tell us what you are looking for, and you are finished.
+          </p>
+        </header>
+
+        <FacultyClaimForm
+          draft={{
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            title: profile.title ?? "",
+            department: profile.department ?? "",
+            labName: profile.labName ?? "",
+            labWebsite: profile.labWebsite ?? "",
+            biography: profile.biography ?? "",
+            recruitingNeeds: profile.recruitingNeeds ?? "",
+            recruitingOnBehalfOf: profile.recruitingOnBehalfOf ?? "personally",
+          }}
+          fields={claimFields.map((field) => ({ id: field.id, name: field.name }))}
+          selectedFieldIds={claimSelected.map((field) => field.id)}
+          departments={claimDepartments.map((department) => department.name)}
+          source={profile.prefilledSource}
+        />
+      </div>
+    );
+  }
 
   const params = await searchParams;
   const furthest = Math.max(1, Math.min(profile.onboardingStep, 2));
