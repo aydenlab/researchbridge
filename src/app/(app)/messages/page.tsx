@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default async function MessagesPage() {
   const user = await requireOnboardedUser();
-  const conversations = await listConversations(user.id);
+  const conversations = await listConversations(user);
 
   return (
     <div className="mx-auto max-w-[820px] px-4 py-8 sm:px-6 sm:py-10">

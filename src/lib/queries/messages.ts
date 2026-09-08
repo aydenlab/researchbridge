@@ -1,9 +1,14 @@
 import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { applications, db, directMessages, follows, opportunities, users } from "@/db";
+import { canViewPerson, SAME_ROLE_MESSAGE_REASON, type Viewable } from "@/lib/visibility";
 import { loadPeople, type PersonSummary } from "./social";
 
 /**
  * Who may open a conversation with whom.
+ *
+ * Only across the divide: a student never writes to another student, and a
+ * researcher never writes to another researcher, which is the same rule the
+ * directories are built on.
  *
  * A researcher can message any student: they are the scarce side, and a message
  * from them is the thing students are here for. A student may only message a
@@ -36,6 +41,10 @@ export async function canMessage(
 
   if (sender.role === "admin") return { allowed: true };
 
+  if (!canViewPerson(sender, { id: recipientId, role: recipient.role })) {
+    return { allowed: false, reason: SAME_ROLE_MESSAGE_REASON };
+  }
+
   // An existing conversation always stays open.
   const existing = await db
     .select({ id: directMessages.id })
@@ -50,13 +59,6 @@ export async function canMessage(
   if (existing.length > 0) return { allowed: true };
 
   if (sender.role === "researcher") return { allowed: true };
-
-  if (recipient.role === "student") {
-    // Student to student: mutual follow, so neither becomes a broadcast target.
-    return (await mutuallyFollowing(sender.id, recipientId))
-      ? { allowed: true }
-      : { allowed: false, reason: "You can message another student once you both follow each other." };
-  }
 
   if (await mutuallyFollowing(sender.id, recipientId)) return { allowed: true };
 
@@ -107,7 +109,8 @@ export type ConversationSummary = {
  * built in SQL so the newest message per conversation comes back in a single
  * pass rather than one query per counterpart.
  */
-export async function listConversations(userId: string): Promise<ConversationSummary[]> {
+export async function listConversations(viewer: Viewable): Promise<ConversationSummary[]> {
+  const userId = viewer.id;
   const counterpart = sql<string>`case when ${directMessages.senderId} = ${userId} then ${directMessages.recipientId} else ${directMessages.senderId} end`;
 
   const rows = await db
@@ -126,6 +129,9 @@ export async function listConversations(userId: string): Promise<ConversationSum
   latest.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   const people = await loadPeople(latest.map((row) => row.counterpartId));
+  for (const [id, person] of people) {
+    if (!canViewPerson(viewer, person)) people.delete(id);
+  }
 
   return latest.flatMap((row) => {
     const person = people.get(row.counterpartId);

@@ -51,6 +51,22 @@ export async function requireResearcher(): Promise<SessionUser> {
   return user;
 }
 
+/**
+ * A page that belongs to one side of the platform. Students browse researchers,
+ * researchers browse students, and neither browses their own side. Admins get
+ * through to both because moderation means looking at everything.
+ */
+export async function requireRoleOrAdmin(role: "student" | "researcher"): Promise<SessionUser> {
+  const user = await requireUser();
+  if (user.role === "admin") return user;
+  if (user.role !== role) {
+    if (!user.role) redirect("/onboarding");
+    deny(user, `require_${role}`);
+  }
+  if (!user.onboardingCompletedAt) redirect(`/onboarding/${role}`);
+  return user;
+}
+
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await requireUser();
   if (user.role !== "admin") deny(user, "require_admin");

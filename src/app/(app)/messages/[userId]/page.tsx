@@ -6,6 +6,7 @@ import { requireOnboardedUser } from "@/lib/auth/permissions";
 import { formatShortDate } from "@/lib/format";
 import { canMessage, loadThread, markThreadRead } from "@/lib/queries/messages";
 import { loadPeople } from "@/lib/queries/social";
+import { canViewPerson } from "@/lib/visibility";
 import { MessageComposer } from "../message-composer";
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default async function ThreadPage({ params }: { params: Promise<{ userId:
   const people = await loadPeople([userId]);
   const person = people.get(userId);
   if (!person || !person.role) notFound();
+  if (!canViewPerson(viewer, person)) notFound();
 
   const [messages, permission] = await Promise.all([loadThread(viewer.id, userId), canMessage(viewer, userId)]);
   await markThreadRead(viewer.id, userId);

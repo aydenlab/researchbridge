@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { db, follows, institutions, researcherProfiles, studentProfiles, users } from "@/db";
+import { canViewPerson, counterpartRole, type Viewable } from "@/lib/visibility";
 
 export type PersonSummary = {
   id: string;
@@ -60,6 +61,20 @@ export async function loadPeople(userIds: string[]): Promise<Map<string, PersonS
   return result;
 }
 
+/**
+ * The same lookup as loadPeople, minus anybody the viewer is not allowed to see.
+ * Every list of people rendered to a signed-in account goes through this, so a
+ * same-role account that predates the rule simply drops out of the list rather
+ * than rendering a row that leads to a page they cannot open.
+ */
+export async function loadVisiblePeople(viewer: Viewable, userIds: string[]): Promise<Map<string, PersonSummary>> {
+  const people = await loadPeople(userIds);
+  for (const [id, person] of people) {
+    if (!canViewPerson(viewer, person)) people.delete(id);
+  }
+  return people;
+}
+
 export async function isFollowing(followerId: string, followingId: string): Promise<boolean> {
   const rows = await db
     .select({ followerId: follows.followerId })
@@ -104,29 +119,53 @@ export async function listFollowingIds(userId: string): Promise<string[]> {
  * the "you both know" line, and it is deliberately one-directional on the
  * viewer's side so it never reveals who someone follows privately.
  */
-export async function sharedConnectionIds(viewerId: string, subjectId: string): Promise<string[]> {
-  if (viewerId === subjectId) return [];
+export async function sharedConnectionIds(viewer: Viewable, subjectId: string): Promise<string[]> {
+  if (viewer.id === subjectId) return [];
   const viewerFollows = db
     .select({ id: follows.followingId })
     .from(follows)
-    .where(eq(follows.followerId, viewerId));
+    .where(eq(follows.followerId, viewer.id));
+
+  const wanted = counterpartRole(viewer.role);
 
   const rows = await db
     .select({ id: follows.followerId })
     .from(follows)
-    .where(and(eq(follows.followingId, subjectId), inArray(follows.followerId, viewerFollows), ne(follows.followerId, viewerId)))
+    .innerJoin(users, eq(users.id, follows.followerId))
+    .where(
+      and(
+        eq(follows.followingId, subjectId),
+        inArray(follows.followerId, viewerFollows),
+        ne(follows.followerId, viewer.id),
+        ...(wanted ? [eq(users.role, wanted)] : []),
+      ),
+    )
     .limit(24);
 
   return rows.map((row) => row.id);
 }
 
-export async function suggestedPeopleIds(viewerId: string, limit = 12): Promise<string[]> {
-  const alreadyFollowing = await listFollowingIds(viewerId);
-  const excluded = [viewerId, ...alreadyFollowing];
+/**
+ * People worth following that the viewer has not followed yet. Only the other
+ * side of the platform is suggested: suggesting peers would be the fastest way
+ * to turn the follow graph into something nobody here needs.
+ */
+export async function suggestedPeopleIds(viewer: Viewable, limit = 12): Promise<string[]> {
+  const alreadyFollowing = await listFollowingIds(viewer.id);
+  const excluded = [viewer.id, ...alreadyFollowing];
+  const wanted = counterpartRole(viewer.role);
+
   const rows = await db
     .select({ id: users.id })
     .from(users)
-    .where(and(ne(users.accountStatus, "disabled"), sql`${users.role} is not null`, notInArray(users.id, excluded)))
+    .where(
+      and(
+        ne(users.accountStatus, "disabled"),
+        sql`${users.role} is not null`,
+        notInArray(users.id, excluded),
+        ...(wanted ? [eq(users.role, wanted)] : []),
+      ),
+    )
     .orderBy(desc(users.createdAt))
     .limit(limit);
   return rows.map((row) => row.id);

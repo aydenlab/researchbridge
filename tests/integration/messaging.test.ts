@@ -70,16 +70,23 @@ describe("who may open a conversation", () => {
     expect((await canMessage({ id: student.id, role: "student" }, researcher.id)).allowed).toBe(true);
   });
 
-  it("requires a mutual follow between two students", async () => {
+  it("refuses one student writing to another, however they are connected", async () => {
     const one = await createStudent();
     const two = await createStudent();
     await follow(one.id, two.id);
-
-    const before = await canMessage({ id: one.id, role: "student" }, two.id);
-    expect(before.allowed).toBe(false);
-
     await follow(two.id, one.id);
-    expect((await canMessage({ id: one.id, role: "student" }, two.id)).allowed).toBe(true);
+
+    const result = await canMessage({ id: one.id, role: "student" }, two.id);
+    expect(result.allowed).toBe(false);
+    if (result.allowed) return;
+    expect(result.reason).toContain("students with researchers");
+  });
+
+  it("refuses one researcher writing to another", async () => {
+    const one = await createResearcher();
+    const two = await createResearcher();
+
+    expect((await canMessage({ id: one.id, role: "researcher" }, two.id)).allowed).toBe(false);
   });
 
   it("refuses a conversation with yourself", async () => {
@@ -125,13 +132,22 @@ describe("threads and unread counts", () => {
     expect(await unreadMessageCount(researcherId)).toBe(1);
   });
 
+  it("leaves a same-role conversation out of the inbox", async () => {
+    const peer = await createStudent();
+    await send(peer.id, studentId, "A message from before the two sides were separated.");
+    await send(researcherId, studentId, "A message from a researcher.");
+
+    const conversations = await listConversations({ id: studentId, role: "student" });
+    expect(conversations.map((entry) => entry.person.id)).toEqual([researcherId]);
+  });
+
   it("gives one row per counterpart with the newest message on it", async () => {
     const other = await createStudent();
     await send(researcherId, studentId, "To the first student");
     await send(researcherId, other.id, "To the second student");
     await send(studentId, researcherId, "The latest word");
 
-    const conversations = await listConversations(researcherId);
+    const conversations = await listConversations({ id: researcherId, role: "researcher" });
     expect(conversations).toHaveLength(2);
     expect(conversations[0].person.id).toBe(studentId);
     expect(conversations[0].lastMessage).toBe("The latest word");

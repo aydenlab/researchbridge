@@ -9,7 +9,7 @@ import {
   followCounts,
   listFollowerIds,
   listFollowingIds,
-  loadPeople,
+  loadVisiblePeople,
   suggestedPeopleIds,
 } from "@/lib/queries/social";
 
@@ -30,13 +30,15 @@ export default async function ConnectionsPage({
     followCounts(user.id),
     listFollowerIds(user.id),
     listFollowingIds(user.id),
-    suggestedPeopleIds(user.id),
+    suggestedPeopleIds(user),
   ]);
 
-  const people = await loadPeople([...new Set([...followerIds, ...followingIds, ...suggestedIds])]);
+  const people = await loadVisiblePeople(user, [...new Set([...followerIds, ...followingIds, ...suggestedIds])]);
   const followingSet = new Set(followingIds);
   const showFollowers = tab === "followers";
-  const listedIds = showFollowers ? followerIds : followingIds;
+  // Follows made before same-role browsing was closed off are dropped from the
+  // list rather than rendered as rows that lead nowhere.
+  const listedIds = (showFollowers ? followerIds : followingIds).filter((id) => people.has(id));
 
   return (
     <div className="mx-auto max-w-[900px] px-4 py-8 sm:px-6 sm:py-10">

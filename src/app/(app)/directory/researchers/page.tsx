@@ -5,7 +5,7 @@ import { FollowButton } from "@/components/app/follow-button";
 import { OpportunityFilters, type FilterGroup } from "@/components/app/opportunity-filters";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge, Tag } from "@/components/ui/badge";
-import { requireOnboardedUser } from "@/lib/auth/permissions";
+import { requireRoleOrAdmin } from "@/lib/auth/permissions";
 import { RESEARCHER_TYPE_LABELS } from "@/lib/labels";
 import { searchResearchers } from "@/lib/queries/directory";
 import { listFollowingIds } from "@/lib/queries/social";
@@ -26,7 +26,7 @@ export default async function ResearcherDirectoryPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireOnboardedUser();
+  const user = await requireRoleOrAdmin("student");
   const params = await searchParams;
 
   const filters = {

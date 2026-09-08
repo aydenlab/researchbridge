@@ -9,6 +9,7 @@ import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
 import { MAX_REFERRAL_NOTE } from "@/lib/queries/referrals";
 import { loadPeople } from "@/lib/queries/social";
+import { canViewPerson } from "@/lib/visibility";
 import { storeFile } from "@/lib/storage";
 
 /**
@@ -31,6 +32,7 @@ export async function referStudentAction(_prev: ActionResult | null, formData: F
       .limit(1);
     const subject = subjectRows[0];
     if (!subject || !subject.role) return { ok: false as const, error: "That person could not be found." };
+    if (!canViewPerson(user, subject)) return { ok: false as const, error: "That person could not be found." };
 
     let letterFileId: string | null = null;
     const letter = formData.get("letter");

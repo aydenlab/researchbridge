@@ -6,6 +6,7 @@ import {
   researcherFields,
   researcherProfiles,
   skills,
+  studentCompensationPreferences,
   studentCourseTypes,
   studentDurations,
   studentProfiles,
@@ -29,6 +30,8 @@ export type StudentDirectoryFilters = DirectoryFilters & {
   durations?: string[];
   degreeLevels?: string[];
   skills?: string[];
+  /** Paid, volunteer, or for academic credit. The same values matching scores on. */
+  compensationPreferences?: string[];
 };
 
 export type ResearcherDirectoryFilters = DirectoryFilters & {
@@ -51,6 +54,7 @@ export type StudentDirectoryRow = {
   fieldNames: string[];
   durations: string[];
   courseTypes: string[];
+  compensationPreferences: string[];
 };
 
 export type ResearcherDirectoryRow = {
@@ -146,6 +150,21 @@ export async function searchStudents(filters: StudentDirectoryFilters) {
       ),
     );
   }
+  if (filters.compensationPreferences?.length) {
+    conditions.push(
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(studentCompensationPreferences)
+          .where(
+            and(
+              eq(studentCompensationPreferences.studentId, studentProfiles.userId),
+              inArray(studentCompensationPreferences.preference, filters.compensationPreferences as never[]),
+            ),
+          ),
+      ),
+    );
+  }
   if (filters.fields?.length) {
     conditions.push(
       exists(
@@ -200,7 +219,7 @@ export async function searchStudents(filters: StudentDirectoryFilters) {
     .where(and(...conditions));
 
   const ids = rows.map((row) => row.id);
-  const [fieldRows, durationRows, courseTypeRows] = ids.length
+  const [fieldRows, durationRows, courseTypeRows, compensationRows] = ids.length
     ? await Promise.all([
         db
           .select({ studentId: studentResearchInterests.studentId, name: researchFields.name })
@@ -215,8 +234,15 @@ export async function searchStudents(filters: StudentDirectoryFilters) {
           .select({ studentId: studentCourseTypes.studentId, courseType: studentCourseTypes.courseType })
           .from(studentCourseTypes)
           .where(inArray(studentCourseTypes.studentId, ids)),
+        db
+          .select({
+            studentId: studentCompensationPreferences.studentId,
+            preference: studentCompensationPreferences.preference,
+          })
+          .from(studentCompensationPreferences)
+          .where(inArray(studentCompensationPreferences.studentId, ids)),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
 
   const collect = <T>(entries: T[], key: (row: T) => string, value: (row: T) => string) => {
     const map = new Map<string, string[]>();
@@ -227,6 +253,7 @@ export async function searchStudents(filters: StudentDirectoryFilters) {
   const fieldsBy = collect(fieldRows, (row) => row.studentId, (row) => row.name);
   const durationsBy = collect(durationRows, (row) => row.studentId, (row) => row.duration);
   const courseTypesBy = collect(courseTypeRows, (row) => row.studentId, (row) => row.courseType);
+  const compensationBy = collect(compensationRows, (row) => row.studentId, (row) => row.preference);
 
   const items: StudentDirectoryRow[] = rows.map((row) => ({
     id: row.id,
@@ -241,6 +268,7 @@ export async function searchStudents(filters: StudentDirectoryFilters) {
     fieldNames: fieldsBy.get(row.id) ?? [],
     durations: durationsBy.get(row.id) ?? [],
     courseTypes: courseTypesBy.get(row.id) ?? [],
+    compensationPreferences: compensationBy.get(row.id) ?? [],
   }));
 
   return { items, total, page, perPage, pageCount: Math.max(1, Math.ceil(total / perPage)) };

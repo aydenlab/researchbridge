@@ -10,6 +10,7 @@ import type { ActionResult } from "@/lib/errors";
 import { toActionError } from "@/lib/action-utils";
 import { log } from "@/lib/log";
 import { loadPeople } from "@/lib/queries/social";
+import { canViewPerson } from "@/lib/visibility";
 
 export async function followAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const targetId = String(formData.get("userId") ?? "");
@@ -26,6 +27,10 @@ export async function followAction(_prev: ActionResult | null, formData: FormDat
     }
     if (target.accountStatus !== "active") {
       return { ok: false as const, error: "That account is not active." };
+    }
+    // Following is what opens an inbox, so it obeys the same divide as the rest.
+    if (!canViewPerson(user, target)) {
+      return { ok: false as const, error: "That account could not be found." };
     }
 
     const inserted = await db

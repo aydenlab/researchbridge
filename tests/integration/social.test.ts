@@ -7,6 +7,7 @@ import {
   listFollowerIds,
   listFollowingIds,
   loadPeople,
+  loadVisiblePeople,
   sharedConnectionIds,
   suggestedPeopleIds,
 } from "@/lib/queries/social";
@@ -66,8 +67,8 @@ describe("following", () => {
   it("surfaces only shared connections the viewer already follows", async () => {
     const viewer = await createStudent();
     const subject = await createResearcher();
-    const shared = await createStudent();
-    const stranger = await createStudent();
+    const shared = await createResearcher();
+    const stranger = await createResearcher();
 
     // The viewer follows `shared`, and `shared` follows the subject.
     await follow(viewer.id, shared.id);
@@ -75,14 +76,31 @@ describe("following", () => {
     // A stranger also follows the subject, but the viewer does not know them.
     await follow(stranger.id, subject.id);
 
-    const ids = await sharedConnectionIds(viewer.id, subject.id);
+    const ids = await sharedConnectionIds(viewer, subject.id);
     expect(ids).toEqual([shared.id]);
     expect(ids).not.toContain(stranger.id);
   });
 
+  it("leaves same-role accounts out of shared connections", async () => {
+    const viewer = await createStudent();
+    const subject = await createResearcher();
+    const shared = await createResearcher();
+    // A student-to-student follow from before the two sides were separated.
+    const peer = await createStudent();
+
+    await follow(viewer.id, shared.id);
+    await follow(shared.id, subject.id);
+    await follow(viewer.id, peer.id);
+    await follow(peer.id, subject.id);
+
+    const ids = await sharedConnectionIds(viewer, subject.id);
+    expect(ids).toEqual([shared.id]);
+    expect(ids).not.toContain(peer.id);
+  });
+
   it("returns nothing for shared connections with yourself", async () => {
     const viewer = await createStudent();
-    expect(await sharedConnectionIds(viewer.id, viewer.id)).toEqual([]);
+    expect(await sharedConnectionIds(viewer, viewer.id)).toEqual([]);
   });
 
   it("never suggests yourself or somebody you already follow", async () => {
@@ -90,9 +108,30 @@ describe("following", () => {
     const already = await createResearcher();
     await follow(viewer.id, already.id);
 
-    const suggestions = await suggestedPeopleIds(viewer.id, 50);
+    const suggestions = await suggestedPeopleIds(viewer, 50);
     expect(suggestions).not.toContain(viewer.id);
     expect(suggestions).not.toContain(already.id);
+  });
+
+  it("suggests only the other side of the platform", async () => {
+    const viewer = await createStudent();
+    const peer = await createStudent();
+    const researcher = await createResearcher();
+
+    const suggestions = await suggestedPeopleIds(viewer, 50);
+    expect(suggestions).toContain(researcher.id);
+    expect(suggestions).not.toContain(peer.id);
+  });
+
+  it("hides same-role people from a viewer loading a list", async () => {
+    const viewer = await createStudent();
+    const peer = await createStudent();
+    const researcher = await createResearcher();
+
+    const people = await loadVisiblePeople(viewer, [viewer.id, peer.id, researcher.id]);
+    expect(people.has(researcher.id)).toBe(true);
+    expect(people.has(viewer.id)).toBe(true);
+    expect(people.has(peer.id)).toBe(false);
   });
 
   it("names people from whichever profile table holds them", async () => {

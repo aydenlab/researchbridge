@@ -6,8 +6,10 @@ import { OpportunityFilters, type FilterGroup } from "@/components/app/opportuni
 import { PageHeader } from "@/components/app/page-header";
 import { Badge, Tag } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
-import { requireResearcher } from "@/lib/auth/permissions";
+import { requireRoleOrAdmin } from "@/lib/auth/permissions";
 import {
+  COMPENSATION_PREFERENCE_LABELS,
+  COMPENSATION_PREFERENCE_ORDER,
   COURSE_TYPE_LABELS,
   COURSE_TYPE_ORDER,
   DEGREE_LABELS,
@@ -36,7 +38,7 @@ export default async function StudentDirectoryPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireResearcher();
+  const user = await requireRoleOrAdmin("researcher");
   const params = await searchParams;
 
   const filters = {
@@ -45,6 +47,7 @@ export default async function StudentDirectoryPage({
     courseTypes: toArray(params.courseType),
     durations: toArray(params.duration),
     degreeLevels: toArray(params.degree),
+    compensationPreferences: toArray(params.pay),
     fields: toArray(params.field),
     page: params.page ? Number(params.page) : 1,
   };
@@ -73,6 +76,14 @@ export default async function StudentDirectoryPage({
       options: DURATION_ORDER.map((value) => ({ value, label: DURATION_LABELS[value] })),
     },
     {
+      key: "pay",
+      label: "Paid or volunteer",
+      options: COMPENSATION_PREFERENCE_ORDER.map((value) => ({
+        value,
+        label: COMPENSATION_PREFERENCE_LABELS[value],
+      })),
+    },
+    {
       key: "degree",
       label: "Degree level",
       options: Object.entries(DEGREE_LABELS).map(([value, label]) => ({ value, label })),
@@ -89,6 +100,7 @@ export default async function StudentDirectoryPage({
     filters.courseTypes.length +
     filters.durations.length +
     filters.degreeLevels.length +
+    filters.compensationPreferences.length +
     filters.fields.length;
 
   function pageHref(page: number) {
@@ -106,7 +118,7 @@ export default async function StudentDirectoryPage({
       <PageHeader
         eyebrow="Students"
         title="Browse students"
-        lede="You do not need an open posting to find somebody. Search on what they are studying, how long they want to work for, and what they want it to count as."
+        lede="You do not need an open posting to find somebody. Search on what they are studying, how long they want to work for, whether they need the position paid, and what they want it to count as."
       />
 
       <div className="grid gap-8 lg:grid-cols-[268px_1fr] lg:gap-10">
@@ -172,6 +184,11 @@ export default async function StudentDirectoryPage({
                     {student.durations.map((value) => (
                       <Badge key={value} tone="outline">
                         {labelOr(DURATION_LABELS, value)}
+                      </Badge>
+                    ))}
+                    {student.compensationPreferences.map((value) => (
+                      <Badge key={value} tone="forest">
+                        {labelOr(COMPENSATION_PREFERENCE_LABELS, value)}
                       </Badge>
                     ))}
                     {student.courseTypes.map((value) => (

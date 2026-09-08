@@ -20,8 +20,10 @@ import {
   listFollowerIds,
   listFollowingIds,
   loadPeople,
+  loadVisiblePeople,
   sharedConnectionIds,
 } from "@/lib/queries/social";
+import { canViewPerson } from "@/lib/visibility";
 import { ReferralControls } from "./referral-controls";
 
 export const metadata: Metadata = {
@@ -55,12 +57,15 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
   const people = await loadPeople([userId]);
   const person = people.get(userId);
   if (!person || !person.role) notFound();
+  // Same-role accounts are not browsable, and a 404 says that without
+  // confirming to a student that some other student's account exists.
+  if (!canViewPerson(viewer, person)) notFound();
 
   const isSelf = viewer.id === userId;
   const [counts, following, sharedIds, fields] = await Promise.all([
     followCounts(userId),
     isSelf ? Promise.resolve(false) : isFollowing(viewer.id, userId),
-    isSelf ? Promise.resolve([]) : sharedConnectionIds(viewer.id, userId),
+    isSelf ? Promise.resolve([]) : sharedConnectionIds(viewer, userId),
     fieldsFor(userId, person.role),
   ]);
 
@@ -73,12 +78,18 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
 
   const [followerIds, followingIds] = await Promise.all([listFollowerIds(userId), listFollowingIds(userId)]);
   const connectionIds = [...new Set([...followerIds, ...followingIds])].slice(0, 12);
-  const connectionPeople = await loadPeople([...new Set([...connectionIds, ...sharedIds])]);
+  const connectionPeople = await loadVisiblePeople(viewer, [...new Set([...connectionIds, ...sharedIds])]);
   const viewerFollowing = new Set(await listFollowingIds(viewer.id));
 
   // Reference letters are for whoever is assessing this person, and for the
   // person themselves. Other students never see the link at all.
   const canReadLetters = isSelf || viewer.role === "researcher" || viewer.role === "admin";
+
+  // The endorsement itself is worth reading whoever wrote it, but only a
+  // referrer the viewer may open gets a link rather than a dead end.
+  const visibleReferrers = new Set(
+    (await loadVisiblePeople(viewer, referrals.map((referral) => referral.referrerId))).keys(),
+  );
 
   const needsRows =
     person.role === "researcher"
@@ -188,12 +199,16 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
                 <li key={referral.id} className="border-b border-line pb-4 last:border-b-0 last:pb-0">
                   <p className="text-[14.5px] text-ink">
                     This student has been referred by{" "}
-                    <Link
-                      href={`/people/${referral.referrerId}`}
-                      className="font-medium underline decoration-line-strong underline-offset-4 hover:text-forest"
-                    >
-                      {referral.referrerName}
-                    </Link>
+                    {visibleReferrers.has(referral.referrerId) ? (
+                      <Link
+                        href={`/people/${referral.referrerId}`}
+                        className="font-medium underline decoration-line-strong underline-offset-4 hover:text-forest"
+                      >
+                        {referral.referrerName}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{referral.referrerName}</span>
+                    )}
                   </p>
                   {referral.referrerHeadline ? (
                     <p className="mt-0.5 text-[12.5px] text-subtle">{referral.referrerHeadline}</p>

@@ -22,7 +22,7 @@ export function OpportunityFilters({
   basePath = "/opportunities",
   sortOptions,
   showMaxHours = true,
-  itemNoun = "shown",
+  itemNoun = "opportunities",
 }: {
   groups: FilterGroup[];
   total: number;
@@ -83,7 +83,7 @@ export function OpportunityFilters({
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" aria-hidden="true" />
           <label htmlFor="opportunity-search" className="sr-only">
-            Search opportunities
+            Search {itemNoun}
           </label>
           <Input
             id="opportunity-search"
