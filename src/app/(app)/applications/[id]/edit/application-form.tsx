@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FormError, FormNote, Input, Select, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
+import { COURSE_TYPE_LABELS, COURSE_TYPE_ORDER } from "@/lib/labels";
 import { saveDraftAction, submitApplicationAction } from "../../actions";
 
 export type Question = {
@@ -57,6 +58,8 @@ export function ApplicationForm({
   materials,
   answers,
   profileSummary,
+  courseType,
+  profileCourseTypes,
   videoEnabled,
   videoPrompt,
   videoMaxSeconds,
@@ -69,6 +72,10 @@ export function ApplicationForm({
   materials: Material[];
   answers: Record<string, { textAnswer: string | null; fileId: string | null; externalUrl: string | null }>;
   profileSummary: { label: string; value: string }[];
+  /** Already recorded on this application, if the draft has been saved before. */
+  courseType: string | null;
+  /** Course types from the profile, listed first so the usual answer is one click. */
+  profileCourseTypes: string[];
   videoEnabled: boolean;
   videoPrompt: string | null;
   videoMaxSeconds: number;
@@ -136,6 +143,40 @@ export function ApplicationForm({
             </div>
           ))}
         </dl>
+      </section>
+
+      <section className="rounded-[12px] border border-line bg-white p-5">
+        <h2 className="font-display text-[20px] text-ink" style={{ letterSpacing: "-0.4px" }}>
+          What would this position count as for you?
+        </h2>
+        <p className="mt-2 text-[13.5px] leading-6 text-muted">
+          Your profile lists everything you are open to. This is the one that applies here, and it is what
+          {" "}
+          {researcherName} sorts applicants by. Leave it blank if none of them fit.
+        </p>
+        <div className="mt-4 max-w-[420px]">
+          <Field label="Course type" htmlFor="courseType">
+            <Select id="courseType" name="courseType" defaultValue={courseType ?? ""}>
+              <option value="">Not applicable</option>
+              {profileCourseTypes.length > 0 ? (
+                <optgroup label="On your profile">
+                  {COURSE_TYPE_ORDER.filter((value) => profileCourseTypes.includes(value)).map((value) => (
+                    <option key={value} value={value}>
+                      {COURSE_TYPE_LABELS[value]}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              <optgroup label={profileCourseTypes.length > 0 ? "Other" : "Course type"}>
+                {COURSE_TYPE_ORDER.filter((value) => !profileCourseTypes.includes(value)).map((value) => (
+                  <option key={value} value={value}>
+                    {COURSE_TYPE_LABELS[value]}
+                  </option>
+                ))}
+              </optgroup>
+            </Select>
+          </Field>
+        </div>
       </section>
 
       {materials.length > 0 ? (

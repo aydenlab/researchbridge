@@ -22,7 +22,7 @@ import { runApplicationAnalysis } from "@/lib/ai/application-analysis";
 import { evaluateDeterministic } from "@/lib/criteria/engine";
 import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
-import { PAID_COMPENSATION } from "@/lib/labels";
+import { COURSE_TYPE_ORDER, PAID_COMPENSATION, type CourseTypeOption } from "@/lib/labels";
 import { log } from "@/lib/log";
 import { sendApplicationReceived, sendNewApplicantNotice } from "@/lib/email";
 import { loadApplication, loadCriteria, persistCriterionResults } from "@/lib/queries/applications";
@@ -80,6 +80,16 @@ async function persistAnswers(applicationId: string, questions: (typeof opportun
   }
 }
 
+/**
+ * The course type this application is being made under. Optional, and narrowed
+ * to the values researchers filter on, so an unrecognised post body clears it
+ * rather than trying to write something the column cannot hold.
+ */
+function readCourseType(formData: FormData): CourseTypeOption | null {
+  const raw = String(formData.get("courseType") ?? "").trim();
+  return (COURSE_TYPE_ORDER as readonly string[]).includes(raw) ? (raw as CourseTypeOption) : null;
+}
+
 export async function saveDraftAction(_prev: ActionResult | null, formData: FormData) {
   const applicationId = String(formData.get("applicationId") ?? "");
   const { error, user, bundle } = await requireOwnedDraft(applicationId);
@@ -91,7 +101,10 @@ export async function saveDraftAction(_prev: ActionResult | null, formData: Form
 
   try {
     await persistAnswers(applicationId, bundle.questions, formData, user.id);
-    await db.update(applications).set({ updatedAt: new Date() }).where(eq(applications.id, applicationId));
+    await db
+      .update(applications)
+      .set({ courseType: readCourseType(formData), updatedAt: new Date() })
+      .where(eq(applications.id, applicationId));
     revalidatePath(`/applications/${applicationId}/edit`);
     return { ok: true as const, data: undefined, message: "Draft saved" };
   } catch (caught) {
@@ -197,10 +210,12 @@ export async function submitApplicationAction(_prev: ActionResult | null, formDa
 
     const submittedAt = new Date();
 
+    const courseType = readCourseType(formData);
+
     await db.transaction(async (tx) => {
       await tx
         .update(applications)
-        .set({ status: "submitted", submittedAt, updatedAt: submittedAt })
+        .set({ status: "submitted", courseType, submittedAt, updatedAt: submittedAt })
         .where(and(eq(applications.id, applicationId), eq(applications.status, "draft")));
 
       await tx.insert(applicationStatusHistory).values({

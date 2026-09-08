@@ -129,6 +129,8 @@ export default async function EditApplicationPage({ params }: { params: Promise<
         }))}
         answers={answers}
         profileSummary={profileSummary}
+        courseType={bundle.application.courseType}
+        profileCourseTypes={profile.courseTypes}
         videoEnabled={bundle.opportunity.videoResponseEnabled}
         videoPrompt={bundle.opportunity.videoPrompt}
         videoMaxSeconds={bundle.opportunity.videoMaxSeconds ?? 60}

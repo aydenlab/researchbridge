@@ -680,6 +680,12 @@ export const applications = pgTable(
       .notNull()
       .references(() => studentProfiles.userId, { onDelete: "cascade" }),
     status: applicationStatus("status").notNull().default("draft"),
+    /**
+     * What this particular position would count as for the student. Their
+     * profile lists every course type they are open to; this is the one they
+     * are applying under here, which can differ from position to position.
+     */
+    courseType: courseType("course_type"),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
@@ -692,6 +698,7 @@ export const applications = pgTable(
     index("applications_opportunity_idx").on(t.opportunityId),
     index("applications_student_idx").on(t.studentId),
     index("applications_status_idx").on(t.status),
+    index("applications_course_type_idx").on(t.courseType),
   ],
 );
 

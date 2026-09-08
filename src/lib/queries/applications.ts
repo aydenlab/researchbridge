@@ -149,6 +149,7 @@ export async function listApplicantsForOpportunity(opportunityId: string) {
     .select({
       id: applications.id,
       status: applications.status,
+      appliedCourseType: applications.courseType,
       submittedAt: applications.submittedAt,
       reviewedAt: applications.reviewedAt,
       studentId: applications.studentId,
@@ -209,7 +210,11 @@ export async function listApplicantsForOpportunity(opportunityId: string) {
     ...row,
     answerCount: answerMap.get(row.id) ?? 0,
     noteCount: noteMap.get(row.id) ?? 0,
-    courseTypes: courseTypeMap.get(row.studentId) ?? [],
+    // What the student said on this application wins over what their profile
+    // lists in general, so a researcher filtering the pool sees the answer that
+    // applies to their own position.
+    courseTypes: row.appliedCourseType ? [row.appliedCourseType] : courseTypeMap.get(row.studentId) ?? [],
+    profileCourseTypes: courseTypeMap.get(row.studentId) ?? [],
     durations: durationMap.get(row.studentId) ?? [],
   }));
 }

@@ -17,6 +17,7 @@ import { formatMetric } from "@/lib/gpa";
 import { markApplicationOpenedAction } from "@/app/(app)/applications/actions";
 import {
   COURSE_STATUS_LABELS,
+  COURSE_TYPE_LABELS,
   DEGREE_LABELS,
   LOCATION_LABELS,
   PAID_COMPENSATION,
@@ -162,6 +163,11 @@ export default async function CandidateReviewPage({
               {bundle.student.yearLevel ? `, year ${bundle.student.yearLevel}` : ""}
               {`, ${labelOr(DEGREE_LABELS, bundle.student.degreeLevel).toLowerCase()}`}
             </p>
+            {bundle.application.courseType ? (
+              <p className="mt-1 text-[12.5px] text-forest">
+                Applying as: {labelOr(COURSE_TYPE_LABELS, bundle.application.courseType)}
+              </p>
+            ) : null}
             <p className="mt-0.5 text-[12.5px] text-subtle">
               Submitted {formatDate(bundle.application.submittedAt)}. Profile is{" "}
               {bundle.student.profileCompletion} percent complete.
