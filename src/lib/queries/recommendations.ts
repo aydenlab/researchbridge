@@ -1,6 +1,10 @@
 import { and, desc, eq, inArray, ne, notInArray } from "drizzle-orm";
 import {
   db,
+  opportunities,
+  opportunityDurations,
+  opportunityFields,
+  opportunitySkills,
   researchFields,
   skills,
   studentCompensationPreferences,
@@ -14,7 +18,7 @@ import {
 import type { StudentProfileBundle } from "./student";
 import type { OpportunityListItem } from "./opportunities";
 import { searchOpportunities } from "./opportunities";
-import { scoreMatch, type MatchResult, type StudentMatchInput } from "@/lib/matching";
+import { scoreMatch, type MatchResult, type OpportunityMatchInput, type StudentMatchInput } from "@/lib/matching";
 import type { CompensationPreferenceOption, DurationOption } from "@/lib/labels";
 
 export type RecommendationReason = string;
@@ -24,6 +28,7 @@ export type Recommendation = {
   score: number;
   percent: number | null;
   reasons: RecommendationReason[];
+  caveats: RecommendationReason[];
 };
 
 export function studentMatchInput(bundle: StudentProfileBundle): StudentMatchInput {
@@ -44,6 +49,7 @@ export function matchOpportunity(student: StudentMatchInput, item: OpportunityLi
     skillNames: item.skillNames,
     durations: item.durations as DurationOption[],
     compensationType: item.compensationType,
+    academicCreditAvailable: item.academicCreditAvailable,
     hoursPerWeekMin: item.hoursPerWeekMin,
     locationMode: item.locationMode,
     beginnerFriendly: item.beginnerFriendly,
@@ -70,7 +76,13 @@ export async function recommendOpportunities(
     if (options.excludeIds?.has(item.id)) continue;
     const result = matchOpportunity(student, item);
     if (result.points <= 0) continue;
-    scored.push({ item, score: result.points, percent: result.percent, reasons: result.reasons.slice(0, 3) });
+    scored.push({
+      item,
+      score: result.points,
+      percent: result.percent,
+      reasons: result.reasons.slice(0, 3),
+      caveats: result.caveats.slice(0, 2),
+    });
   }
 
   scored.sort((a, b) => b.score - a.score);
@@ -98,12 +110,19 @@ export type StudentCandidate = {
  * without pulling each one individually, so a researcher browsing candidates
  * costs a handful of queries rather than one per student.
  */
-export async function loadStudentCandidates(options: { limit?: number; excludeIds?: string[] } = {}): Promise<
-  StudentCandidate[]
-> {
+export async function loadStudentCandidates(
+  options: { limit?: number; excludeIds?: string[]; ids?: string[] } = {},
+): Promise<StudentCandidate[]> {
+  // An empty id list means "these specific students, of which there are none",
+  // which is not the same as "everybody".
+  if (options.ids && options.ids.length === 0) return [];
+
   const conditions = [ne(users.accountStatus, "disabled"), eq(users.role, "student")];
   if (options.excludeIds?.length) {
     conditions.push(notInArray(users.id, options.excludeIds));
+  }
+  if (options.ids?.length) {
+    conditions.push(inArray(users.id, options.ids));
   }
 
   const rows = await db
@@ -192,4 +211,84 @@ export function candidateMatchInput(candidate: StudentCandidate): StudentMatchIn
     locationPreference: candidate.locationPreference,
     hasExperience: candidate.hasExperience,
   };
+}
+
+
+/**
+ * Everything about one listing that matching reads. Pulled on its own so a
+ * researcher can score the students in front of them against a position they
+ * have already posted, which is the mirror image of what the student dashboard
+ * does and uses the identical scoring function.
+ */
+export async function loadOpportunityMatchInput(opportunityId: string): Promise<OpportunityMatchInput | null> {
+  const rows = await db
+    .select({
+      id: opportunities.id,
+      compensationType: opportunities.compensationType,
+      academicCreditAvailable: opportunities.academicCreditAvailable,
+      hoursPerWeekMin: opportunities.hoursPerWeekMin,
+      locationMode: opportunities.locationMode,
+      beginnerFriendly: opportunities.beginnerFriendly,
+      priorResearchRequired: opportunities.priorResearchRequired,
+    })
+    .from(opportunities)
+    .where(eq(opportunities.id, opportunityId))
+    .limit(1);
+
+  const opportunity = rows[0];
+  if (!opportunity) return null;
+
+  const [fieldRows, skillRows, durationRows] = await Promise.all([
+    db
+      .select({ name: researchFields.name })
+      .from(opportunityFields)
+      .innerJoin(researchFields, eq(researchFields.id, opportunityFields.researchFieldId))
+      .where(eq(opportunityFields.opportunityId, opportunityId)),
+    db
+      .select({ name: skills.name, requirementLevel: opportunitySkills.requirementLevel })
+      .from(opportunitySkills)
+      .innerJoin(skills, eq(skills.id, opportunitySkills.skillId))
+      .where(eq(opportunitySkills.opportunityId, opportunityId)),
+    db
+      .select({ duration: opportunityDurations.duration })
+      .from(opportunityDurations)
+      .where(eq(opportunityDurations.opportunityId, opportunityId)),
+  ]);
+
+  return {
+    fieldNames: fieldRows.map((row) => row.name),
+    // A skill nobody needs should not count against a student who lacks it.
+    skillNames: skillRows.filter((row) => row.requirementLevel !== "not_required").map((row) => row.name),
+    durations: durationRows.map((row) => row.duration) as DurationOption[],
+    compensationType: opportunity.compensationType,
+    academicCreditAvailable: opportunity.academicCreditAvailable,
+    hoursPerWeekMin: opportunity.hoursPerWeekMin,
+    locationMode: opportunity.locationMode,
+    beginnerFriendly: opportunity.beginnerFriendly,
+    priorResearchRequired: opportunity.priorResearchRequired,
+  };
+}
+
+/**
+ * Scores a specific set of students against one listing. Scoped to the ids the
+ * caller is already showing, so paging the directory does not turn into scoring
+ * every student on the platform.
+ */
+export async function scoreCandidatesAgainst(
+  opportunityId: string,
+  studentIds: string[],
+): Promise<Map<string, MatchResult>> {
+  const scores = new Map<string, MatchResult>();
+  if (studentIds.length === 0) return scores;
+
+  const [opportunity, candidates] = await Promise.all([
+    loadOpportunityMatchInput(opportunityId),
+    loadStudentCandidates({ ids: studentIds, limit: studentIds.length }),
+  ]);
+  if (!opportunity) return scores;
+
+  for (const candidate of candidates) {
+    scores.set(candidate.userId, scoreMatch(candidateMatchInput(candidate), opportunity));
+  }
+  return scores;
 }

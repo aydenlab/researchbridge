@@ -5,7 +5,7 @@ import { FollowButton } from "@/components/app/follow-button";
 import { OpportunityFilters, type FilterGroup } from "@/components/app/opportunity-filters";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge, Tag } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { requireRoleOrAdmin } from "@/lib/auth/permissions";
 import {
   COMPENSATION_PREFERENCE_LABELS,
@@ -20,6 +20,9 @@ import {
   labelOr,
 } from "@/lib/labels";
 import { searchStudents } from "@/lib/queries/directory";
+import type { MatchResult } from "@/lib/matching";
+import { scoreCandidatesAgainst } from "@/lib/queries/recommendations";
+import { researcherOpportunities } from "@/lib/queries/researcher";
 import { listFollowingIds } from "@/lib/queries/social";
 import { listResearchFields } from "@/lib/queries/taxonomy";
 
@@ -52,12 +55,32 @@ export default async function StudentDirectoryPage({
     page: params.page ? Number(params.page) : 1,
   };
 
-  const [results, fields, followingIds] = await Promise.all([
+  const matchAgainst = typeof params.match === "string" ? params.match : "";
+
+  const [results, fields, followingIds, myPostings] = await Promise.all([
     searchStudents(filters),
     listResearchFields(),
     listFollowingIds(user.id),
+    researcherOpportunities(user.id),
   ]);
   const following = new Set(followingIds);
+
+  // Only the researcher's own listings can be scored against, and only ones
+  // that are actually built out: an empty draft would score everybody the same.
+  const scorablePostings = myPostings.filter(
+    (posting) => posting.kind === "research_position" && posting.status !== "archived",
+  );
+  const selectedPosting = scorablePostings.find((posting) => posting.id === matchAgainst) ?? null;
+  const matchScores = selectedPosting
+    ? await scoreCandidatesAgainst(selectedPosting.id, results.items.map((item) => item.id))
+    : new Map<string, MatchResult>();
+
+  // Ranking reorders the page in front of the researcher. It deliberately does
+  // not reorder across pages: the filters decide who is in the pool, and the
+  // score only decides who to read first.
+  const visibleStudents = selectedPosting
+    ? [...results.items].sort((a, b) => (matchScores.get(b.id)?.percent ?? -1) - (matchScores.get(a.id)?.percent ?? -1))
+    : results.items;
 
   const groups: FilterGroup[] = [
     {
@@ -121,6 +144,45 @@ export default async function StudentDirectoryPage({
         lede="You do not need an open posting to find somebody. Search on what they are studying, how long they want to work for, whether they need the position paid, and what they want it to count as."
       />
 
+      {scorablePostings.length > 0 ? (
+        <form method="get" action="/directory/students" className="mb-6 rounded-[12px] border border-line bg-white px-4 py-3.5">
+          {Object.entries(params).flatMap(([key, value]) =>
+            key === "match" || key === "page"
+              ? []
+              : toArray(value).map((item, index) => (
+                  <input key={`${key}-${item}-${index}`} type="hidden" name={key} value={item} />
+                )),
+          )}
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-0 flex-1">
+              <label htmlFor="match-posting" className="mb-1 block text-[12.5px] font-medium text-ink">
+                Rank these students against one of your positions
+              </label>
+              <p className="mb-2 text-[12px] leading-5 text-muted">
+                Scored on the same dimensions students see: research interest, how long the position runs, whether it
+                is paid, skills, and hours.
+              </p>
+              <select
+                id="match-posting"
+                name="match"
+                defaultValue={selectedPosting?.id ?? ""}
+                className="h-9 w-full max-w-[420px] rounded-[8px] border border-line-strong bg-white px-3 text-[13.5px] text-ink"
+              >
+                <option value="">No position selected</option>
+                {scorablePostings.map((posting) => (
+                  <option key={posting.id} value={posting.id}>
+                    {posting.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button type="submit" size="md">
+              {selectedPosting ? "Update ranking" : "Rank"}
+            </Button>
+          </div>
+        </form>
+      ) : null}
+
       <div className="grid gap-8 lg:grid-cols-[268px_1fr] lg:gap-10">
         <aside>
           <OpportunityFilters
@@ -149,7 +211,7 @@ export default async function StudentDirectoryPage({
             />
           ) : (
             <ul className="overflow-hidden rounded-[12px] border border-line bg-white">
-              {results.items.map((student) => (
+              {visibleStudents.map((student) => (
                 <li key={student.id} className="border-b border-line px-5 py-4 last:border-b-0">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -173,6 +235,14 @@ export default async function StudentDirectoryPage({
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
+                      {selectedPosting ? (
+                        <Badge tone={(matchScores.get(student.id)?.percent ?? 0) >= 60 ? "forest" : "neutral"}>
+                          {matchScores.get(student.id)?.percent === null ||
+                          matchScores.get(student.id)?.percent === undefined
+                            ? "Not enough profile to score"
+                            : `${matchScores.get(student.id)?.percent}% match`}
+                        </Badge>
+                      ) : null}
                       <FollowButton userId={student.id} following={following.has(student.id)} />
                       <ButtonLink href={`/messages/${student.id}`} size="sm" variant="outline">
                         Message
@@ -200,6 +270,12 @@ export default async function StudentDirectoryPage({
                       <Tag key={name}>{name}</Tag>
                     ))}
                   </div>
+
+                  {selectedPosting && (matchScores.get(student.id)?.reasons.length ?? 0) > 0 ? (
+                    <p className="mt-2 text-[12.5px] leading-5 text-subtle">
+                      {matchScores.get(student.id)?.reasons.slice(0, 3).join(" · ")}
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ul>

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { compensationBucket, scoreMatch, type OpportunityMatchInput, type StudentMatchInput } from "@/lib/matching";
+import {
+  compensationBucket,
+  compensationBuckets,
+  scoreMatch,
+  type OpportunityMatchInput,
+  type StudentMatchInput,
+} from "@/lib/matching";
 
 function student(overrides: Partial<StudentMatchInput> = {}): StudentMatchInput {
   return {
@@ -104,6 +110,58 @@ describe("paid and volunteer preferences", () => {
       opportunity({ compensationType: "volunteer" }),
     );
     expect(paid.percent).toBe(volunteer.percent);
+  });
+
+  it("counts a paid position that also carries credit as both", () => {
+    expect(compensationBuckets({ compensationType: "paid" })).toEqual(["paid"]);
+    expect(compensationBuckets({ compensationType: "paid", academicCreditAvailable: true }).sort()).toEqual([
+      "academic_credit",
+      "paid",
+    ]);
+  });
+
+  it("matches a credit-seeking student to a paid position that offers credit", () => {
+    const creditOnly = student({ compensationPreferences: ["academic_credit"] });
+
+    const withCredit = scoreMatch(
+      creditOnly,
+      opportunity({ compensationType: "paid", academicCreditAvailable: true }),
+    );
+    const withoutCredit = scoreMatch(creditOnly, opportunity({ compensationType: "paid" }));
+
+    expect(withCredit.points).toBeGreaterThan(withoutCredit.points);
+    expect(withCredit.reasons.join(" ")).toContain("credit");
+  });
+
+  it("says out loud when the pay arrangement is not what the student asked for", () => {
+    const result = scoreMatch(
+      student({ compensationPreferences: ["paid"] }),
+      opportunity({ compensationType: "volunteer" }),
+    );
+    expect(result.caveats.join(" ")).toContain("Not the kind of position");
+  });
+
+  it("leaves an unclassifiable arrangement out of scoring rather than guessing", () => {
+    const result = scoreMatch(student(), opportunity({ compensationType: "other" }));
+    const compensation = result.dimensions.find((entry) => entry.dimension === "compensation");
+    expect(compensation?.score).toBeNull();
+  });
+});
+
+describe("explaining a score", () => {
+  it("reports a duration mismatch as a caveat rather than silence", () => {
+    const result = scoreMatch(
+      student({ durations: ["one_semester"] }),
+      opportunity({ durations: ["multi_year"] }),
+    );
+    expect(result.reasons.join(" ")).not.toContain("different length");
+    expect(result.caveats.join(" ")).toContain("different length");
+  });
+
+  it("keeps a dimension that did not apply out of both lists", () => {
+    const result = scoreMatch(student({ durations: [] }), opportunity({ durations: ["one_year"] }));
+    expect(result.reasons.join(" ")).not.toContain("length");
+    expect(result.caveats.join(" ")).not.toContain("length");
   });
 });
 

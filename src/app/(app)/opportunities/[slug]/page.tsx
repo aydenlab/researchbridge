@@ -225,7 +225,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
                 closedReason="This review is no longer looking for help."
               />
               <p className="mt-4 border-t border-line pt-4 text-[12.5px] leading-5 text-muted">
-                Applying to a review sends your profile. There are no extra questions, and{" "}
+                Applying to a review sends your profile and your resume. There are no extra questions, and{" "}
                 {applicationCount === 0 ? "nobody has applied yet" : `${applicationCount} ${applicationCount === 1 ? "person has" : "people have"} applied`}
                 .
               </p>

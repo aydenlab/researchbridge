@@ -53,6 +53,7 @@ export type OpportunityListItem = {
   hoursPerWeekMax: number | null;
   deadline: string | null;
   compensationType: string;
+  academicCreditAvailable: boolean;
   beginnerFriendly: boolean;
   priorResearchRequired: boolean;
   authorshipOffered: boolean;
@@ -203,6 +204,7 @@ export async function searchOpportunities(filters: OpportunityFilters) {
       hoursPerWeekMax: opportunities.hoursPerWeekMax,
       deadline: opportunities.deadline,
       compensationType: opportunities.compensationType,
+      academicCreditAvailable: opportunities.academicCreditAvailable,
       beginnerFriendly: opportunities.beginnerFriendly,
       priorResearchRequired: opportunities.priorResearchRequired,
       authorshipOffered: opportunities.authorshipOffered,

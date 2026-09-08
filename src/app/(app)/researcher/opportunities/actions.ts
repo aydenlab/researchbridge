@@ -15,7 +15,12 @@ import {
   opportunityResearchMaterials,
   opportunitySkills,
 } from "@/db";
-import { requireResearcher, requireManagedOpportunity } from "@/lib/auth/permissions";
+import {
+  isVerifiedResearcher,
+  requireResearcher,
+  requireManagedOpportunity,
+  UNVERIFIED_RESEARCHER_MESSAGE,
+} from "@/lib/auth/permissions";
 import { checkboxValue, formList, optionalText, parseForm, toActionError } from "@/lib/action-utils";
 import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
@@ -30,6 +35,7 @@ import {
   paperStepSchema,
   projectStepSchema,
   roleStepSchema,
+  simpleOpportunitySchema,
   videoStepSchema,
 } from "@/lib/validation/opportunity";
 
@@ -82,6 +88,111 @@ export async function createDraftAction(_prev: ActionResult | null, _formData: F
   }
 
   redirect(`/researcher/opportunities/${id}/edit?step=1`);
+}
+
+/**
+ * The one-page form's counterpart to the nine-step wizard. It writes the same
+ * row the wizard would have written and publishes in the same breath, because
+ * the whole point of the short form is that there is no draft to come back to.
+ * Everything the publish gate insists on is asked for up front, so this cannot
+ * produce a listing the wizard would have refused.
+ */
+export async function createSimpleOpportunityAction(_prev: ActionResult | null, formData: FormData) {
+  const parsed = parseForm(simpleOpportunitySchema, formData);
+  if (!parsed.ok) return parsed.result;
+
+  const user = await requireResearcher();
+  if (!isVerifiedResearcher(user)) return { ok: false as const, error: UNVERIFIED_RESEARCHER_MESSAGE };
+
+  let slug = "";
+
+  try {
+    const data = parsed.data;
+    const candidate = await uniqueSlug(data.title, "");
+    const reviewRequired = await isEnabled("OPPORTUNITY_REVIEW_REQUIRED");
+    const status = reviewRequired ? "pending_review" : "published";
+    const now = new Date();
+
+    const skillNames = [...new Set([...formList(formData, "skillName"), ...formList(formData, "otherSkillName")])]
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+
+    const [row] = await db
+      .insert(opportunities)
+      .values({
+        institutionId: user.institutionId ?? null,
+        researcherId: user.id,
+        title: data.title,
+        slug: candidate,
+        summary: data.summary,
+        description: data.additionalInfo,
+        responsibilities: data.responsibilities,
+        department: data.department,
+        numberOfOpenings: 1,
+        hoursPerWeekMin: data.hoursPerWeekMin,
+        hoursPerWeekMax: data.hoursPerWeekMax,
+        deadline: data.deadline,
+        locationMode: data.locationMode,
+        compensationType: data.compensation,
+        compensationDetails: data.compensationDetails,
+        academicCreditAvailable: data.academicCreditAvailable,
+        beginnerFriendly: data.beginnerFriendly,
+        priorResearchRequired: data.priorResearchRequired,
+        status,
+        publishedAt: status === "published" ? now : null,
+        draftStep: TOTAL_STEPS,
+      })
+      .returning({ id: opportunities.id, slug: opportunities.slug });
+
+    slug = row.slug;
+
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(opportunityDurations)
+        .values(data.preferredDurations.map((duration) => ({ opportunityId: row.id, duration })));
+      await tx.insert(opportunityFields).values({ opportunityId: row.id, researchFieldId: data.researchFieldId });
+    });
+
+    for (const name of skillNames) {
+      const skillId = await ensureSkill(name);
+      await db
+        .insert(opportunitySkills)
+        .values({ opportunityId: row.id, skillId, requirementLevel: "preferred" })
+        .onConflictDoNothing();
+    }
+
+    await recordEvent({
+      name: "opportunity_created",
+      userId: user.id,
+      institutionId: user.institutionId,
+      subjectType: "opportunity",
+      subjectId: row.id,
+    });
+    if (status === "published") {
+      await recordEvent({
+        name: "opportunity_published",
+        userId: user.id,
+        institutionId: user.institutionId,
+        subjectType: "opportunity",
+        subjectId: row.id,
+      });
+    }
+    await recordAudit({
+      actorId: user.id,
+      action: status === "published" ? "opportunity_published" : "opportunity_queued",
+      subjectType: "opportunity",
+      subjectId: row.id,
+    });
+
+    revalidatePath("/opportunities");
+    revalidatePath("/researcher/opportunities");
+    log.info("opportunity_posted_simple", { opportunityId: row.id, status });
+  } catch (error) {
+    return toActionError(error, "create_simple_opportunity_failed");
+  }
+
+  redirect(`/opportunities/${slug}`);
 }
 
 async function advance(opportunityId: string, step: number) {
@@ -483,6 +594,7 @@ export async function publishOpportunityAction(_prev: ActionResult | null, formD
 
   try {
     const { user, opportunity } = await requireManagedOpportunity(opportunityId);
+    if (!isVerifiedResearcher(user)) return { ok: false as const, error: UNVERIFIED_RESEARCHER_MESSAGE };
 
     const problems: string[] = [];
     if (!opportunity.title || opportunity.title === "Untitled research position") problems.push("a project title");
@@ -560,6 +672,11 @@ export async function changeOpportunityStatusAction(_prev: ActionResult | null, 
 
   try {
     const { user, opportunity } = await requireManagedOpportunity(opportunityId);
+    // Closing or archiving stays open to anyone who owns the listing; only
+    // putting it back in front of students needs the account to be verified.
+    if (target === "published" && !isVerifiedResearcher(user)) {
+      return { ok: false as const, error: UNVERIFIED_RESEARCHER_MESSAGE };
+    }
 
     if (target === "archived") {
       const [{ count }] = await db

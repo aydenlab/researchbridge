@@ -101,6 +101,43 @@ export const reviewPostingSchema = z.object({
   }),
 });
 
+/**
+ * The one-page posting form. Same destination as the nine-step wizard, asking
+ * only for what a listing cannot legally be published without, so a supervisor
+ * who already knows what they want is not walked through nine screens to say it.
+ */
+export const simpleOpportunitySchema = z
+  .object({
+    title: requiredText("Project title", 180, 8),
+    summary: requiredText("Plain-language summary", 400, 30),
+    responsibilities: requiredText("What the student will do", 4000, 40),
+    additionalInfo: requiredText("Additional information", 8000, 120),
+    department: requiredText("Department", 160),
+    researchFieldId: z.string().uuid("Choose a research field."),
+    preferredDurations: arrayField(durationOptionSchema, {
+      min: 1,
+      max: 5,
+      message: "Choose at least one length. Select them all if you are open to any of them.",
+    }),
+    hoursPerWeekMin: z.coerce.number().int().min(0).max(60),
+    hoursPerWeekMax: z.coerce.number().int().min(0).max(60),
+    deadline: requiredText("Application deadline", 20),
+    locationMode: z.enum(["in_person", "hybrid", "remote"], { message: "Choose a location mode." }),
+    compensation: z.enum(["paid", "volunteer"], { message: "Say whether the position is paid." }),
+    compensationDetails: optionalText(1200),
+    academicCreditAvailable: z.coerce.boolean().default(false),
+    beginnerFriendly: z.coerce.boolean().default(false),
+    priorResearchRequired: z.coerce.boolean().default(false),
+  })
+  .refine((value) => value.hoursPerWeekMax >= value.hoursPerWeekMin, {
+    message: "The maximum hours cannot be lower than the minimum.",
+    path: ["hoursPerWeekMax"],
+  })
+  .refine((value) => value.compensation !== "paid" || Boolean(value.compensationDetails), {
+    message: "Describe the pay arrangement so students know what is offered before applying.",
+    path: ["compensationDetails"],
+  });
+
 export const criterionInputSchema = z.object({
   type: z.enum([
     "skill",

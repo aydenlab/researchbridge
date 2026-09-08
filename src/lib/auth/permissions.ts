@@ -67,6 +67,28 @@ export async function requireRoleOrAdmin(role: "student" | "researcher"): Promis
   return user;
 }
 
+/**
+ * Whether an account may put something in front of students. Verification is
+ * what separates a claimed faculty account from a real one, so anything that
+ * publishes has to ask, and the page-level redirect is not enough on its own:
+ * a server action can be called directly, without ever loading the page that
+ * guards it. Admins pass because moderating means acting on other people's
+ * listings.
+ */
+export function isVerifiedResearcher(user: SessionUser): boolean {
+  if (user.role === "admin") return true;
+  return user.role === "researcher" && user.researcherVerification === "verified";
+}
+
+export const UNVERIFIED_RESEARCHER_MESSAGE =
+  "Your researcher account is still being verified. You can keep drafting, but nothing goes live until that is approved.";
+
+export async function requireVerifiedResearcher(): Promise<SessionUser> {
+  const user = await requireResearcher();
+  if (!isVerifiedResearcher(user)) deny(user, "require_verified_researcher");
+  return user;
+}
+
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await requireUser();
   if (user.role !== "admin") deny(user, "require_admin");

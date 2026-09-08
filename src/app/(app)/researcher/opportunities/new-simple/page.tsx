@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/app/page-header";
+import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { db, researcherProfiles } from "@/db";
 import { requireResearcher } from "@/lib/auth/permissions";
 import { listResearchFields, listSkills } from "@/lib/queries/taxonomy";
 import { SimpleOpportunityForm } from "./simple-form";
@@ -12,9 +15,18 @@ export const metadata: Metadata = {
 const UNCATEGORIZED = "Other";
 
 export default async function NewSimpleOpportunityPage() {
-  await requireResearcher();
+  const user = await requireResearcher();
+  if (user.researcherVerification !== "verified") redirect("/researcher/pending");
 
-  const [fields, skills] = await Promise.all([listResearchFields(), listSkills()]);
+  const [fields, skills, profileRows] = await Promise.all([
+    listResearchFields(),
+    listSkills(),
+    db
+      .select({ department: researcherProfiles.department })
+      .from(researcherProfiles)
+      .where(eq(researcherProfiles.userId, user.id))
+      .limit(1),
+  ]);
 
   const grouped = new Map<string, string[]>();
   for (const skill of skills) {
@@ -38,6 +50,7 @@ export default async function NewSimpleOpportunityPage() {
       <SimpleOpportunityForm
         fields={fields.map((field) => ({ id: field.id, name: field.name }))}
         skillGroups={skillGroups}
+        department={profileRows[0]?.department ?? ""}
       />
     </div>
   );

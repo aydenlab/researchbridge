@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { canManageOpportunity, canViewApplication } from "@/lib/auth/permissions";
+import { canManageOpportunity, canViewApplication, isVerifiedResearcher } from "@/lib/auth/permissions";
 import type { SessionUser } from "@/lib/auth/session";
 import { createApplicationGraph, createOpportunity, createResearcher, createStudent } from "../fixtures";
 
-function session(id: string, role: SessionUser["role"]): SessionUser {
+function session(
+  id: string,
+  role: SessionUser["role"],
+  verification?: SessionUser["researcherVerification"],
+): SessionUser {
   return {
     id,
     email: `${id}@example.edu`,
@@ -15,9 +19,31 @@ function session(id: string, role: SessionUser["role"]): SessionUser {
     emailVerifiedAt: new Date(),
     onboardingCompletedAt: new Date(),
     displayName: null,
-    researcherVerification: role === "researcher" ? "verified" : null,
+    researcherVerification:
+      verification === undefined ? (role === "researcher" ? "verified" : null) : verification,
   };
 }
+
+describe("who may put a listing in front of students", () => {
+  it("allows a verified researcher", () => {
+    expect(isVerifiedResearcher(session("r1", "researcher", "verified"))).toBe(true);
+  });
+
+  it("refuses a researcher who has not been verified yet", () => {
+    expect(isVerifiedResearcher(session("r2", "researcher", "pending"))).toBe(false);
+    expect(isVerifiedResearcher(session("r3", "researcher", "needs_review"))).toBe(false);
+    expect(isVerifiedResearcher(session("r4", "researcher", "rejected"))).toBe(false);
+    expect(isVerifiedResearcher(session("r5", "researcher", null))).toBe(false);
+  });
+
+  it("refuses a student outright", () => {
+    expect(isVerifiedResearcher(session("s1", "student"))).toBe(false);
+  });
+
+  it("allows an admin, who has to be able to act on other people's listings", () => {
+    expect(isVerifiedResearcher(session("a1", "admin"))).toBe(true);
+  });
+});
 
 describe("opportunity management", () => {
   it("lets the owning researcher manage their own position", async () => {

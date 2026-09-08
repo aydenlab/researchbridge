@@ -4,7 +4,12 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db, opportunities, opportunityReviewTasks } from "@/db";
-import { requireResearcher, requireManagedOpportunity } from "@/lib/auth/permissions";
+import {
+  isVerifiedResearcher,
+  requireResearcher,
+  requireManagedOpportunity,
+  UNVERIFIED_RESEARCHER_MESSAGE,
+} from "@/lib/auth/permissions";
 import { parseForm, toActionError } from "@/lib/action-utils";
 import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
@@ -38,6 +43,9 @@ export async function createReviewPostingAction(_prev: ActionResult | null, form
   if (!parsed.ok) return parsed.result;
 
   const user = await requireResearcher();
+  // A review posting goes live the moment it is created, so this is the last
+  // point at which verification can be checked.
+  if (!isVerifiedResearcher(user)) return { ok: false as const, error: UNVERIFIED_RESEARCHER_MESSAGE };
   let slug = "";
 
   try {

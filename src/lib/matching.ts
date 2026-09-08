@@ -37,7 +37,12 @@ export type MatchResult = {
   points: number;
   applicableWeight: number;
   dimensions: DimensionScore[];
+  /** Dimensions that matched, in the words shown to the reader. */
   reasons: string[];
+  /** Dimensions that applied and did not match. Worth saying out loud: a
+   *  listing ranked lower for running the wrong length should say so rather
+   *  than leave the reader guessing why the number is what it is. */
+  caveats: string[];
 };
 
 function overlap<T>(a: readonly T[], b: readonly T[]): T[] {
@@ -62,6 +67,23 @@ export function compensationBucket(compensationType: string): CompensationPrefer
   return null;
 }
 
+/**
+ * Everything a listing can honestly claim to offer. A paid position that also
+ * carries course credit answers both questions, so a student who only wants
+ * credit should still see it as a match: scoring it on the pay bucket alone
+ * would rank it below an unpaid listing for exactly the wrong reason.
+ */
+export function compensationBuckets(opportunity: {
+  compensationType: string;
+  academicCreditAvailable?: boolean;
+}): CompensationPreferenceOption[] {
+  const buckets = new Set<CompensationPreferenceOption>();
+  const primary = compensationBucket(opportunity.compensationType);
+  if (primary) buckets.add(primary);
+  if (opportunity.academicCreditAvailable) buckets.add("academic_credit");
+  return [...buckets];
+}
+
 function listPhrase(values: string[]): string {
   if (values.length <= 1) return values[0] ?? "";
   if (values.length === 2) return `${values[0]} and ${values[1]}`;
@@ -83,6 +105,7 @@ export type OpportunityMatchInput = {
   skillNames: string[];
   durations: DurationOption[];
   compensationType: string;
+  academicCreditAvailable?: boolean;
   hoursPerWeekMin: number | null;
   locationMode: string;
   beginnerFriendly: boolean;
@@ -129,15 +152,19 @@ export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityM
     dimensions.push({ dimension: "duration", score: null, weight: MATCH_WEIGHTS.duration, reason: null });
   }
 
-  // Paid, volunteer, or for credit.
-  const bucket = compensationBucket(opportunity.compensationType);
-  if (student.compensationPreferences.length > 0 && bucket) {
-    const wanted = student.compensationPreferences.includes(bucket);
+  // Paid, volunteer, or for credit. A listing can sit in more than one bucket,
+  // and matching any single one the student asked for is a full match.
+  const buckets = compensationBuckets(opportunity);
+  if (student.compensationPreferences.length > 0 && buckets.length > 0) {
+    const matchedBuckets = overlap(buckets, student.compensationPreferences);
     dimensions.push({
       dimension: "compensation",
-      score: wanted ? MATCH_WEIGHTS.compensation : 0,
+      score: matchedBuckets.length > 0 ? MATCH_WEIGHTS.compensation : 0,
       weight: MATCH_WEIGHTS.compensation,
-      reason: wanted ? COMPENSATION_PREFERENCE_LABELS[bucket] : null,
+      reason:
+        matchedBuckets.length > 0
+          ? listPhrase(matchedBuckets.map((value) => COMPENSATION_PREFERENCE_LABELS[value]))
+          : "Not the kind of position you said you were looking for",
     });
   } else {
     dimensions.push({ dimension: "compensation", score: null, weight: MATCH_WEIGHTS.compensation, reason: null });
@@ -191,6 +218,10 @@ export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityM
     .filter((entry) => entry.score !== null && entry.score > 0 && entry.reason)
     .map((entry) => entry.reason as string);
 
+  const caveats = dimensions
+    .filter((entry) => entry.score === 0 && entry.reason)
+    .map((entry) => entry.reason as string);
+
   if (!student.hasExperience && opportunity.beginnerFriendly) {
     points += 4;
     reasons.push("Open to students without previous research");
@@ -201,5 +232,5 @@ export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityM
 
   const percent = applicableWeight > 0 ? Math.max(0, Math.min(100, Math.round((points / applicableWeight) * 100))) : null;
 
-  return { percent, points, applicableWeight, dimensions, reasons };
+  return { percent, points, applicableWeight, dimensions, reasons, caveats };
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/app/page-header";
+import { ButtonLink } from "@/components/ui/button";
 import { requireResearcher } from "@/lib/auth/permissions";
 import { CreateDraftButton } from "./create-draft-button";
 
@@ -40,9 +41,17 @@ export default async function NewOpportunityPage() {
         ))}
       </ol>
 
-      <div className="mt-7">
+      <div className="mt-7 flex flex-wrap items-center gap-3">
         <CreateDraftButton />
+        <ButtonLink href="/researcher/opportunities/new-simple" variant="outline">
+          Use the one-page form
+        </ButtonLink>
       </div>
+
+      <p className="mt-3 text-[13px] leading-6 text-muted">
+        The one-page form posts a listing immediately and skips criteria, application questions, and attachments. You
+        can add those afterwards by editing the position.
+      </p>
     </div>
   );
 }
