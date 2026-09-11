@@ -91,7 +91,7 @@ export default async function ResearcherDashboardPage({
             {published.length === 0 ? (
               <EmptyState
                 title="Post your first research opportunity to begin receiving applications."
-                body="Nine short steps. You describe the project, state what matters for it, and write the questions students answer."
+                body="One page. You describe the project, say what the work needs, and set how much each part of an application counts."
                 actionHref="/researcher/opportunities/new"
                 actionLabel="Post opportunity"
               />

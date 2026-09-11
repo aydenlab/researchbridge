@@ -6,6 +6,23 @@ const LOG = process.env.RB_DEV_LOG;
 const results = [];
 const errors = [];
 
+/**
+ * Repeatable rows are added client side, so a click can land before the page
+ * has hydrated and do nothing. Retry until the row the click should have made
+ * exists.
+ */
+async function addRow(page, buttonText, rowSelector) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await page.click(`button:has-text("${buttonText}")`);
+    try {
+      await page.locator(rowSelector).waitFor({ state: "attached", timeout: 15000 });
+      return;
+    } catch {
+      if (attempt === 3) throw new Error(`${buttonText} never produced ${rowSelector}`);
+    }
+  }
+}
+
 function step(name, ok, detail = "") {
   results.push({ name, ok, detail });
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? ` :: ${detail}` : ""}`);
@@ -119,6 +136,20 @@ try {
   const shortInputs = student.locator('form input[type="text"][name^="q_"], form input:not([type])[name^="q_"]');
   for (let i = 0; i < (await shortInputs.count()); i += 1) await shortInputs.nth(i).fill("Fall and Winter");
 
+  // A resume lives on the profile, and the seed does not give anyone one, so
+  // the first application is where it gets uploaded.
+  if ((await student.locator("#applicationResume").count()) > 0) {
+    await student.setInputFiles("#applicationResume", {
+      name: "student-resume.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 minimal fixture used only by the end to end suite. %%EOF"),
+    });
+    await student.click('button:has-text("Upload resume")');
+    await student.waitForSelector("text=Resume attached", { timeout: 90000 });
+  }
+  const resumeAttached = await student.locator("text=Resume attached").count();
+  step("a resume can be attached from the application itself", resumeAttached > 0);
+
   let draftSaved = false;
   try {
     await student.waitForSelector("text=Draft saved", { timeout: 90000 });
@@ -168,54 +199,106 @@ try {
   const researcher = await signIn(researcherCtx, "okonjoa@example.edu");
   step("researcher signs in and lands on their dashboard", researcher.url().includes("/researcher"), researcher.url());
 
+  // Posting is one page and one submission. Everything the wizard used to walk
+  // through in nine screens is either asked for here or added afterwards by
+  // editing the position, which is what the rest of this block checks.
   await researcher.goto(`${BASE}/researcher/opportunities/new`, { waitUntil: "domcontentloaded" });
-  await Promise.all([
-    researcher.waitForURL(/\/researcher\/opportunities\/.*\/edit/, { timeout: 90000 }),
-    researcher.click('button:has-text("Start a draft")'),
-  ]);
-  const opportunityId = researcher.url().split("/researcher/opportunities/")[1].split("/")[0];
-  step("researcher can start an opportunity draft", Boolean(opportunityId));
-
   await researcher.fill("#title", "Undergraduate Research Assistant, Respiratory Outcomes");
-  await researcher.fill("#summary", "Analyze routinely collected respiratory admission data to understand readmission patterns after discharge.");
   await researcher.fill(
-    "#description",
-    "Our group works with a de-identified extract of respiratory admissions across four regional hospitals. We are trying to understand which factors recorded at discharge relate to readmission within ninety days. Most of the work is data preparation, and the decisions made while cleaning shape any finding that follows.",
+    "#summary",
+    "Analyze routinely collected respiratory admission data to understand readmission patterns after discharge.",
   );
-  await researcher.fill("#department", "Health Research Methods, Evidence, and Impact");
-  await researcher.locator('input[name="researchFieldIds"]').first().check();
-  await Promise.all([researcher.waitForURL(/step=2/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
-  step("step 1 saves the project", researcher.url().includes("step=2"));
-
   await researcher.fill(
     "#responsibilities",
     "Clean and reconcile variables in the admissions extract.\nProduce descriptive summaries for group review.\nDocument every cleaning decision in a shared methods log.",
   );
-  await Promise.all([researcher.waitForURL(/step=3/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
-
-  await researcher.fill("#hoursPerWeekMin", "6");
-  await researcher.fill("#hoursPerWeekMax", "10");
+  await researcher.fill(
+    "#additionalInfo",
+    "Our group works with a de-identified extract of respiratory admissions across four regional hospitals. We are trying to understand which factors recorded at discharge relate to readmission within ninety days. Most of the work is data preparation, and the decisions made while cleaning shape any finding that follows.",
+  );
+  await researcher.fill("#department", "Health Research Methods, Evidence, and Impact");
   await researcher.fill("#deadline", "2026-11-30");
-  await researcher.selectOption("#compensationType", "paid");
-  await researcher.fill("#compensationDetails", "Paid hourly at the university research assistant rate.");
+  await researcher.locator('input[name="researchFieldId"]').first().check();
+  await researcher.locator('input[name="outcomes"][value="authorship"]').check();
+  await researcher.locator('input[name="skillName"][value="Python"]').check();
+  await researcher.locator('input[name="preferredDurations"][value="one_semester"]').check();
+  await researcher.locator('input[name="locationMode"][value="hybrid"]').check();
+  await researcher.locator('input[name="compensation"][value="paid"]').check();
   await researcher.check('input[name="beginnerFriendly"]');
-  await Promise.all([researcher.waitForURL(/step=4/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
-  step("step 3 enforces compensation detail for a paid position", researcher.url().includes("step=4"));
 
-  await researcher.selectOption("#criterionType-0", "availability");
-  await researcher.selectOption("#criterionImportance-0", "required");
-  await researcher.fill("#criterionLabel-0", "Availability of at least 6 hours per week");
-  await researcher.fill("#criterionConfig-0", "6");
-  await researcher.click('button:has-text("Add criterion")');
-  await researcher.selectOption("#criterionType-1", "skill");
-  await researcher.selectOption("#criterionImportance-1", "high");
-  await researcher.fill("#criterionLabel-1", "Python or R");
-  await researcher.fill("#criterionConfig-1", "Python");
-  await researcher.fill("#opportunitySkillName-0", "Python");
+  // Paid with no arrangement stated: the form has to refuse and say why.
+  await researcher.click('button:has-text("Post opportunity")');
+  await researcher.waitForTimeout(1800);
+  const payError = await researcher.locator("text=Describe the pay arrangement").count();
+  step(
+    "the one page form refuses a paid position with no pay arrangement",
+    payError > 0 && researcher.url().includes("/researcher/opportunities/new"),
+    researcher.url(),
+  );
+
+  await researcher.fill("#compensationDetails", "Paid hourly at the university research assistant rate.");
+  await researcher.locator("#weightGpa").fill("20");
+  await researcher.locator("#weightExtracurriculars").fill("0");
+  await researcher.locator("#weightSkills").fill("90");
+  await Promise.all([
+    // The student-facing listing, not the researcher route the form lives on.
+    researcher.waitForURL((url) => /^\/opportunities\/[^/]+$/.test(url.pathname), { timeout: 90000 }),
+    researcher.click('button:has-text("Post opportunity")'),
+  ]);
+  step("the one page form publishes a listing in one submission", !researcher.url().includes("/researcher/"), researcher.url());
+
+  const liveTitle = await researcher.locator("text=Undergraduate Research Assistant, Respiratory Outcomes").count();
+  const queued = await researcher.locator("text=It is visible to you because you manage it").count();
+  step("the posted listing is live rather than queued", liveTitle > 0 && queued === 0);
+
+  const outcomeShown = await researcher.locator("text=Authorship").count();
+  step("project outcomes reach the listing", outcomeShown > 0);
+
+  // The sliders are the form's only account of what matters, so they have to
+  // come out the other side as criteria rather than as a discarded input.
+  const criteriaHeading = await researcher.locator("text=Who this researcher is looking for").count();
+  const skillCriterion = await researcher.locator("text=High importance").count();
+  const droppedWeight = await researcher.locator("text=Extracurricular involvement").count();
+  step(
+    "the weight sliders become criteria, and a slider at zero becomes nothing",
+    criteriaHeading > 0 && skillCriterion > 0 && droppedWeight === 0,
+    `${skillCriterion} weighted criteria`,
+  );
+
+  await researcher.goto(`${BASE}/researcher/opportunities`, { waitUntil: "domcontentloaded" });
+  const postedRow = researcher.locator('li:has-text("Respiratory Outcomes")').first();
+  const editHref = await postedRow.locator('a:has-text("Edit listing")').first().getAttribute("href");
+  const opportunityId = editHref.split("/researcher/opportunities/")[1].split("/")[0];
+  step("a posted position can be opened for editing", Boolean(opportunityId), editHref);
+
+  // What the short form leaves out has to be reachable afterwards, because the
+  // form tells the researcher it is.
+  await researcher.goto(`${BASE}/researcher/opportunities/${opportunityId}/edit?step=4`, { waitUntil: "domcontentloaded" });
+  const carriedCriterion = await researcher.locator('input[value="Python"]').count();
+  step("the criteria editor opens on what the sliders wrote", carriedCriterion > 0);
+
+  // Added alongside what the sliders wrote rather than on top of it: saving
+  // this step rewrites every criterion from the form, so the existing rows have
+  // to survive the round trip.
+  const weightedRows = await researcher.locator('select[name="criterionType"]').count();
+  await addRow(researcher, "Add criterion", `#criterionType-${weightedRows}`);
+  await researcher.selectOption(`#criterionType-${weightedRows}`, "availability");
+  await researcher.selectOption(`#criterionImportance-${weightedRows}`, "required");
+  await researcher.fill(`#criterionLabel-${weightedRows}`, "Availability of at least 6 hours per week");
+  await researcher.fill(`#criterionConfig-${weightedRows}`, "6");
   await Promise.all([researcher.waitForURL(/step=5/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
-  step("step 4 saves weighted criteria", researcher.url().includes("step=5"));
+  step("a screening criterion can be added after posting", researcher.url().includes("step=5"));
 
-  await researcher.click('button:has-text("Add question")');
+  await researcher.goto(`${BASE}/researcher/opportunities/${opportunityId}/edit?step=4`, { waitUntil: "domcontentloaded" });
+  const rowsAfterSave = await researcher.locator('select[name="criterionType"]').count();
+  step(
+    "editing criteria keeps the ones the sliders wrote",
+    rowsAfterSave === weightedRows + 1,
+    `${rowsAfterSave} of an expected ${weightedRows + 1}`,
+  );
+  await researcher.goto(`${BASE}/researcher/opportunities/${opportunityId}/edit?step=5`, { waitUntil: "domcontentloaded" });
+
+  await addRow(researcher, "Add question", "#questionPrompt-0");
   await researcher.fill("#questionPrompt-0", "What interests you about respiratory outcomes research?");
   await Promise.all([researcher.waitForURL(/step=6/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
 
@@ -223,21 +306,12 @@ try {
   await researcher.fill("#materialUrl", "https://example.org/respiratory-readmission");
   await researcher.check('input[name="includePaperQuestion"]');
   await Promise.all([researcher.waitForURL(/step=7/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
-  step("step 6 attaches a paper and its prompt", researcher.url().includes("step=7"));
+  step("a paper and its prompt can be attached after posting", researcher.url().includes("step=7"));
 
   await Promise.all([researcher.waitForURL(/step=8/, { timeout: 90000 }), researcher.click('button:has-text("Save and continue")')]);
   const previewTitle = await researcher.locator("text=Undergraduate Research Assistant, Respiratory Outcomes").count();
   const previewNotice = await researcher.locator("text=This is the student-facing listing exactly as it will appear.").count();
-  step("step 8 previews the student-facing listing", previewTitle > 0 && previewNotice > 0);
-
-  await researcher.click('a:has-text("Continue to publish")');
-  await researcher.waitForTimeout(500);
-  await researcher.check('input[name="confirm"]');
-  await Promise.all([
-    researcher.waitForURL(/\/applicants\?published=1/, { timeout: 90000 }),
-    researcher.click('button:has-text("Publish opportunity")'),
-  ]);
-  step("publishing succeeds and lands on the applicant view", researcher.url().includes("published=1"));
+  step("the preview shows the student-facing listing", previewTitle > 0 && previewNotice > 0);
 
   await researcher.goto(`${BASE}/opportunities?q=Respiratory`, { waitUntil: "domcontentloaded" });
   const visibleToStudents = await researcher.locator("text=Undergraduate Research Assistant, Respiratory Outcomes").count();

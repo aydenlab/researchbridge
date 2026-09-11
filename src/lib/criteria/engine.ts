@@ -186,11 +186,16 @@ function evaluateResearchInterest(criterion: Criterion, evidence: ApplicantEvide
 
 function evaluateAcademicMetric(criterion: Criterion, evidence: ApplicantEvidence): CriterionResult {
   const config = criterion.config as AcademicMetricConfig;
-  if (typeof config.minValue !== "number") {
-    return result(criterion, "unknown", ["This criterion has no academic threshold configured."]);
-  }
   if (evidence.academicRecords.length === 0) {
     return result(criterion, "unknown", ["No academic standing shared on this profile."]);
+  }
+  if (typeof config.minValue !== "number") {
+    // Weighted on the one-page form rather than given a cut-off. There is
+    // nothing to pass or fail, so this surfaces the number and stops there:
+    // "unknown" keeps it out of the preference score either way.
+    return result(criterion, "unknown", [
+      `Academic standing: ${evidence.academicRecords.map((record) => formatMetric(record)).join(", ")}. No minimum was set for this position.`,
+    ]);
   }
   const comparable = evidence.academicRecords.find(
     (record: AcademicMetric) =>

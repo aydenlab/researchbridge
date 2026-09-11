@@ -14,6 +14,7 @@ import {
   opportunityQuestions,
   opportunityResearchMaterials,
   opportunitySkills,
+  researchFields,
 } from "@/db";
 import {
   isVerifiedResearcher,
@@ -21,10 +22,13 @@ import {
   requireManagedOpportunity,
   UNVERIFIED_RESEARCHER_MESSAGE,
 } from "@/lib/auth/permissions";
-import { checkboxValue, formList, optionalText, parseForm, toActionError } from "@/lib/action-utils";
+import { checkboxValue, formList, formValues, optionalText, parseForm, toActionError } from "@/lib/action-utils";
+import type { ResubmitResult } from "@/lib/action-utils";
 import type { ActionResult } from "@/lib/errors";
+import { criteriaFromWeights, readWeights } from "@/lib/criteria/from-weights";
 import { recordAudit, recordEvent } from "@/lib/events";
 import { slugify } from "@/lib/format";
+import { PROJECT_OUTCOME_LABELS } from "@/lib/labels";
 import { log } from "@/lib/log";
 import { isEnabled } from "@/lib/flags";
 
@@ -57,59 +61,35 @@ async function uniqueSlug(title: string, opportunityId: string): Promise<string>
   }
 }
 
-export async function createDraftAction(_prev: ActionResult | null, _formData: FormData) {
-  const user = await requireResearcher();
-  let id = "";
-
-  try {
-    const [row] = await db
-      .insert(opportunities)
-      .values({
-        institutionId: user.institutionId ?? null,
-        researcherId: user.id,
-        title: "Untitled research position",
-        slug: `draft-${crypto.randomUUID().slice(0, 12)}`,
-        summary: "",
-        status: "draft",
-        draftStep: 1,
-      })
-      .returning({ id: opportunities.id });
-    id = row.id;
-
-    await recordEvent({
-      name: "opportunity_created",
-      userId: user.id,
-      institutionId: user.institutionId,
-      subjectType: "opportunity",
-      subjectId: id,
-    });
-  } catch (error) {
-    return toActionError(error, "create_draft_failed");
-  }
-
-  redirect(`/researcher/opportunities/${id}/edit?step=1`);
-}
-
 /**
- * The one-page form's counterpart to the nine-step wizard. It writes the same
- * row the wizard would have written and publishes in the same breath, because
- * the whole point of the short form is that there is no draft to come back to.
- * Everything the publish gate insists on is asked for up front, so this cannot
- * produce a listing the wizard would have refused.
+ * The one-page posting form. It writes a complete listing and publishes in the
+ * same breath, because the whole point of the short form is that there is no
+ * draft to come back to. Everything the old publish gate insisted on is asked
+ * for up front, so this cannot produce a listing that gate would have refused.
+ *
+ * An account still awaiting verification can post; the listing queues for a
+ * reviewer instead of going live. That is the same bargain the pending page
+ * offers, and it is the only path to a first listing now that the step-by-step
+ * draft is gone.
  */
-export async function createSimpleOpportunityAction(_prev: ActionResult | null, formData: FormData) {
+export async function createSimpleOpportunityAction(
+  _prev: ResubmitResult | null,
+  formData: FormData,
+): Promise<ResubmitResult> {
   const parsed = parseForm(simpleOpportunitySchema, formData);
-  if (!parsed.ok) return parsed.result;
+  // A refusal has to carry the submission back with it: React empties the form
+  // the moment this returns, and this one is long enough that losing it would
+  // be worse than the mistake being reported.
+  if (!parsed.ok) return { ...parsed.result, values: formValues(formData) };
 
   const user = await requireResearcher();
-  if (!isVerifiedResearcher(user)) return { ok: false as const, error: UNVERIFIED_RESEARCHER_MESSAGE };
 
   let slug = "";
 
   try {
     const data = parsed.data;
     const candidate = await uniqueSlug(data.title, "");
-    const reviewRequired = await isEnabled("OPPORTUNITY_REVIEW_REQUIRED");
+    const reviewRequired = (await isEnabled("OPPORTUNITY_REVIEW_REQUIRED")) || !isVerifiedResearcher(user);
     const status = reviewRequired ? "pending_review" : "published";
     const now = new Date();
 
@@ -117,6 +97,16 @@ export async function createSimpleOpportunityAction(_prev: ActionResult | null, 
       .map((name) => name.trim())
       .filter(Boolean)
       .slice(0, 20);
+
+    const outcomes = formList(formData, "outcomes")
+      .map((value) => PROJECT_OUTCOME_LABELS[value])
+      .filter(Boolean);
+
+    const [field] = await db
+      .select({ name: researchFields.name, slug: researchFields.slug })
+      .from(researchFields)
+      .where(eq(researchFields.id, data.researchFieldId))
+      .limit(1);
 
     const [row] = await db
       .insert(opportunities)
@@ -128,6 +118,7 @@ export async function createSimpleOpportunityAction(_prev: ActionResult | null, 
         summary: data.summary,
         description: data.additionalInfo,
         responsibilities: data.responsibilities,
+        expectedOutputs: outcomes.length > 0 ? outcomes.join(", ") : null,
         department: data.department,
         numberOfOpenings: 1,
         hoursPerWeekMin: data.hoursPerWeekMin,
@@ -147,11 +138,21 @@ export async function createSimpleOpportunityAction(_prev: ActionResult | null, 
 
     slug = row.slug;
 
+    const criteria = criteriaFromWeights({
+      weights: readWeights(formData),
+      field: field ?? null,
+      skillNames,
+      priorResearchRequired: data.priorResearchRequired,
+    });
+
     await db.transaction(async (tx) => {
       await tx
         .insert(opportunityDurations)
         .values(data.preferredDurations.map((duration) => ({ opportunityId: row.id, duration })));
       await tx.insert(opportunityFields).values({ opportunityId: row.id, researchFieldId: data.researchFieldId });
+      if (criteria.length > 0) {
+        await tx.insert(opportunityCriteria).values(criteria.map((criterion) => ({ ...criterion, opportunityId: row.id })));
+      }
     });
 
     for (const name of skillNames) {
@@ -189,7 +190,7 @@ export async function createSimpleOpportunityAction(_prev: ActionResult | null, 
     revalidatePath("/researcher/opportunities");
     log.info("opportunity_posted_simple", { opportunityId: row.id, status });
   } catch (error) {
-    return toActionError(error, "create_simple_opportunity_failed");
+    return { ...toActionError(error, "create_simple_opportunity_failed"), values: formValues(formData) };
   }
 
   redirect(`/opportunities/${slug}`);

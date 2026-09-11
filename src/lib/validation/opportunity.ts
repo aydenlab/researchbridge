@@ -102,9 +102,10 @@ export const reviewPostingSchema = z.object({
 });
 
 /**
- * The one-page posting form. Same destination as the nine-step wizard, asking
- * only for what a listing cannot legally be published without, so a supervisor
- * who already knows what they want is not walked through nine screens to say it.
+ * The one-page posting form, and the only way a listing is created. It asks
+ * only for what a listing cannot be published without, so a supervisor who
+ * already knows what they want is not walked through nine screens to say it.
+ * The step forms below still exist for editing a position after the fact.
  */
 export const simpleOpportunitySchema = z
   .object({

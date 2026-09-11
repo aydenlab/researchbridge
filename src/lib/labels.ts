@@ -108,6 +108,19 @@ export const COURSE_STATUS_LABELS: Record<string, string> = {
   planned: "Planned",
 };
 
+/**
+ * What a student walks away with from a project. Set on the posting form and
+ * stored as the listing's expected outputs, so the form and the action have to
+ * read the same list.
+ */
+export const PROJECT_OUTCOME_LABELS: Record<string, string> = {
+  authorship: "Authorship",
+  poster: "Poster",
+  conference: "Conference presentation",
+  thesis: "Thesis project",
+  publication: "Publication",
+};
+
 export const OUTCOME_LABELS: Record<string, string> = {
   yes: "Yes",
   no: "No",

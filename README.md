@@ -112,7 +112,7 @@ Integrity is enforced in the database as well as in application code: unique use
 ## Testing
 
 ```bash
-npm run test         # 133 tests
+npm run test         # 352 tests
 npm run typecheck
 npm run check        # typecheck, tests, and a production build
 ```
@@ -121,8 +121,8 @@ Tests run against an in-memory PGlite instance created in `tests/setup.ts`, migr
 
 Coverage:
 
-- **Unit** grading scale handling, deterministic criteria, weight normalisation, permission and status transition rules, and HTML form parsing including the single-checkbox case.
-- **Integration** verification code lifecycle and rate limiting, duplicate application prevention, snapshot immutability, criterion persistence, opportunity search and filtering, database constraints, researcher and student authorisation boundaries.
+- **Unit** grading scale handling, deterministic criteria, weight normalisation, the posting form's sliders becoming criteria, permission and status transition rules, and HTML form parsing including the single-checkbox case.
+- **Integration** verification code lifecycle and rate limiting, posting a position from the one-page form, duplicate application prevention, snapshot immutability, criterion persistence, opportunity search and filtering, database constraints, researcher and student authorisation boundaries.
 - **AI** structured output parsing, schema rejection, provider errors, rate limits, missing API key, invented criterion ids, prompt injection inside application text, and the paid-position restriction.
 
 ---
@@ -202,7 +202,7 @@ src/
       messages/         direct messages, gated by the rules in lib/queries/messages.ts
       people/           public member profiles, referrals, follow
       applications/     student drafts, submission, status, outcome reporting
-      researcher/       dashboard, 9-step opportunity builder, review posting, applicant review
+      researcher/       dashboard, one-page opportunity posting and its step editor, review posting, applicant review
       admin/            approvals, users, listings, institutions, taxonomies, faculty import, pilot metrics
     api/                health, sign out, authorised file access, CSV export, weekly digest cron
   components/
@@ -287,6 +287,8 @@ Not implemented, and worth revisiting if volume grows: the Message Batches API h
 **Messaging is gated on a mutual follow, deliberately.** A researcher can write to any student. A student can write to a researcher only once that researcher has followed them back, or once the researcher has actually engaged with one of their applications. Without that gate a professor's inbox becomes the cold-email pile this platform exists to replace, and the follow costs the researcher one click when they do want to hear from somebody. Once a conversation exists in either direction it stays open. Two students need a mutual follow. The rules live in one function, `canMessage`, and are tested in `tests/integration/messaging.test.ts`.
 
 **Reviews are a separate posting type, not a research position with blanks.** A review posting is four fields: title, summary, whether there is authorship, and which parts need help. It publishes immediately with no draft steps and no moderation queue, because the entire value of the type is that it can go up in under two minutes.
+
+**A position is posted from one page, and edited in steps afterwards.** `/researcher/opportunities/new` asks for everything a listing cannot be published without and posts it in one submission. Application questions, screening criteria, a paper to respond to, and a video prompt are added later by editing the position, which is where the step forms now live. The five sliders on that page are not a score: each one above zero becomes a criterion whose importance comes from where the slider sits, ordered so the heaviest is the first evidence a reviewer sees. A slider left at zero writes nothing. An account still awaiting verification can post; the listing queues for a reviewer rather than going live.
 
 **A pre-filled faculty profile belongs to the list until the person claims it.** An admin imports a faculty list at `/admin/faculty`; each row becomes a `researcher` account that is `pending` as a user but `verified` as a profile, because coming off the institution's own faculty list is a stronger check than the manual one done for a self-signup. Nobody is emailed. When the professor signs in they get one screen, not the wizard: everything is already filled in, and the only required answer is what they are actually looking for. Confirming sets `claimedAt`, which permanently takes the profile out of reach of any future re-import. Re-running the import as the list grows is therefore safe.
 

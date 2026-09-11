@@ -1,57 +1,57 @@
 import type { Metadata } from "next";
+import { eq } from "drizzle-orm";
 import { PageHeader } from "@/components/app/page-header";
-import { ButtonLink } from "@/components/ui/button";
-import { requireResearcher } from "@/lib/auth/permissions";
-import { CreateDraftButton } from "./create-draft-button";
+import { db, researcherProfiles } from "@/db";
+import { isVerifiedResearcher, requireResearcher } from "@/lib/auth/permissions";
+import { listResearchFields, listSkills } from "@/lib/queries/taxonomy";
+import { SimpleOpportunityForm } from "./simple-form";
 
 export const metadata: Metadata = {
   title: "Post a research position",
   robots: { index: false, follow: false },
 };
 
-const STEPS = [
-  "The research project, in language a second-year student can follow.",
-  "What the student would actually spend their time doing.",
-  "Openings, hours, dates, location, and compensation category.",
-  "The criteria that matter for this project, and how much each counts.",
-  "Questions written for this project rather than a generic form.",
-  "Optionally attach a paper and ask applicants to respond to it.",
-  "Optionally request a short video response. Off by default.",
-  "A preview of exactly what students see.",
-  "Confirm and submit.",
-];
+const UNCATEGORIZED = "Other";
 
 export default async function NewOpportunityPage() {
-  await requireResearcher();
+  const user = await requireResearcher();
+  const verified = isVerifiedResearcher(user);
+
+  const [fields, skills, profileRows] = await Promise.all([
+    listResearchFields(),
+    listSkills(),
+    db
+      .select({ department: researcherProfiles.department })
+      .from(researcherProfiles)
+      .where(eq(researcherProfiles.userId, user.id))
+      .limit(1),
+  ]);
+
+  const grouped = new Map<string, string[]>();
+  for (const skill of skills) {
+    const category = skill.category ?? UNCATEGORIZED;
+    const bucket = grouped.get(category);
+    if (bucket) bucket.push(skill.name);
+    else grouped.set(category, [skill.name]);
+  }
+  const skillGroups = [...grouped.entries()]
+    .map(([category, names]) => ({ category, skills: names }))
+    .sort((a, b) => (a.category === UNCATEGORIZED ? 1 : b.category === UNCATEGORIZED ? -1 : a.category.localeCompare(b.category)));
 
   return (
-    <div className="mx-auto max-w-[760px] px-4 py-10 sm:px-6 sm:py-14">
+    <div className="mx-auto max-w-[860px] px-4 py-10 sm:px-6 sm:py-14">
       <PageHeader
         eyebrow="New position"
         title="Post a research opportunity"
-        lede="Nine short steps. Everything saves as a draft, so you can stop and come back. You do not need to be verified first."
+        lede="One page. Describe the project, say what the work needs, and set how much each part of an application counts."
       />
 
-      <ol className="overflow-hidden rounded-[12px] border border-line bg-white">
-        {STEPS.map((description, index) => (
-          <li key={description} className="grid grid-cols-[52px_1fr] gap-3 border-b border-line px-5 py-3.5 last:border-b-0">
-            <span className="font-mono text-[13px] text-subtle">{String(index + 1).padStart(2, "0")}</span>
-            <span className="text-[14px] leading-6 text-muted">{description}</span>
-          </li>
-        ))}
-      </ol>
-
-      <div className="mt-7 flex flex-wrap items-center gap-3">
-        <CreateDraftButton />
-        <ButtonLink href="/researcher/opportunities/new-simple" variant="outline">
-          Use the one-page form
-        </ButtonLink>
-      </div>
-
-      <p className="mt-3 text-[13px] leading-6 text-muted">
-        The one-page form posts a listing immediately and skips criteria, application questions, and attachments. You
-        can add those afterwards by editing the position.
-      </p>
+      <SimpleOpportunityForm
+        fields={fields.map((field) => ({ id: field.id, name: field.name }))}
+        skillGroups={skillGroups}
+        department={profileRows[0]?.department ?? ""}
+        verified={verified}
+      />
     </div>
   );
 }

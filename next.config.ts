@@ -33,6 +33,16 @@ const nextConfig: NextConfig = {
     config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^@\/lib\/notifications\/schedule$/ }));
     return config;
   },
+  /**
+   * The one-page form used to live beside a nine-step wizard at /new-simple.
+   * It is the posting page now, so the old address only exists for links that
+   * were sent out while both were up.
+   */
+  async redirects() {
+    return [
+      { source: "/researcher/opportunities/new-simple", destination: "/researcher/opportunities/new", permanent: true },
+    ];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

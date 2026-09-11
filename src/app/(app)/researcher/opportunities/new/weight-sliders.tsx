@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import type { FormValues } from "@/lib/action-utils";
+import { DEFAULT_WEIGHT, readWeight } from "@/lib/criteria/from-weights";
 
 const WEIGHT_MAX = 100;
 
@@ -32,7 +34,7 @@ const WEIGHTS = [
   },
 ] as const;
 
-const INITIAL = WEIGHTS.map(() => 50);
+const INITIAL = WEIGHTS.map(() => DEFAULT_WEIGHT);
 
 /** Each weight's share of the total, as whole percentages that add up to 100. */
 function shares(values: number[]): number[] {
@@ -56,8 +58,15 @@ function shares(values: number[]): number[] {
   return result;
 }
 
-export function WeightSliders() {
-  const [weights, setWeights] = useState<number[]>(INITIAL);
+export function WeightSliders({ initial }: { initial?: FormValues }) {
+  // A refused submission hands every slider back, so the balance a researcher
+  // set does not quietly reset to the middle along with the rest of the form.
+  const [weights, setWeights] = useState<number[]>(() =>
+    WEIGHTS.map((weight, index) => {
+      const submitted = initial?.[weight.name]?.[0];
+      return submitted === undefined ? INITIAL[index] : readWeight(submitted);
+    }),
+  );
   const total = weights.reduce((sum, value) => sum + value, 0);
   const balance = shares(weights);
 

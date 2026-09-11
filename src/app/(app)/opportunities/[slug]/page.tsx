@@ -27,6 +27,7 @@ import {
   CRITERION_TYPE_LABELS,
   DURATION_LABELS,
   LOCATION_LABELS,
+  OPPORTUNITY_STATUS_LABELS,
   REVIEW_TASK_LABELS,
   PAID_COMPENSATION,
   QUESTION_TYPE_LABELS,
@@ -145,7 +146,8 @@ export default async function OpportunityDetailPage({ params }: Params) {
 
         {detail.opportunity.status !== "published" ? (
           <div className="mb-6 rounded-[10px] border border-[#e6d7ae] bg-gold-soft px-4 py-3 text-[13.5px] text-warn">
-            This review is {detail.opportunity.status}. It is visible to you because you manage it.
+            This review is {labelOr(OPPORTUNITY_STATUS_LABELS, detail.opportunity.status).toLowerCase()}. It is visible to
+            you because you manage it.
           </div>
         ) : null}
 
@@ -314,7 +316,8 @@ export default async function OpportunityDetailPage({ params }: Params) {
 
       {detail.opportunity.status !== "published" ? (
         <div className="mb-6 rounded-[10px] border border-[#e6d7ae] bg-gold-soft px-4 py-3 text-[13.5px] text-warn">
-          This listing is {detail.opportunity.status}. It is visible to you because you manage it.
+          This listing is {labelOr(OPPORTUNITY_STATUS_LABELS, detail.opportunity.status).toLowerCase()}. It is visible to
+          you because you manage it.
         </div>
       ) : null}
 

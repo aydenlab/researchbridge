@@ -12,7 +12,10 @@ npx tsx src/db/seed.ts | tail -2
 sleep 1
 
 rm -f "$LOG_PATH"
-npm run dev > "$LOG_PATH" 2>&1 &
+# The digest has its own tests. Left on, it wakes up against the fresh
+# database this script just seeded and competes with the suite for the single
+# PGlite writer, which shows up as sign in timing out.
+DIGEST_AUTORUN=false npm run dev > "$LOG_PATH" 2>&1 &
 for i in $(seq 1 40); do
   sleep 2
   code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || true)

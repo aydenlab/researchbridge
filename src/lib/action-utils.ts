@@ -3,6 +3,12 @@ import { AppError } from "./errors";
 import { log } from "./log";
 import type { ActionResult } from "./errors";
 
+/** What a form submitted, so a refused submission can be rendered back into it. */
+export type FormValues = Record<string, string[]>;
+
+/** An action result that carries the submission back when it refuses it. */
+export type ResubmitResult = ActionResult & { values?: FormValues };
+
 export function fieldErrorsFrom(error: z.ZodError): Record<string, string[]> {
   const result: Record<string, string[]> = {};
   for (const issue of error.issues) {
@@ -48,6 +54,22 @@ export function toActionError(error: unknown, event: string): ActionResult<never
   }
   log.error(event, { error });
   return { ok: false, error: "Something on our side failed. Your work is saved. Try again in a moment." };
+}
+
+/**
+ * Every text value a form submitted, keyed by field name.
+ *
+ * React resets an uncontrolled form once its action returns, so an action that
+ * refuses a long form has to hand the values back or the researcher loses
+ * everything they typed. Files are left out: a browser will not accept one back.
+ */
+export function formValues(formData: FormData): FormValues {
+  const values: FormValues = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value !== "string") continue;
+    (values[key] ??= []).push(value);
+  }
+  return values;
 }
 
 export function formList(formData: FormData, key: string): string[] {

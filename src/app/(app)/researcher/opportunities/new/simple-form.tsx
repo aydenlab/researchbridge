@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { TokenField } from "@/components/app/inputs";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CheckboxRow, Field, FormError, FormNote, Input, Textarea } from "@/components/ui/field";
-import type { ActionResult } from "@/lib/errors";
-import { DURATION_LABELS, DURATION_ORDER, LOCATION_LABELS } from "@/lib/labels";
+import type { FormValues, ResubmitResult } from "@/lib/action-utils";
+import { DURATION_LABELS, DURATION_ORDER, LOCATION_LABELS, PROJECT_OUTCOME_LABELS } from "@/lib/labels";
 import { createSimpleOpportunityAction } from "../actions";
 import { OptionGrid } from "./option-grid";
 import { WeightSliders } from "./weight-sliders";
@@ -20,13 +20,17 @@ function Submit() {
   );
 }
 
-const OUTCOME_OPTIONS = [
-  { value: "authorship", label: "Authorship", description: "Named on a manuscript." },
-  { value: "poster", label: "Poster", description: "Presented at a departmental or student event." },
-  { value: "conference", label: "Conference presentation" },
-  { value: "thesis", label: "Thesis project", description: "Work a student can carry into a thesis." },
-  { value: "publication", label: "Publication" },
-];
+const OUTCOME_DESCRIPTIONS: Record<string, string> = {
+  authorship: "Named on a manuscript.",
+  poster: "Presented at a departmental or student event.",
+  thesis: "Work a student can carry into a thesis.",
+};
+
+const OUTCOME_OPTIONS = Object.entries(PROJECT_OUTCOME_LABELS).map(([value, label]) => ({
+  value,
+  label,
+  description: OUTCOME_DESCRIPTIONS[value],
+}));
 
 // The same fixed list the schema and the matching engine use. Duration is a
 // matching dimension now, so a short-term/long-term split here would not survive
@@ -81,16 +85,35 @@ export function SimpleOpportunityForm({
   fields,
   skillGroups,
   department,
+  verified,
 }: {
   fields: { id: string; name: string }[];
   skillGroups: { category: string; skills: string[] }[];
   department: string;
+  /** An unverified account can still post; the listing waits for a reviewer. */
+  verified: boolean;
 }) {
-  const [state, action] = useActionState<ActionResult | null, FormData>(createSimpleOpportunityAction, null);
+  const [state, action] = useActionState<ResubmitResult | null, FormData>(createSimpleOpportunityAction, null);
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
+  const submitted: FormValues = (state?.ok === false ? state.values : undefined) ?? {};
+
+  /**
+   * React empties an uncontrolled form once its action returns. A refusal hands
+   * the submission back, and remounting the form on that is what puts it in
+   * front of the researcher again: every field below reads its default from the
+   * refused submission, so nothing typed is lost to a validation message.
+   */
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (state?.ok === false) setAttempt((count) => count + 1);
+  }, [state]);
+
+  const text = (name: string, fallback = "") => submitted[name]?.[0] ?? fallback;
+  const chosen = (name: string) => submitted[name] ?? [];
+  const checked = (name: string) => (submitted[name] ?? []).length > 0;
 
   return (
-    <form action={action} className="flex flex-col gap-6">
+    <form key={attempt} action={action} className="flex flex-col gap-6">
       <Section
         title="The project"
         description="Write it the way you would describe it to a second-year student who has never worked in a lab."
@@ -105,6 +128,7 @@ export function SimpleOpportunityForm({
             id="title"
             name="title"
             placeholder="Undergraduate Research Assistant, Cardiovascular Outcomes"
+            defaultValue={text("title")}
             maxLength={180}
             required
           />
@@ -117,7 +141,7 @@ export function SimpleOpportunityForm({
           hint="One or two sentences. This appears in search results."
           error={fieldErrors?.summary?.[0]}
         >
-          <Textarea id="summary" name="summary" rows={2} maxLength={400} required />
+          <Textarea id="summary" name="summary" rows={2} defaultValue={text("summary")} maxLength={400} required />
         </Field>
 
         <Field
@@ -127,7 +151,14 @@ export function SimpleOpportunityForm({
           hint="The actual work, week to week. Honesty about the unglamorous parts attracts better applicants."
           error={fieldErrors?.responsibilities?.[0]}
         >
-          <Textarea id="responsibilities" name="responsibilities" rows={4} maxLength={4000} required />
+          <Textarea
+            id="responsibilities"
+            name="responsibilities"
+            rows={4}
+            defaultValue={text("responsibilities")}
+            maxLength={4000}
+            required
+          />
         </Field>
 
         <Field
@@ -137,7 +168,14 @@ export function SimpleOpportunityForm({
           hint="The research itself: background, techniques, and what the project is trying to answer."
           error={fieldErrors?.additionalInfo?.[0]}
         >
-          <Textarea id="additionalInfo" name="additionalInfo" rows={8} maxLength={8000} required />
+          <Textarea
+            id="additionalInfo"
+            name="additionalInfo"
+            rows={8}
+            defaultValue={text("additionalInfo")}
+            maxLength={8000}
+            required
+          />
         </Field>
 
         <Field
@@ -147,7 +185,7 @@ export function SimpleOpportunityForm({
           hint="Prefilled from your profile."
           error={fieldErrors?.department?.[0]}
         >
-          <Input id="department" name="department" defaultValue={department} maxLength={160} required />
+          <Input id="department" name="department" defaultValue={text("department", department)} maxLength={160} required />
         </Field>
 
         <Field
@@ -157,24 +195,25 @@ export function SimpleOpportunityForm({
           className="sm:max-w-[260px]"
           error={fieldErrors?.deadline?.[0]}
         >
-          <Input id="deadline" name="deadline" type="date" required />
+          <Input id="deadline" name="deadline" type="date" defaultValue={text("deadline")} required />
         </Field>
       </Section>
 
       <Section title="Field and outcomes" description="What the project belongs to, and what a student would walk away with.">
         <fieldset>
           <Legend label="Research field" required />
-          <OptionGrid type="radio" name="researchFieldId" options={fields.map((field) => ({ value: field.id, label: field.name }))} required />
+          <OptionGrid
+            type="radio"
+            name="researchFieldId"
+            options={fields.map((field) => ({ value: field.id, label: field.name }))}
+            initial={chosen("researchFieldId")}
+            required
+          />
         </fieldset>
 
         <fieldset>
           <Legend label="Project outcomes" />
-          <OptionGrid
-            type="checkbox"
-            name="outcomes"
-            options={OUTCOME_OPTIONS}
-            columns={2}
-          />
+          <OptionGrid type="checkbox" name="outcomes" options={OUTCOME_OPTIONS} initial={chosen("outcomes")} columns={2} />
         </fieldset>
       </Section>
 
@@ -189,6 +228,7 @@ export function SimpleOpportunityForm({
               type="checkbox"
               name="skillName"
               columns={4}
+              initial={chosen("skillName")}
               options={group.skills.map((skill) => ({ value: skill, label: skill }))}
             />
           </fieldset>
@@ -197,6 +237,7 @@ export function SimpleOpportunityForm({
         <div className="border-t border-line pt-5">
           <TokenField
             name="otherSkillName"
+            initial={chosen("otherSkillName")}
             label="Other skills"
             hint="Anything the list above does not cover. Press Enter to add each one."
             placeholder="Optical coherence tomography"
@@ -215,6 +256,7 @@ export function SimpleOpportunityForm({
             type="checkbox"
             name="preferredDurations"
             options={DURATION_OPTIONS}
+            initial={chosen("preferredDurations")}
             columns={3}
             selectAllLabel="Open to any length"
           />
@@ -225,17 +267,40 @@ export function SimpleOpportunityForm({
           <Legend label="Hours per week" required />
           <div className="grid gap-3 sm:max-w-[380px] sm:grid-cols-2">
             <Field label="Minimum" htmlFor="hoursPerWeekMin" required error={fieldErrors?.hoursPerWeekMin?.[0]}>
-              <Input id="hoursPerWeekMin" name="hoursPerWeekMin" type="number" min={0} max={60} defaultValue={6} required />
+              <Input
+                id="hoursPerWeekMin"
+                name="hoursPerWeekMin"
+                type="number"
+                min={0}
+                max={60}
+                defaultValue={text("hoursPerWeekMin", "6")}
+                required
+              />
             </Field>
             <Field label="Maximum" htmlFor="hoursPerWeekMax" required error={fieldErrors?.hoursPerWeekMax?.[0]}>
-              <Input id="hoursPerWeekMax" name="hoursPerWeekMax" type="number" min={0} max={60} defaultValue={10} required />
+              <Input
+                id="hoursPerWeekMax"
+                name="hoursPerWeekMax"
+                type="number"
+                min={0}
+                max={60}
+                defaultValue={text("hoursPerWeekMax", "10")}
+                required
+              />
             </Field>
           </div>
         </fieldset>
 
         <fieldset>
           <Legend label="Compensation" required />
-          <OptionGrid type="radio" name="compensation" options={COMPENSATION_OPTIONS} columns={2} required />
+          <OptionGrid
+            type="radio"
+            name="compensation"
+            options={COMPENSATION_OPTIONS}
+            initial={chosen("compensation")}
+            columns={2}
+            required
+          />
           <Field
             label="Pay arrangement"
             htmlFor="compensationDetails"
@@ -243,13 +308,18 @@ export function SimpleOpportunityForm({
             error={fieldErrors?.compensationDetails?.[0]}
             className="mt-3"
           >
-            <Input id="compensationDetails" name="compensationDetails" maxLength={1200} />
+            <Input
+              id="compensationDetails"
+              name="compensationDetails"
+              defaultValue={text("compensationDetails")}
+              maxLength={1200}
+            />
           </Field>
         </fieldset>
 
         <fieldset>
           <Legend label="Location" required />
-          <OptionGrid type="radio" name="locationMode" options={LOCATION_OPTIONS} required />
+          <OptionGrid type="radio" name="locationMode" options={LOCATION_OPTIONS} initial={chosen("locationMode")} required />
         </fieldset>
 
         <fieldset className="flex flex-col gap-2">
@@ -258,18 +328,21 @@ export function SimpleOpportunityForm({
             id="academicCreditAvailable"
             name="academicCreditAvailable"
             value="true"
+            defaultChecked={checked("academicCreditAvailable")}
             label="Academic credit is available for this position"
           />
           <CheckboxRow
             id="beginnerFriendly"
             name="beginnerFriendly"
             value="true"
+            defaultChecked={checked("beginnerFriendly")}
             label="Suitable for students with no previous research experience"
           />
           <CheckboxRow
             id="priorResearchRequired"
             name="priorResearchRequired"
             value="true"
+            defaultChecked={checked("priorResearchRequired")}
             label="Previous research experience is required"
           />
         </fieldset>
@@ -279,13 +352,13 @@ export function SimpleOpportunityForm({
         title="What matters most"
         description="Set each of these to whatever this project actually depends on. Nothing here orders candidates for you; it decides which evidence is surfaced first when you review them."
       >
-        <WeightSliders />
+        <WeightSliders initial={submitted} />
       </Section>
 
       <FormNote>
-        Posting from this page publishes the listing straight away. The nine-step wizard at
-        /researcher/opportunities/new is still there when you want application questions, screening criteria, or a
-        writing sample attached to the position.
+        {verified
+          ? "Posting publishes the listing straight away. Application questions, screening criteria, a paper to respond to, and a video prompt are all added afterwards by editing the position."
+          : "Your account is still being verified, so this listing is submitted for review rather than published. You do not have to wait here for that; you can keep editing it in the meantime."}
       </FormNote>
 
       {state?.ok === false ? <FormError>{state.error}</FormError> : null}
