@@ -78,15 +78,9 @@ function formData(overrides: Record<string, string | string[]> = {}) {
   const base: Record<string, string | string[]> = {
     title: "Undergraduate Research Assistant, Cardiovascular Outcomes",
     summary: "Help track how patients recover in the year after a cardiac procedure, using hospital records.",
-    responsibilities:
-      "Clean and check the outcomes dataset every week, sit in on the Tuesday lab meeting, and write up short summaries of what the numbers show.",
-    additionalInfo:
-      "The project follows a cohort of patients discharged after cardiac surgery and asks which early warning signs predict readmission within a year. The student works with the existing chart review dataset and helps extend it with a further two years of records.",
     department: "Health Research Methods, Evidence, and Impact",
     deadline: "2027-01-31",
     preferredDurations: ["one_semester", "two_semesters"],
-    hoursPerWeekMin: "6",
-    hoursPerWeekMax: "10",
     compensation: "volunteer",
     locationMode: "hybrid",
     weightGpa: "50",
@@ -144,8 +138,6 @@ describe("posting from the one page form", () => {
     expect(posted.status).toBe("published");
     expect(posted.publishedAt).not.toBeNull();
     expect(posted.title).toContain("Cardiovascular Outcomes");
-    expect(posted.hoursPerWeekMin).toBe(6);
-    expect(posted.hoursPerWeekMax).toBe(10);
     expect(posted.locationMode).toBe("hybrid");
     expect(posted.compensationType).toBe("volunteer");
     // Outcomes are a listing field, not a lost checkbox.
@@ -240,16 +232,17 @@ describe("posting from the one page form", () => {
     expect(posted.publishedAt).toBeNull();
   });
 
-  it("refuses a paid position with no pay arrangement, and says which field", async () => {
+  it("posts a paid position with no summary, since both are optional", async () => {
     await signIn(true);
     const field = await anyField();
 
-    const { result } = await post(formData({ researchFieldId: field.id, compensation: "paid" }));
+    const { redirectedTo, result } = await post(formData({ researchFieldId: field.id, compensation: "paid", summary: "" }));
 
-    expect(result?.ok).toBe(false);
-    if (result?.ok === false) {
-      expect(result.fieldErrors?.compensationDetails?.[0]).toContain("pay arrangement");
-    }
+    expect(result).toBeNull();
+    const posted = await loadPosted(redirectedTo);
+    expect(posted.compensationType).toBe("paid");
+    expect(posted.summary).toBe("");
+    expect(posted.hoursPerWeekMin).toBeNull();
   });
 
   it("hands the whole submission back when it refuses one, so nothing typed is lost", async () => {
@@ -259,7 +252,7 @@ describe("posting from the one page form", () => {
     const { result } = await post(
       formData({
         researchFieldId: field.id,
-        compensation: "paid",
+        preferredDurations: [],
         outcomes: ["authorship"],
         skillName: ["Python"],
         otherSkillName: ["Optical coherence tomography"],
@@ -271,10 +264,9 @@ describe("posting from the one page form", () => {
     const values = result?.ok === false ? result.values : undefined;
     expect(values?.title?.[0]).toContain("Cardiovascular Outcomes");
     expect(values?.summary?.[0]).toContain("cardiac procedure");
-    expect(values?.additionalInfo?.[0]).toContain("readmission");
     expect(values?.deadline?.[0]).toBe("2027-01-31");
     expect(values?.researchFieldId?.[0]).toBe(field.id);
-    expect(values?.preferredDurations).toEqual(["one_semester", "two_semesters"]);
+    expect(values?.compensation?.[0]).toBe("volunteer");
     expect(values?.skillName).toEqual(["Python"]);
     expect(values?.otherSkillName).toEqual(["Optical coherence tomography"]);
     expect(values?.outcomes).toEqual(["authorship"]);

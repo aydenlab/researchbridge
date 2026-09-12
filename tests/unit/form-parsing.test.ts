@@ -77,12 +77,14 @@ describe("opportunity project step", () => {
     expect(parsed.result.fieldErrors?.researchFieldIds?.[0]).toBe("Choose at least one research field.");
   });
 
-  it("rejects a summary that is too short to be useful on a card", () => {
+  it("saves without a summary, since supervisors asked for it to be optional", () => {
     const parsed = parseForm(
       projectStepSchema,
-      form([...base.filter(([key]) => key !== "summary"), ["summary", "Short"], ["researchFieldIds", uuid]]),
+      form([...base.filter(([key]) => key !== "summary"), ["researchFieldIds", uuid]]),
     );
-    expect(parsed.ok).toBe(false);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.data.summary).toBeNull();
   });
 });
 

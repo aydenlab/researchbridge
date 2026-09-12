@@ -115,18 +115,13 @@ export async function createSimpleOpportunityAction(
         researcherId: user.id,
         title: data.title,
         slug: candidate,
-        summary: data.summary,
-        description: data.additionalInfo,
-        responsibilities: data.responsibilities,
+        summary: data.summary ?? "",
         expectedOutputs: outcomes.length > 0 ? outcomes.join(", ") : null,
         department: data.department,
         numberOfOpenings: 1,
-        hoursPerWeekMin: data.hoursPerWeekMin,
-        hoursPerWeekMax: data.hoursPerWeekMax,
         deadline: data.deadline,
         locationMode: data.locationMode,
         compensationType: data.compensation,
-        compensationDetails: data.compensationDetails,
         academicCreditAvailable: data.academicCreditAvailable,
         beginnerFriendly: data.beginnerFriendly,
         priorResearchRequired: data.priorResearchRequired,
@@ -219,7 +214,7 @@ export async function saveProjectStepAction(_prev: ActionResult | null, formData
       .set({
         title: parsed.data.title,
         slug,
-        summary: parsed.data.summary,
+        summary: parsed.data.summary ?? "",
         description: parsed.data.description,
         projectGoals: parsed.data.projectGoals,
         department: parsed.data.department,
@@ -599,10 +594,6 @@ export async function publishOpportunityAction(_prev: ActionResult | null, formD
 
     const problems: string[] = [];
     if (!opportunity.title || opportunity.title === "Untitled research position") problems.push("a project title");
-    if (!opportunity.summary) problems.push("a plain-language summary");
-    if (!opportunity.description) problems.push("a research description");
-    if (!opportunity.responsibilities) problems.push("student responsibilities");
-    if (opportunity.hoursPerWeekMin === null) problems.push("expected hours per week");
     if (!opportunity.deadline) problems.push("an application deadline");
     if (!opportunity.department) problems.push("a department");
 

@@ -208,14 +208,6 @@ try {
     "#summary",
     "Analyze routinely collected respiratory admission data to understand readmission patterns after discharge.",
   );
-  await researcher.fill(
-    "#responsibilities",
-    "Clean and reconcile variables in the admissions extract.\nProduce descriptive summaries for group review.\nDocument every cleaning decision in a shared methods log.",
-  );
-  await researcher.fill(
-    "#additionalInfo",
-    "Our group works with a de-identified extract of respiratory admissions across four regional hospitals. We are trying to understand which factors recorded at discharge relate to readmission within ninety days. Most of the work is data preparation, and the decisions made while cleaning shape any finding that follows.",
-  );
   await researcher.fill("#department", "Health Research Methods, Evidence, and Impact");
   await researcher.fill("#deadline", "2026-11-30");
   await researcher.locator('input[name="researchFieldId"]').first().check();
@@ -226,17 +218,6 @@ try {
   await researcher.locator('input[name="compensation"][value="paid"]').check();
   await researcher.check('input[name="beginnerFriendly"]');
 
-  // Paid with no arrangement stated: the form has to refuse and say why.
-  await researcher.click('button:has-text("Post opportunity")');
-  await researcher.waitForTimeout(1800);
-  const payError = await researcher.locator("text=Describe the pay arrangement").count();
-  step(
-    "the one page form refuses a paid position with no pay arrangement",
-    payError > 0 && researcher.url().includes("/researcher/opportunities/new"),
-    researcher.url(),
-  );
-
-  await researcher.fill("#compensationDetails", "Paid hourly at the university research assistant rate.");
   await researcher.locator("#weightGpa").fill("20");
   await researcher.locator("#weightExtracurriculars").fill("0");
   await researcher.locator("#weightSkills").fill("90");

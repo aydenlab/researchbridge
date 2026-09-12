@@ -16,10 +16,16 @@ const optionalText = (max: number) =>
     .optional()
     .transform((value) => (value && value.length > 0 ? value : null));
 
+// An empty number input posts "", which would otherwise coerce to 0 hours.
+const optionalHours = z.preprocess(
+  (value) => (value === "" || value === undefined ? null : value),
+  z.coerce.number().int().min(0).max(60).nullable(),
+);
+
 export const projectStepSchema = z.object({
   title: requiredText("Project title", 180, 8),
-  summary: requiredText("Plain-language summary", 400, 30),
-  description: requiredText("Detailed research description", 8000, 120),
+  summary: optionalText(400),
+  description: optionalText(8000),
   projectGoals: optionalText(1200),
   department: requiredText("Department", 160),
   labName: optionalText(160),
@@ -27,7 +33,7 @@ export const projectStepSchema = z.object({
 });
 
 export const roleStepSchema = z.object({
-  responsibilities: requiredText("Responsibilities", 4000, 40),
+  responsibilities: optionalText(4000),
   techniques: optionalText(1200),
   expectedOutputs: optionalText(1200),
   learningOpportunities: optionalText(1200),
@@ -51,8 +57,8 @@ export const logisticsStepSchema = z
       message: "Choose at least one length. Select them all if you are open to any of them.",
     }),
     duration: optionalText(160),
-    hoursPerWeekMin: z.coerce.number().int().min(0).max(60),
-    hoursPerWeekMax: z.coerce.number().int().min(0).max(60),
+    hoursPerWeekMin: optionalHours,
+    hoursPerWeekMax: optionalHours,
     deadline: requiredText("Application deadline", 20),
     locationMode: z.enum(["in_person", "hybrid", "remote"], { message: "Choose a location mode." }),
     location: optionalText(160),
@@ -65,14 +71,14 @@ export const logisticsStepSchema = z
     beginnerFriendly: z.coerce.boolean().default(false),
     priorResearchRequired: z.coerce.boolean().default(false),
   })
-  .refine((value) => value.hoursPerWeekMax >= value.hoursPerWeekMin, {
-    message: "The maximum hours cannot be lower than the minimum.",
-    path: ["hoursPerWeekMax"],
-  })
-  .refine((value) => value.compensationType !== "paid" || Boolean(value.compensationDetails), {
-    message: "Describe the pay arrangement so students know what is offered before applying.",
-    path: ["compensationDetails"],
-  });
+  .refine(
+    (value) =>
+      value.hoursPerWeekMin === null || value.hoursPerWeekMax === null || value.hoursPerWeekMax >= value.hoursPerWeekMin,
+    {
+      message: "The maximum hours cannot be lower than the minimum.",
+      path: ["hoursPerWeekMax"],
+    },
+  );
 
 export const reviewTaskSchema = z.enum([
   "screening",
@@ -92,7 +98,7 @@ export const reviewTaskSchema = z.enum([
  */
 export const reviewPostingSchema = z.object({
   title: requiredText("Title", 180, 8),
-  summary: requiredText("Short summary", 1200, 30),
+  summary: optionalText(1200),
   authorshipOffered: z.coerce.boolean().default(false),
   reviewTasks: arrayField(reviewTaskSchema, {
     min: 1,
@@ -107,37 +113,23 @@ export const reviewPostingSchema = z.object({
  * already knows what they want is not walked through nine screens to say it.
  * The step forms below still exist for editing a position after the fact.
  */
-export const simpleOpportunitySchema = z
-  .object({
-    title: requiredText("Project title", 180, 8),
-    summary: requiredText("Plain-language summary", 400, 30),
-    responsibilities: requiredText("What the student will do", 4000, 40),
-    additionalInfo: requiredText("Additional information", 8000, 120),
-    department: requiredText("Department", 160),
-    researchFieldId: z.string().uuid("Choose a research field."),
-    preferredDurations: arrayField(durationOptionSchema, {
-      min: 1,
-      max: 5,
-      message: "Choose at least one length. Select them all if you are open to any of them.",
-    }),
-    hoursPerWeekMin: z.coerce.number().int().min(0).max(60),
-    hoursPerWeekMax: z.coerce.number().int().min(0).max(60),
-    deadline: requiredText("Application deadline", 20),
-    locationMode: z.enum(["in_person", "hybrid", "remote"], { message: "Choose a location mode." }),
-    compensation: z.enum(["paid", "volunteer"], { message: "Say whether the position is paid." }),
-    compensationDetails: optionalText(1200),
-    academicCreditAvailable: z.coerce.boolean().default(false),
-    beginnerFriendly: z.coerce.boolean().default(false),
-    priorResearchRequired: z.coerce.boolean().default(false),
-  })
-  .refine((value) => value.hoursPerWeekMax >= value.hoursPerWeekMin, {
-    message: "The maximum hours cannot be lower than the minimum.",
-    path: ["hoursPerWeekMax"],
-  })
-  .refine((value) => value.compensation !== "paid" || Boolean(value.compensationDetails), {
-    message: "Describe the pay arrangement so students know what is offered before applying.",
-    path: ["compensationDetails"],
-  });
+export const simpleOpportunitySchema = z.object({
+  title: requiredText("Project title", 180, 8),
+  summary: optionalText(400),
+  department: requiredText("Department", 160),
+  researchFieldId: z.string().uuid("Choose a research field."),
+  preferredDurations: arrayField(durationOptionSchema, {
+    min: 1,
+    max: 5,
+    message: "Choose at least one length. Select them all if you are open to any of them.",
+  }),
+  deadline: requiredText("Application deadline", 20),
+  locationMode: z.enum(["in_person", "hybrid", "remote"], { message: "Choose a location mode." }),
+  compensation: z.enum(["paid", "volunteer"], { message: "Say whether the position is paid." }),
+  academicCreditAvailable: z.coerce.boolean().default(false),
+  beginnerFriendly: z.coerce.boolean().default(false),
+  priorResearchRequired: z.coerce.boolean().default(false),
+});
 
 export const criterionInputSchema = z.object({
   type: z.enum([

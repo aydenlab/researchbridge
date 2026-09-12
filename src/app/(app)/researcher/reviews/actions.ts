@@ -60,7 +60,7 @@ export async function createReviewPostingAction(_prev: ActionResult | null, form
         kind: "review_project",
         title: parsed.data.title,
         slug: candidate,
-        summary: parsed.data.summary,
+        summary: parsed.data.summary ?? "",
         authorshipOffered: parsed.data.authorshipOffered,
         status: "published",
         publishedAt: now,
@@ -118,7 +118,7 @@ export async function updateReviewPostingAction(_prev: ActionResult | null, form
       .set({
         title: parsed.data.title,
         slug,
-        summary: parsed.data.summary,
+        summary: parsed.data.summary ?? "",
         authorshipOffered: parsed.data.authorshipOffered,
         updatedAt: new Date(),
       })

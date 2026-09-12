@@ -54,12 +54,12 @@ export function ProjectStep({
         <Input id="title" name="title" defaultValue={draft.title === "Untitled research position" ? "" : draft.title} placeholder="Undergraduate Research Assistant, Cardiovascular Outcomes" required />
       </Field>
 
-      <Field label="Plain-language summary" htmlFor="summary" required error={errors?.summary?.[0]} hint="One or two sentences. This appears in search results.">
-        <Textarea id="summary" name="summary" rows={2} defaultValue={draft.summary} maxLength={400} required />
+      <Field label="Plain-language summary" htmlFor="summary" error={errors?.summary?.[0]} hint="One or two sentences. This appears in search results.">
+        <Textarea id="summary" name="summary" rows={2} defaultValue={draft.summary} maxLength={400} />
       </Field>
 
-      <Field label="Detailed research description" htmlFor="description" required error={errors?.description?.[0]} hint="What the project is trying to understand, and what the work actually involves. Honesty about the unglamorous parts attracts better applicants.">
-        <Textarea id="description" name="description" rows={10} defaultValue={draft.description} maxLength={8000} required />
+      <Field label="Detailed research description" htmlFor="description" error={errors?.description?.[0]} hint="What the project is trying to understand, and what the work actually involves. Honesty about the unglamorous parts attracts better applicants.">
+        <Textarea id="description" name="description" rows={10} defaultValue={draft.description} maxLength={8000} />
       </Field>
 
       <Field label="Project goal" htmlFor="projectGoals" hint="What finishing this project would produce.">
@@ -115,7 +115,6 @@ export function RoleStep({
       <Field
         label="What the student would actually do"
         htmlFor="responsibilities"
-        required
         error={errors?.responsibilities?.[0]}
         hint="One responsibility per line. Concrete tasks are far more useful than a description of the lab."
       >
@@ -125,7 +124,6 @@ export function RoleStep({
           rows={8}
           defaultValue={draft.responsibilities}
           placeholder={"Clean and reconcile variables in the admissions extract.\nProduce descriptive summaries for group review.\nAttend the weekly lab meeting."}
-          required
         />
       </Field>
 
@@ -206,11 +204,11 @@ export function LogisticsStep({
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Minimum hours per week" htmlFor="hoursPerWeekMin" required error={errors?.hoursPerWeekMin?.[0]}>
-          <Input id="hoursPerWeekMin" name="hoursPerWeekMin" type="number" min={0} max={60} defaultValue={draft.hoursPerWeekMin} required />
+        <Field label="Minimum hours per week" htmlFor="hoursPerWeekMin" error={errors?.hoursPerWeekMin?.[0]}>
+          <Input id="hoursPerWeekMin" name="hoursPerWeekMin" type="number" min={0} max={60} defaultValue={draft.hoursPerWeekMin} />
         </Field>
-        <Field label="Maximum hours per week" htmlFor="hoursPerWeekMax" required error={errors?.hoursPerWeekMax?.[0]}>
-          <Input id="hoursPerWeekMax" name="hoursPerWeekMax" type="number" min={0} max={60} defaultValue={draft.hoursPerWeekMax} required />
+        <Field label="Maximum hours per week" htmlFor="hoursPerWeekMax" error={errors?.hoursPerWeekMax?.[0]}>
+          <Input id="hoursPerWeekMax" name="hoursPerWeekMax" type="number" min={0} max={60} defaultValue={draft.hoursPerWeekMax} />
         </Field>
       </div>
 

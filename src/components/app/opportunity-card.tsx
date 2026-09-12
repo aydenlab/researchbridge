@@ -53,7 +53,7 @@ export function OpportunityCard({
         </div>
       </div>
 
-      <p className="rb-measure mt-2.5 text-[14.5px] leading-6 text-muted">{item.summary}</p>
+      {item.summary ? <p className="rb-measure mt-2.5 text-[14.5px] leading-6 text-muted">{item.summary}</p> : null}
 
       <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted">
         <span className="inline-flex items-center gap-1.5">

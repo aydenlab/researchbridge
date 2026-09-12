@@ -55,11 +55,10 @@ export function ReviewPostingForm({
       <Field
         label="Short summary of the review"
         htmlFor="summary"
-        required
         error={errors?.summary?.[0]}
         hint="A few sentences. The question, roughly where it is up to, and the rough time commitment."
       >
-        <Textarea id="summary" name="summary" rows={5} defaultValue={draft?.summary ?? ""} maxLength={1200} required />
+        <Textarea id="summary" name="summary" rows={5} defaultValue={draft?.summary ?? ""} maxLength={1200} />
       </Field>
 
       <fieldset>

@@ -356,8 +356,10 @@ export default async function OpportunityDetailPage({ params }: Params) {
 
           <div className="pt-7">
             <Section title="Research overview" eyebrow="The project">
-              <p className="text-[16px] font-medium leading-7 text-ink">{detail.opportunity.summary}</p>
-              <div className="mt-4">
+              {detail.opportunity.summary ? (
+                <p className="text-[16px] font-medium leading-7 text-ink">{detail.opportunity.summary}</p>
+              ) : null}
+              <div className={detail.opportunity.summary ? "mt-4" : undefined}>
                 <Paragraphs text={detail.opportunity.description} />
               </div>
               {detail.opportunity.projectGoals ? (
@@ -368,6 +370,10 @@ export default async function OpportunityDetailPage({ params }: Params) {
               ) : null}
             </Section>
 
+            {detail.opportunity.responsibilities ||
+            detail.opportunity.techniques ||
+            detail.opportunity.expectedOutputs ||
+            detail.opportunity.learningOpportunities ? (
             <Section title="What you would work on" eyebrow="The role">
               <BulletList text={detail.opportunity.responsibilities} />
               {detail.opportunity.techniques ? (
@@ -389,6 +395,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
                 </div>
               ) : null}
             </Section>
+            ) : null}
 
             <Section title="Who this researcher is looking for" eyebrow="Criteria">
               <p className="text-[14.5px] leading-7 text-muted">

@@ -137,45 +137,10 @@ export function SimpleOpportunityForm({
         <Field
           label="Plain-language summary"
           htmlFor="summary"
-          required
           hint="One or two sentences. This appears in search results."
           error={fieldErrors?.summary?.[0]}
         >
-          <Textarea id="summary" name="summary" rows={2} defaultValue={text("summary")} maxLength={400} required />
-        </Field>
-
-        <Field
-          label="What the student will do"
-          htmlFor="responsibilities"
-          required
-          hint="The actual work, week to week. Honesty about the unglamorous parts attracts better applicants."
-          error={fieldErrors?.responsibilities?.[0]}
-        >
-          <Textarea
-            id="responsibilities"
-            name="responsibilities"
-            rows={4}
-            defaultValue={text("responsibilities")}
-            maxLength={4000}
-            required
-          />
-        </Field>
-
-        <Field
-          label="Additional information"
-          htmlFor="additionalInfo"
-          required
-          hint="The research itself: background, techniques, and what the project is trying to answer."
-          error={fieldErrors?.additionalInfo?.[0]}
-        >
-          <Textarea
-            id="additionalInfo"
-            name="additionalInfo"
-            rows={8}
-            defaultValue={text("additionalInfo")}
-            maxLength={8000}
-            required
-          />
+          <Textarea id="summary" name="summary" rows={2} defaultValue={text("summary")} maxLength={400} />
         </Field>
 
         <Field
@@ -264,34 +229,6 @@ export function SimpleOpportunityForm({
         </fieldset>
 
         <fieldset>
-          <Legend label="Hours per week" required />
-          <div className="grid gap-3 sm:max-w-[380px] sm:grid-cols-2">
-            <Field label="Minimum" htmlFor="hoursPerWeekMin" required error={fieldErrors?.hoursPerWeekMin?.[0]}>
-              <Input
-                id="hoursPerWeekMin"
-                name="hoursPerWeekMin"
-                type="number"
-                min={0}
-                max={60}
-                defaultValue={text("hoursPerWeekMin", "6")}
-                required
-              />
-            </Field>
-            <Field label="Maximum" htmlFor="hoursPerWeekMax" required error={fieldErrors?.hoursPerWeekMax?.[0]}>
-              <Input
-                id="hoursPerWeekMax"
-                name="hoursPerWeekMax"
-                type="number"
-                min={0}
-                max={60}
-                defaultValue={text("hoursPerWeekMax", "10")}
-                required
-              />
-            </Field>
-          </div>
-        </fieldset>
-
-        <fieldset>
           <Legend label="Compensation" required />
           <OptionGrid
             type="radio"
@@ -301,20 +238,6 @@ export function SimpleOpportunityForm({
             columns={2}
             required
           />
-          <Field
-            label="Pay arrangement"
-            htmlFor="compensationDetails"
-            hint="Required if the position is paid. Say the rate or the funding source."
-            error={fieldErrors?.compensationDetails?.[0]}
-            className="mt-3"
-          >
-            <Input
-              id="compensationDetails"
-              name="compensationDetails"
-              defaultValue={text("compensationDetails")}
-              maxLength={1200}
-            />
-          </Field>
         </fieldset>
 
         <fieldset>
