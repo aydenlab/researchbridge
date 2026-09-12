@@ -157,6 +157,41 @@ async function planRow(row: CsvRow, seen: Set<string>): Promise<FacultyRowOutcom
   };
 }
 
+/**
+ * Adds or refreshes one person typed into the admin form. The fields go through
+ * the same row checks as an import, so the one-at-a-time path cannot write
+ * anything a CSV would have been refused for, and a claimed profile is still
+ * left alone.
+ */
+export async function addFacultyMember(
+  fields: Partial<Record<keyof FacultyCandidate, string>>,
+  options: { source: string; institutionId?: string | null },
+): Promise<{ ok: true; created: boolean; email: string } | { ok: false; reason: string }> {
+  const row: CsvRow = {
+    email: fields.email ?? "",
+    firstname: fields.firstName ?? "",
+    lastname: fields.lastName ?? "",
+    title: fields.title ?? "",
+    department: fields.department ?? "",
+    faculty: fields.faculty ?? "",
+    labname: fields.labName ?? "",
+    labwebsite: fields.labWebsite ?? "",
+    personalwebsite: fields.personalWebsite ?? "",
+    linkedin: fields.linkedinUrl ?? "",
+    orcid: fields.orcidId ?? "",
+    biography: fields.biography ?? "",
+    researchareas: fields.researchAreas ?? "",
+  };
+
+  const outcome = await planRow(row, new Set());
+  if (!outcome) return { ok: false, reason: "An email address is required." };
+  if (outcome.status === "rejected") return { ok: false, reason: outcome.reason };
+
+  const created = await upsertCandidate(outcome.candidate, options);
+  log.info("faculty_member_added", { source: options.source, created });
+  return { ok: true, created, email: outcome.candidate.email };
+}
+
 export type FacultyImportResult = {
   created: number;
   refreshed: number;

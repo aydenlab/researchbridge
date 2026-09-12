@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { requireAdmin } from "@/lib/auth/permissions";
 import { formatShortDate } from "@/lib/format";
 import { facultyImportSummary, listUnclaimedFaculty } from "@/lib/faculty/import";
+import { AddFacultyForm } from "./add-form";
 import { FacultyImportForm } from "./import-form";
 
 export const metadata: Metadata = {
@@ -33,8 +34,15 @@ export default async function AdminFacultyPage() {
 
       <div className="flex flex-col gap-5">
         <AdminPanel
-          title="Import"
-          description="Re-running this is safe. A profile the person has already confirmed is never overwritten."
+          title="Add a professor"
+          description="Fill in what you know. Only email and name are required, and a profile the person has already confirmed is never overwritten."
+        >
+          <AddFacultyForm />
+        </AdminPanel>
+
+        <AdminPanel
+          title="Import a list"
+          description="For many at once. Re-running this is safe. A profile the person has already confirmed is never overwritten."
         >
           <FacultyImportForm />
         </AdminPanel>

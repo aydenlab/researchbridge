@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db, researcherFields, researcherProfiles, users } from "@/db";
-import { applyFacultyImport, listUnclaimedFaculty, planFacultyImport } from "@/lib/faculty/import";
+import { addFacultyMember, applyFacultyImport, listUnclaimedFaculty, planFacultyImport } from "@/lib/faculty/import";
 import { parseCsv, splitAreas } from "@/lib/faculty/csv";
 import { ensureInstitution, createStudent } from "../fixtures";
 
@@ -216,5 +216,37 @@ describe("importing a faculty list", () => {
 
     const after = await listUnclaimedFaculty();
     expect(after.some((entry) => entry.email === email)).toBe(false);
+  });
+});
+
+describe("adding one professor from the admin form", () => {
+  it("creates the same pre-filled account an import would", async () => {
+    const email = uniqueEmail("form");
+    const result = await addFacultyMember(
+      {
+        email,
+        firstName: "Frances",
+        lastName: "Kelsey",
+        title: "Associate Professor",
+        department: "Pharmacology",
+        labWebsite: "kelsey.example.edu",
+        researchAreas: "Pharmacology, Drug safety",
+      },
+      { source: "admin_form" },
+    );
+
+    expect(result).toMatchObject({ ok: true, created: true });
+
+    const row = await profileFor(email);
+    expect(row?.user.accountStatus).toBe("pending");
+    expect(row?.profile.researcherType).toBe("professor");
+    expect(row?.profile.labWebsite).toBe("https://kelsey.example.edu");
+    expect(row?.profile.prefilledSource).toBe("admin_form");
+  });
+
+  it("refuses a missing name with the same reason the import gives", async () => {
+    const result = await addFacultyMember({ email: uniqueEmail("form-noname"), firstName: "Frances" }, { source: "admin_form" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain("name");
   });
 });

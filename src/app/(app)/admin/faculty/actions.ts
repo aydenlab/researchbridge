@@ -5,7 +5,49 @@ import { requireAdmin } from "@/lib/auth/permissions";
 import { optionalText, toActionError } from "@/lib/action-utils";
 import type { ActionResult } from "@/lib/errors";
 import { recordAudit } from "@/lib/events";
-import { applyFacultyImport, planFacultyImport, type FacultyRowOutcome } from "@/lib/faculty/import";
+import { addFacultyMember, applyFacultyImport, planFacultyImport, type FacultyRowOutcome } from "@/lib/faculty/import";
+
+/** One professor typed into the form, for when there is no list to paste. */
+export async function addFacultyMemberAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const text = (name: string) => String(formData.get(name) ?? "");
+
+  try {
+    const result = await addFacultyMember(
+      {
+        email: text("email"),
+        firstName: text("firstName"),
+        lastName: text("lastName"),
+        title: text("title"),
+        department: text("department"),
+        faculty: text("faculty"),
+        labName: text("labName"),
+        labWebsite: text("labWebsite"),
+        researchAreas: text("researchAreas"),
+        biography: text("biography"),
+      },
+      { source: "admin_form" },
+    );
+    if (!result.ok) return { ok: false, error: result.reason };
+
+    await recordAudit({
+      actorId: admin.id,
+      action: "faculty_member_added",
+      subjectType: "institution",
+      detail: { email: result.email, created: result.created },
+    });
+
+    revalidatePath("/admin/faculty");
+    revalidatePath("/admin/researchers");
+    return {
+      ok: true,
+      data: undefined,
+      message: result.created ? `Added ${result.email}` : `Updated the existing profile for ${result.email}`,
+    };
+  } catch (error) {
+    return toActionError(error, "faculty_member_add_failed");
+  }
+}
 
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
 
