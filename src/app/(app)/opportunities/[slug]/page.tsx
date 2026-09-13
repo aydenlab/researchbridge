@@ -295,7 +295,12 @@ export default async function OpportunityDetailPage({ params }: Params) {
     {
       Icon: Target,
       label: "Duration",
-      value: detail.durations.map((value) => DURATION_LABELS[value]).join(", ") || detail.opportunity.duration || "Not specified",
+      // A free-text length sits beside the matchable ones rather than behind
+      // them: a posting can now carry both, and hiding one would misstate it.
+      value:
+        [...detail.durations.map((value) => DURATION_LABELS[value]), detail.opportunity.duration]
+          .filter(Boolean)
+          .join(", ") || "Not specified",
     },
     {
       Icon: MapPin,

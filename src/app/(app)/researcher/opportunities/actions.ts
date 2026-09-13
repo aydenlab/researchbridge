@@ -32,10 +32,11 @@ import { PROJECT_OUTCOME_LABELS } from "@/lib/labels";
 import { log } from "@/lib/log";
 import { isEnabled } from "@/lib/flags";
 
-import { ensureSkill } from "@/lib/queries/taxonomy";
+import { ensureResearchField, ensureSkill } from "@/lib/queries/taxonomy";
 import {
   DEFAULT_PAPER_PROMPT,
   logisticsStepSchema,
+  OTHER_CHOICE,
   paperStepSchema,
   projectStepSchema,
   roleStepSchema,
@@ -102,10 +103,18 @@ export async function createSimpleOpportunityAction(
       .map((value) => PROJECT_OUTCOME_LABELS[value])
       .filter(Boolean);
 
+    // "Other" names a field the taxonomy does not have yet. Creating it here is
+    // the same route a student's own interest takes, so the field is real from
+    // this point on and this listing can be matched and filtered like any other.
+    const researchFieldId =
+      data.researchFieldId === OTHER_CHOICE && data.otherResearchField
+        ? await ensureResearchField(data.otherResearchField)
+        : data.researchFieldId;
+
     const [field] = await db
       .select({ name: researchFields.name, slug: researchFields.slug })
       .from(researchFields)
-      .where(eq(researchFields.id, data.researchFieldId))
+      .where(eq(researchFields.id, researchFieldId))
       .limit(1);
 
     const [row] = await db
@@ -120,6 +129,9 @@ export async function createSimpleOpportunityAction(
         department: data.department,
         numberOfOpenings: 1,
         deadline: data.deadline,
+        // A length outside the five matchable ones. It shows on the listing
+        // beside them rather than replacing them.
+        duration: data.otherDuration,
         locationMode: data.locationMode,
         compensationType: data.compensation,
         academicCreditAvailable: data.academicCreditAvailable,
@@ -141,10 +153,12 @@ export async function createSimpleOpportunityAction(
     });
 
     await db.transaction(async (tx) => {
-      await tx
-        .insert(opportunityDurations)
-        .values(data.preferredDurations.map((duration) => ({ opportunityId: row.id, duration })));
-      await tx.insert(opportunityFields).values({ opportunityId: row.id, researchFieldId: data.researchFieldId });
+      if (data.preferredDurations.length > 0) {
+        await tx
+          .insert(opportunityDurations)
+          .values(data.preferredDurations.map((duration) => ({ opportunityId: row.id, duration })));
+      }
+      await tx.insert(opportunityFields).values({ opportunityId: row.id, researchFieldId });
       if (criteria.length > 0) {
         await tx.insert(opportunityCriteria).values(criteria.map((criterion) => ({ ...criterion, opportunityId: row.id })));
       }
@@ -290,9 +304,11 @@ export async function saveLogisticsStepAction(_prev: ActionResult | null, formDa
 
     await db.transaction(async (tx) => {
       await tx.delete(opportunityDurations).where(eq(opportunityDurations.opportunityId, opportunity.id));
-      await tx
-        .insert(opportunityDurations)
-        .values(parsed.data.preferredDurations.map((duration) => ({ opportunityId: opportunity.id, duration })));
+      if (parsed.data.preferredDurations.length > 0) {
+        await tx
+          .insert(opportunityDurations)
+          .values(parsed.data.preferredDurations.map((duration) => ({ opportunityId: opportunity.id, duration })));
+      }
     });
 
     await advance(opportunity.id, 3);

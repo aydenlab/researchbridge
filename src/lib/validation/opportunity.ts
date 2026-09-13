@@ -47,15 +47,20 @@ export const durationOptionSchema = z.enum([
   "multi_year",
 ]);
 
+/** What the "Other" card in a single-choice group submits instead of an id. */
+export const OTHER_CHOICE = "other";
+
+const uuidValue = z.string().uuid();
+
+const DURATION_REQUIRED = "Choose at least one length, or describe your own under Other.";
+
 export const logisticsStepSchema = z
   .object({
     numberOfOpenings: z.coerce.number().int().min(1, "There must be at least one opening.").max(50),
     startDate: optionalText(20),
-    preferredDurations: arrayField(durationOptionSchema, {
-      min: 1,
-      max: 5,
-      message: "Choose at least one length. Select them all if you are open to any of them.",
-    }),
+    // A posting made with only a free-text length has no structured duration to
+    // reselect here, so requiring one would refuse an edit that changed nothing.
+    preferredDurations: arrayField(durationOptionSchema, { max: 5 }),
     duration: optionalText(160),
     hoursPerWeekMin: optionalHours,
     hoursPerWeekMax: optionalHours,
@@ -70,6 +75,10 @@ export const logisticsStepSchema = z
     academicCreditAvailable: z.coerce.boolean().default(false),
     beginnerFriendly: z.coerce.boolean().default(false),
     priorResearchRequired: z.coerce.boolean().default(false),
+  })
+  .refine((value) => value.preferredDurations.length > 0 || Boolean(value.duration), {
+    message: DURATION_REQUIRED,
+    path: ["preferredDurations"],
   })
   .refine(
     (value) =>
@@ -113,23 +122,37 @@ export const reviewPostingSchema = z.object({
  * already knows what they want is not walked through nine screens to say it.
  * The step forms below still exist for editing a position after the fact.
  */
-export const simpleOpportunitySchema = z.object({
-  title: requiredText("Project title", 180, 8),
-  summary: optionalText(400),
-  department: requiredText("Department", 160),
-  researchFieldId: z.string().uuid("Choose a research field."),
-  preferredDurations: arrayField(durationOptionSchema, {
-    min: 1,
-    max: 5,
-    message: "Choose at least one length. Select them all if you are open to any of them.",
-  }),
-  deadline: requiredText("Application deadline", 20),
-  locationMode: z.enum(["in_person", "hybrid", "remote"], { message: "Choose a location mode." }),
-  compensation: z.enum(["paid", "volunteer"], { message: "Say whether the position is paid." }),
-  academicCreditAvailable: z.coerce.boolean().default(false),
-  beginnerFriendly: z.coerce.boolean().default(false),
-  priorResearchRequired: z.coerce.boolean().default(false),
-});
+export const simpleOpportunitySchema = z
+  .object({
+    title: requiredText("Project title", 180, 8),
+    summary: optionalText(400),
+    department: requiredText("Department", 160),
+    // Either an existing field, or OTHER_CHOICE with the name typed alongside it.
+    // The taxonomy is not complete and a supervisor should not have to file their
+    // project under the nearest wrong heading.
+    researchFieldId: z.string().trim().min(1, "Choose a research field."),
+    otherResearchField: optionalText(160),
+    preferredDurations: arrayField(durationOptionSchema, { max: 5 }),
+    otherDuration: optionalText(160),
+    deadline: requiredText("Application deadline", 20),
+    locationMode: z.enum(["in_person", "hybrid", "remote"], { message: "Choose a location mode." }),
+    compensation: z.enum(["paid", "volunteer"], { message: "Say whether the position is paid." }),
+    academicCreditAvailable: z.coerce.boolean().default(false),
+    beginnerFriendly: z.coerce.boolean().default(false),
+    priorResearchRequired: z.coerce.boolean().default(false),
+  })
+  .refine((value) => value.researchFieldId === OTHER_CHOICE || uuidValue.safeParse(value.researchFieldId).success, {
+    message: "Choose a research field.",
+    path: ["researchFieldId"],
+  })
+  .refine((value) => value.researchFieldId !== OTHER_CHOICE || Boolean(value.otherResearchField), {
+    message: "Name the research field this project belongs to.",
+    path: ["otherResearchField"],
+  })
+  .refine((value) => value.preferredDurations.length > 0 || Boolean(value.otherDuration), {
+    message: DURATION_REQUIRED,
+    path: ["preferredDurations"],
+  });
 
 export const criterionInputSchema = z.object({
   type: z.enum([

@@ -286,6 +286,75 @@ describe("posting from the one page form", () => {
     if (result?.ok === false) expect(result.fieldErrors?.preferredDurations?.[0]).toContain("at least one length");
   });
 
+  it("creates the research field a supervisor names under Other, and posts under it", async () => {
+    await signIn(true);
+    const name = `Sleep and circadian biology ${randomUUID().slice(0, 6)}`;
+
+    const { redirectedTo, result } = await post(
+      formData({ researchFieldId: "other", otherResearchField: name }),
+    );
+
+    expect(result).toBeNull();
+    const posted = await loadPosted(redirectedTo);
+
+    const [created] = await db.select().from(researchFields).where(eq(researchFields.name, name)).limit(1);
+    expect(created, "the named field was not added to the taxonomy").toBeDefined();
+
+    const fields = await db.select().from(opportunityFields).where(eq(opportunityFields.opportunityId, posted.id));
+    expect(fields.map((row) => row.researchFieldId)).toEqual([created.id]);
+  });
+
+  it("refuses Other as a research field when nothing is typed alongside it", async () => {
+    await signIn(true);
+
+    const { result } = await post(formData({ researchFieldId: "other" }));
+
+    expect(result?.ok).toBe(false);
+    if (result?.ok === false) expect(result.fieldErrors?.otherResearchField?.[0]).toContain("Name the research field");
+  });
+
+  it("accepts a length described under Other with none of the five ticked", async () => {
+    await signIn(true);
+    const field = await anyField();
+
+    const { redirectedTo, result } = await post(
+      formData({ researchFieldId: field.id, preferredDurations: [], otherDuration: "Eight weeks over the winter term" }),
+    );
+
+    expect(result).toBeNull();
+    const posted = await loadPosted(redirectedTo);
+    expect(posted.duration).toBe("Eight weeks over the winter term");
+
+    // Nothing matchable was invented for it: the free text is the whole answer.
+    const durations = await db
+      .select()
+      .from(opportunityDurations)
+      .where(eq(opportunityDurations.opportunityId, posted.id));
+    expect(durations).toEqual([]);
+  });
+
+  it("keeps both the ticked lengths and the one described under Other", async () => {
+    await signIn(true);
+    const field = await anyField();
+
+    const { redirectedTo } = await post(
+      formData({
+        researchFieldId: field.id,
+        preferredDurations: ["one_semester"],
+        otherDuration: "Or a single reading week if that suits you",
+      }),
+    );
+
+    const posted = await loadPosted(redirectedTo);
+    expect(posted.duration).toBe("Or a single reading week if that suits you");
+
+    const durations = await db
+      .select()
+      .from(opportunityDurations)
+      .where(eq(opportunityDurations.opportunityId, posted.id));
+    expect(durations.map((row) => row.duration)).toEqual(["one_semester"]);
+  });
+
   it("gives a second listing with the same title its own address", async () => {
     await signIn(true);
     const field = await anyField();

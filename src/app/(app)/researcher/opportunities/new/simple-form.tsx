@@ -172,8 +172,15 @@ export function SimpleOpportunityForm({
             name="researchFieldId"
             options={fields.map((field) => ({ value: field.id, label: field.name }))}
             initial={chosen("researchFieldId")}
+            other={{
+              name: "otherResearchField",
+              description: "Name your own field.",
+              placeholder: "Sleep and circadian biology",
+              initial: text("otherResearchField"),
+            }}
             required
           />
+          <FormError>{fieldErrors?.researchFieldId?.[0] ?? fieldErrors?.otherResearchField?.[0]}</FormError>
         </fieldset>
 
         <fieldset>
@@ -224,8 +231,21 @@ export function SimpleOpportunityForm({
             initial={chosen("preferredDurations")}
             columns={3}
             selectAllLabel="Open to any length"
+            other={{
+              name: "otherDuration",
+              description: "Describe your own.",
+              placeholder: "Eight weeks over the winter term",
+              initial: text("otherDuration"),
+            }}
           />
-          <FormError>{fieldErrors?.preferredDurations?.[0]}</FormError>
+          <FormError>{fieldErrors?.preferredDurations?.[0] ?? fieldErrors?.otherDuration?.[0]}</FormError>
+          {/* Students filter on the five lengths above, so a length described here
+              shows on the listing but cannot be matched on. Say so rather than let
+              a supervisor find out from an empty applicant list. */}
+          <p className="mt-1.5 text-[12px] leading-5 text-subtle">
+            Anything described under Other is shown on the listing, but students cannot filter on it. Tick any of the
+            five above that also apply.
+          </p>
         </fieldset>
 
         <fieldset>
