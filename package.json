@@ -6,6 +6,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "predev": "tsx src/db/migrate.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "node scripts/start.mjs",
