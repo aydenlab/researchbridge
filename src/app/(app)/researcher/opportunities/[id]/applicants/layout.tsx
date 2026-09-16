@@ -6,7 +6,9 @@ import { ApplicantRail } from "./applicant-rail";
 import { requireResearcher, canManageOpportunity } from "@/lib/auth/permissions";
 import { deadlineNote } from "@/lib/format";
 import { COMPENSATION_LABELS, OPPORTUNITY_STATUS_LABELS, labelOr } from "@/lib/labels";
+import type { DurationOption } from "@/lib/labels";
 import { listApplicantsForOpportunity } from "@/lib/queries/applications";
+import { loadApplicantFits } from "@/lib/queries/fit";
 import { loadOpportunityDetail } from "@/lib/queries/opportunities";
 
 export default async function ApplicantsLayout({
@@ -23,6 +25,37 @@ export default async function ApplicantsLayout({
 
   const [detail, applicants] = await Promise.all([loadOpportunityDetail(id), listApplicantsForOpportunity(id)]);
   if (!detail) notFound();
+
+  // Every applicant carries a fit figure, whether or not this position defined
+  // criteria and whether or not written-response analysis ever ran.
+  const fits = await loadApplicantFits({
+    criteria: detail.criteria.map((criterion) => ({
+      id: criterion.id,
+      type: criterion.type,
+      label: criterion.label,
+      description: criterion.description,
+      required: criterion.required,
+      importance: criterion.importance,
+      config: criterion.config,
+      sortOrder: criterion.sortOrder,
+    })),
+    opportunity: {
+      fieldNames: detail.fields.map((field) => field.name),
+      skillNames: detail.skills.map((skill) => skill.name),
+      durations: detail.durations as DurationOption[],
+      compensationType: detail.opportunity.compensationType,
+      hoursPerWeekMin: detail.opportunity.hoursPerWeekMin,
+      locationMode: detail.opportunity.locationMode,
+      beginnerFriendly: detail.opportunity.beginnerFriendly,
+      priorResearchRequired: detail.opportunity.priorResearchRequired,
+    },
+    applicants: applicants.map((applicant) => ({
+      applicationId: applicant.id,
+      studentId: applicant.studentId,
+      weeklyHours: applicant.weeklyHours,
+      locationPreference: applicant.locationPreference,
+    })),
+  });
 
   const reviewed = applicants.filter((applicant) => applicant.status !== "submitted").length;
   const deadline = deadlineNote(detail.opportunity.deadline);
@@ -72,7 +105,13 @@ export default async function ApplicantsLayout({
       </header>
 
       <div className="grid gap-6 xl:grid-cols-[380px_1fr] xl:gap-8">
-        <ApplicantRail opportunityId={id} applicants={applicants} />
+        <ApplicantRail
+          opportunityId={id}
+          applicants={applicants}
+          fits={Object.fromEntries(
+            [...fits].map(([applicationId, fit]) => [applicationId, { percent: fit.percent, band: fit.band }]),
+          )}
+        />
         <div className="min-w-0">{children}</div>
       </div>
     </div>

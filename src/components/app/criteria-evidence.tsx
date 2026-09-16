@@ -1,8 +1,9 @@
 import { AlertTriangle, Check, CircleDot, Minus, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/components/ui/cn";
+import { FIT_BAND_LABEL, type ApplicantFit, type FitBand } from "@/lib/criteria/fit";
 import type { Criterion, CriterionResult, CriterionStatus } from "@/lib/criteria/types";
-import { IMPORTANCE_LABEL, type AlignmentSummary } from "@/lib/criteria/weights";
+import { IMPORTANCE_LABEL } from "@/lib/criteria/weights";
 import { CRITERION_STATUS_LABELS, CRITERION_TYPE_LABELS, labelOr } from "@/lib/labels";
 
 const STATUS_ICON: Record<CriterionStatus, typeof Check> = {
@@ -41,21 +42,29 @@ export type AiState =
   | "budget_exceeded"
   | "provider_unavailable";
 
+const FIT_CLASS: Record<FitBand, string> = {
+  strong: "border-[#c2dccc] bg-moss text-forest",
+  good: "border-[#c2dccc] bg-moss/50 text-forest",
+  partial: "border-[#e6d7ae] bg-gold-soft text-warn",
+  limited: "border-line-strong bg-shell text-muted",
+};
+
 export function CriteriaEvidence({
   criteria,
   results,
-  summary,
+  fit,
   aiState,
   isPaidPosition,
   refreshControl,
 }: {
   criteria: Criterion[];
   results: CriterionResult[];
-  summary: AlignmentSummary;
+  fit: ApplicantFit;
   aiState: AiState;
   isPaidPosition: boolean;
   refreshControl?: React.ReactNode;
 }) {
+  const summary = fit.summary;
   const byCriterion = new Map<string, CriterionResult[]>();
   for (const result of results) {
     byCriterion.set(result.criterionId, [...(byCriterion.get(result.criterionId) ?? []), result]);
@@ -142,6 +151,24 @@ export function CriteriaEvidence({
       </div>
 
       <div className="border-b border-line bg-shell/50 px-5 py-4">
+        {/*
+          Always rendered. A position with no criteria, or one whose criteria all
+          came back with no information, still leaves the reviewer a figure and a
+          sentence saying where it came from.
+        */}
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span
+            className={cn(
+              "inline-flex items-baseline gap-1.5 rounded-full border px-3 py-1",
+              FIT_CLASS[fit.band],
+            )}
+          >
+            <span className="font-display text-[22px] leading-none">{fit.percent}%</span>
+            <span className="text-[12.5px] font-medium">{FIT_BAND_LABEL[fit.band]}</span>
+          </span>
+          <p className="rb-measure flex-1 text-[12.5px] leading-5 text-muted">{fit.note}</p>
+        </div>
+
         <div className="flex flex-wrap gap-x-8 gap-y-3">
           <div>
             <p className="text-[11.5px] text-subtle">Required conditions</p>

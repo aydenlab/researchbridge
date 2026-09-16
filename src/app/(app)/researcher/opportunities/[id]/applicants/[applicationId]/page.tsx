@@ -10,8 +10,9 @@ import { Badge, Tag } from "@/components/ui/badge";
 import { canManageOpportunity, requireResearcher } from "@/lib/auth/permissions";
 import { loadStoredAnalysis, analysisToCriterionResults, type AnalysisState } from "@/lib/ai/application-analysis";
 import { allowedTransitions, STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
-import { summarizeAlignment } from "@/lib/criteria/weights";
+import { applicantFit, FIT_BAND_LABEL } from "@/lib/criteria/fit";
 import type { CriterionResult } from "@/lib/criteria/types";
+import { scoreMatch } from "@/lib/matching";
 import { formatDate, formatMonth, formatShortDate } from "@/lib/format";
 import { formatMetric } from "@/lib/gpa";
 import { markApplicationOpenedAction } from "@/app/(app)/applications/actions";
@@ -26,6 +27,8 @@ import {
   labelOr,
 } from "@/lib/labels";
 import { listApplicantsForOpportunity, loadApplication, loadCriteria, loadCriterionResults, listResearcherNotes } from "@/lib/queries/applications";
+import { loadOpportunityMatchInput } from "@/lib/queries/fit";
+import { studentMatchInput } from "@/lib/queries/recommendations";
 import { loadStudentProfile, toAcademicMetrics } from "@/lib/queries/student";
 import { listConfirmedProfileReferences, listReferences } from "@/lib/queries/references";
 import { ContactControl, NotesPanel, PlacementForm, RefreshEvidence, StatusActions } from "./review-controls";
@@ -77,7 +80,7 @@ export default async function CandidateReviewPage({
     await markApplicationOpenedAction(applicationId, user.id);
   }
 
-  const [profile, criteria, storedResults, notes, analysisState, applicants, outcomeRows, references, profileReferences] = await Promise.all([
+  const [profile, criteria, storedResults, notes, analysisState, applicants, outcomeRows, references, profileReferences, matchInput] = await Promise.all([
     loadStudentProfile(bundle.application.studentId),
     loadCriteria(id),
     loadCriterionResults(applicationId),
@@ -87,6 +90,7 @@ export default async function CandidateReviewPage({
     db.select().from(placementOutcomes).where(eq(placementOutcomes.applicationId, applicationId)).limit(1),
     listReferences(applicationId),
     listConfirmedProfileReferences(bundle.application.studentId),
+    loadOpportunityMatchInput(id),
   ]);
 
   const aiResults: CriterionResult[] =
@@ -105,7 +109,10 @@ export default async function CandidateReviewPage({
     }
   }
 
-  const summary = summarizeAlignment(criteria, [...scoringResults.values()]);
+  // The profile match is what guarantees a figure when no criterion could be
+  // judged, so it is computed for every applicant rather than as a last resort.
+  const match = profile && matchInput ? scoreMatch(studentMatchInput(profile), matchInput) : null;
+  const fit = applicantFit(criteria, [...scoringResults.values()], match);
   const status = (bundle.application.status === "submitted" ? "under_review" : bundle.application.status) as ApplicationStatus;
   const isPaid = PAID_COMPENSATION.has(bundle.opportunity.compensationType);
   const outcome = outcomeRows[0] ?? null;
@@ -174,6 +181,11 @@ export default async function CandidateReviewPage({
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
+            <div className="text-right">
+              <p className="text-[11.5px] text-subtle">Fit</p>
+              <p className="font-display text-[26px] leading-none text-ink">{fit.percent}%</p>
+              <p className="mt-1 text-[11.5px] text-muted">{FIT_BAND_LABEL[fit.band]}</p>
+            </div>
             <StatusPill status={status} />
             {outcome?.confirmed ? <Badge tone="ok">Placement confirmed</Badge> : null}
           </div>
@@ -185,7 +197,7 @@ export default async function CandidateReviewPage({
           <CriteriaEvidence
             criteria={criteria}
             results={combined}
-            summary={summary}
+            fit={fit}
             aiState={aiStateFor(analysisState)}
             isPaidPosition={isPaid}
             refreshControl={<RefreshEvidence applicationId={applicationId} />}

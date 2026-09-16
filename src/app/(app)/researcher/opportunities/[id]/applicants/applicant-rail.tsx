@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/components/ui/cn";
 import { Input, Select } from "@/components/ui/field";
 import type { ApplicationStatus } from "@/lib/application-status";
+import { FIT_BAND_LABEL, type FitBand } from "@/lib/criteria/fit";
 import { formatShortDate } from "@/lib/format";
 import {
   COURSE_TYPE_LABELS,
@@ -19,6 +20,30 @@ import {
   labelOr,
 } from "@/lib/labels";
 import type { ApplicantRow } from "@/lib/queries/applications";
+
+export type RailFit = { percent: number; band: FitBand };
+
+const FIT_CLASS: Record<FitBand, string> = {
+  strong: "border-[#c2dccc] bg-moss text-forest",
+  good: "border-[#c2dccc] bg-moss/50 text-forest",
+  partial: "border-[#e6d7ae] bg-gold-soft text-warn",
+  limited: "border-line-strong bg-shell text-muted",
+};
+
+/** The same figure the review screen shows, so the two never disagree. */
+function FitChip({ fit }: { fit: RailFit }) {
+  return (
+    <span
+      title={`${FIT_BAND_LABEL[fit.band]}. Not a ranking.`}
+      className={cn(
+        "shrink-0 rounded-full border px-2 py-0.5 font-mono text-[11px] font-medium",
+        FIT_CLASS[fit.band],
+      )}
+    >
+      {fit.percent}%
+    </span>
+  );
+}
 
 const FILTERS = [
   { value: "all", label: "All applicants" },
@@ -32,7 +57,15 @@ const FILTERS = [
  * applicant list is already loaded for the rail. A round trip per checkbox
  * would make narrowing a pool of forty people feel slower than reading it.
  */
-export function ApplicantRail({ opportunityId, applicants }: { opportunityId: string; applicants: ApplicantRow[] }) {
+export function ApplicantRail({
+  opportunityId,
+  applicants,
+  fits,
+}: {
+  opportunityId: string;
+  applicants: ApplicantRow[];
+  fits: Record<string, RailFit>;
+}) {
   const pathname = usePathname();
   const params = useParams<{ applicationId?: string }>();
   const [query, setQuery] = useState("");
@@ -203,11 +236,14 @@ export function ApplicantRail({ opportunityId, applicants }: { opportunityId: st
                       <p className="text-[14px] font-medium leading-5 text-ink">
                         {applicant.preferredName ?? applicant.firstName} {applicant.lastName}
                       </p>
-                      {applicant.status === "submitted" ? (
-                        <span className="mt-0.5 shrink-0 rounded-full border border-[#eccdc2] bg-clay-soft px-2 py-0.5 text-[10.5px] font-medium text-clay">
-                          New
-                        </span>
-                      ) : null}
+                      <span className="mt-0.5 flex shrink-0 items-center gap-1.5">
+                        {applicant.status === "submitted" ? (
+                          <span className="rounded-full border border-[#eccdc2] bg-clay-soft px-2 py-0.5 text-[10.5px] font-medium text-clay">
+                            New
+                          </span>
+                        ) : null}
+                        {fits[applicant.id] ? <FitChip fit={fits[applicant.id]} /> : null}
+                      </span>
                     </div>
                     <p className="mt-0.5 text-[12.5px] text-muted">
                       {applicant.program ?? "Program not set"}

@@ -3,6 +3,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import {
   applicationAnswers,
   applications,
@@ -271,14 +272,24 @@ export async function submitApplicationAction(_prev: ActionResult | null, formDa
       log.error("deterministic_evaluation_failed", { applicationId, error: caught });
     }
 
-    void runApplicationAnalysis({
-      applicationId,
-      criteria,
-      evidence,
-      projectTitle: bundle.opportunity.title,
-      projectSummary: bundle.opportunity.summary,
-      isPaidPosition: PAID_COMPENSATION.has(bundle.opportunity.compensationType),
-    }).catch((caught) => log.error("ai_analysis_dispatch_failed", { applicationId, error: caught }));
+    // Written-response analysis is the slow half, so it runs after the response
+    // rather than in front of the student. `after` keeps the work alive past the
+    // redirect; a bare floating promise could be dropped with the request, which
+    // would leave the reviewer waiting on evidence that was never requested.
+    after(async () => {
+      try {
+        await runApplicationAnalysis({
+          applicationId,
+          criteria,
+          evidence,
+          projectTitle: bundle.opportunity.title,
+          projectSummary: bundle.opportunity.summary,
+          isPaidPosition: PAID_COMPENSATION.has(bundle.opportunity.compensationType),
+        });
+      } catch (caught) {
+        log.error("ai_analysis_dispatch_failed", { applicationId, error: caught });
+      }
+    });
 
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)::int` })

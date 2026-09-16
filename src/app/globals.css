@@ -189,6 +189,16 @@ body {
   scrollbar-color: #d6d2c7 transparent;
 }
 
+/* A strip that scrolls when it runs out of room, without a bar across the chrome. */
+.rb-hide-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.rb-hide-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
