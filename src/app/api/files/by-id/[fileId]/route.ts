@@ -6,6 +6,7 @@ import {
   db,
   opportunities,
   profileReferrals,
+  researcherProfiles,
   storedFiles,
   studentProfiles,
 } from "@/db";
@@ -24,6 +25,16 @@ async function isAuthorized(fileId: string, userId: string, role: string | null)
     .where(and(eq(storedFiles.id, fileId), eq(storedFiles.ownerId, userId)))
     .limit(1);
   if (owned.length > 0) return true;
+
+  // A profile photo is shown beside the person's name wherever they appear, so
+  // anyone signed in may load one. Only a photo a profile actually points at
+  // qualifies, not any upload that happens to have the photo purpose.
+  const profilePhoto = await db
+    .select({ userId: researcherProfiles.userId })
+    .from(researcherProfiles)
+    .where(eq(researcherProfiles.photoFileId, fileId))
+    .limit(1);
+  if (profilePhoto.length > 0) return true;
 
   // A reference letter attached to a referral is meant to be read by whoever is
   // assessing that person, plus the person it is about. It is deliberately not

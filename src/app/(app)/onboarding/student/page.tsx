@@ -166,7 +166,7 @@ export default async function StudentOnboardingPage({
       ) : null}
       {step === 4 ? (
         <InterestsForm
-          fields={fields.map((field) => ({ id: field.id, name: field.name }))}
+          fields={fields.map((field) => ({ id: field.id, name: field.name, slug: field.slug }))}
           selectedFieldIds={bundle.fields.map((field) => field.id)}
           summary={profile.researchInterestSummary}
         />

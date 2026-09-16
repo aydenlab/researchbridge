@@ -20,6 +20,7 @@ export type SessionUser = {
   onboardingCompletedAt: Date | null;
   displayName: string | null;
   researcherVerification: "pending" | "needs_review" | "verified" | "rejected" | null;
+  photoFileId: string | null;
 };
 
 export function hashToken(token: string): string {
@@ -76,6 +77,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       researcherFirst: researcherProfiles.firstName,
       researcherLast: researcherProfiles.lastName,
       researcherVerification: researcherProfiles.verificationStatus,
+      researcherPhoto: researcherProfiles.photoFileId,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -108,5 +110,6 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     onboardingCompletedAt: row.onboardingCompletedAt,
     displayName,
     researcherVerification: row.researcherVerification,
+    photoFileId: row.role === "researcher" ? row.researcherPhoto : null,
   };
 }

@@ -7,10 +7,39 @@ import { requireUser } from "@/lib/auth/permissions";
 import { parseForm, toActionError } from "@/lib/action-utils";
 import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
+import { OTHER_DISCIPLINE_SLUG } from "@/lib/disciplines";
+import { ensureResearchField } from "@/lib/queries/taxonomy";
 import { storeFile } from "@/lib/storage";
 import { facultyClaimSchema, researcherProfileSchema } from "@/lib/validation/profile";
 
 const TOTAL_STEPS = 3;
+
+type ResearchAreaInput = {
+  disciplines: string[];
+  disciplineOther: string | null;
+  researchFieldIds: string[];
+  researchAreaOtherSelected?: string;
+  researchAreaOther: string | null;
+};
+
+/**
+ * The profile columns and field ids for a discipline and area selection. A
+ * specified Other area also becomes a research field, so the directory search
+ * and matching can find it like any listed area.
+ */
+async function resolveResearchAreas(input: ResearchAreaInput) {
+  const areaOther = input.researchAreaOtherSelected ? input.researchAreaOther : null;
+  const ids = new Set(input.researchFieldIds);
+  if (areaOther) ids.add(await ensureResearchField(areaOther));
+  return {
+    columns: {
+      disciplines: input.disciplines,
+      disciplineOther: input.disciplines.includes(OTHER_DISCIPLINE_SLUG) ? input.disciplineOther : null,
+      researchAreaOther: areaOther,
+    },
+    fieldIds: [...ids],
+  };
+}
 
 export async function saveResearcherDetailsAction(_prev: ActionResult | null, formData: FormData) {
   const parsed = parseForm(researcherProfileSchema, formData);
@@ -24,6 +53,7 @@ export async function saveResearcherDetailsAction(_prev: ActionResult | null, fo
       const stored = await storeFile({ file: photo, purpose: "photo", ownerId: user.id });
       photoFileId = stored.id;
     }
+    const areas = await resolveResearchAreas(parsed.data);
 
     await db
       .update(researcherProfiles)
@@ -42,6 +72,7 @@ export async function saveResearcherDetailsAction(_prev: ActionResult | null, fo
         contactEmail: parsed.data.contactEmail,
         biography: parsed.data.biography,
         recruitingOnBehalfOf: parsed.data.recruitingOnBehalfOf,
+        ...areas.columns,
         ...(photoFileId ? { photoFileId } : {}),
         onboardingStep: 2,
         updatedAt: new Date(),
@@ -51,7 +82,7 @@ export async function saveResearcherDetailsAction(_prev: ActionResult | null, fo
     await db.delete(researcherFields).where(eq(researcherFields.researcherId, user.id));
     await db
       .insert(researcherFields)
-      .values(parsed.data.researchFieldIds.map((researchFieldId) => ({ researcherId: user.id, researchFieldId })));
+      .values(areas.fieldIds.map((researchFieldId) => ({ researcherId: user.id, researchFieldId })));
   } catch (error) {
     return toActionError(error, "researcher_details_failed");
   }
@@ -65,7 +96,7 @@ export async function submitResearcherForReviewAction(_prev: ActionResult | null
   try {
     const rows = await db.select().from(researcherProfiles).where(eq(researcherProfiles.userId, user.id)).limit(1);
     const profile = rows[0];
-    if (!profile || !profile.firstName || !profile.department || !profile.biography) {
+    if (!profile || !profile.firstName || !profile.department) {
       return { ok: false as const, error: "Complete your details before submitting. Your answers are saved." };
     }
 
@@ -102,10 +133,9 @@ export async function submitResearcherForReviewAction(_prev: ActionResult | null
     return toActionError(error, "researcher_submit_failed");
   }
 
-  // Straight into posting. Verification carries on in the background, and the
-  // fewer steps between finishing a profile and having a position written, the
-  // fewer people stop here.
-  redirect("/researcher/opportunities/new");
+  // A confirmation with posting as the obvious next step, rather than dropping
+  // them straight into the form: not everyone has a position ready on day one.
+  redirect("/onboarding/researcher/live");
 }
 
 /**
@@ -134,6 +164,7 @@ export async function claimFacultyProfileAction(_prev: ActionResult | null, form
     }
 
     const now = new Date();
+    const areas = await resolveResearchAreas(parsed.data);
 
     await db.transaction(async (tx) => {
       await tx
@@ -148,6 +179,7 @@ export async function claimFacultyProfileAction(_prev: ActionResult | null, form
           biography: parsed.data.biography,
           recruitingNeeds: parsed.data.recruitingNeeds,
           recruitingOnBehalfOf: parsed.data.recruitingOnBehalfOf,
+          ...areas.columns,
           verificationStatus: "verified",
           approvedAt: profile.approvedAt ?? now,
           claimedAt: now,
@@ -159,7 +191,7 @@ export async function claimFacultyProfileAction(_prev: ActionResult | null, form
       await tx.delete(researcherFields).where(eq(researcherFields.researcherId, user.id));
       await tx
         .insert(researcherFields)
-        .values(parsed.data.researchFieldIds.map((researchFieldId) => ({ researcherId: user.id, researchFieldId })));
+        .values(areas.fieldIds.map((researchFieldId) => ({ researcherId: user.id, researchFieldId })));
 
       await tx
         .update(users)
@@ -186,5 +218,5 @@ export async function claimFacultyProfileAction(_prev: ActionResult | null, form
     return toActionError(error, "faculty_claim_failed");
   }
 
-  redirect("/researcher?claimed=1");
+  redirect("/onboarding/researcher/live");
 }

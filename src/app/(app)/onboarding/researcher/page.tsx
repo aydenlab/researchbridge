@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db, researcherFields, researchFields, researcherProfiles } from "@/db";
+import { photoUrl } from "@/components/app/avatar";
 import { OnboardingShell, type Step } from "@/components/app/onboarding-shell";
 import { requireUser } from "@/lib/auth/permissions";
+import { DISCIPLINES, OTHER_DISCIPLINE_SLUG, disciplinesForAreaSlugs } from "@/lib/disciplines";
 import { RESEARCHER_TYPE_LABELS, labelOr } from "@/lib/labels";
 import { listDepartments, listFaculties, listResearchFields } from "@/lib/queries/taxonomy";
 import { FacultyClaimForm } from "./claim-form";
@@ -19,6 +21,11 @@ const STEPS: Step[] = [
   { number: 2, label: "Review and submit", description: "Check the details, then send your account for review." },
   { number: 3, label: "Awaiting review", description: "A ResearchBridge administrator checks new researcher accounts." },
 ];
+
+/** Saved disciplines, or for a profile from before disciplines existed, the ones its areas imply. */
+function initialDisciplines(saved: string[], areaSlugs: string[]): string[] {
+  return saved.length > 0 ? saved : disciplinesForAreaSlugs(areaSlugs);
+}
 
 const RECRUITING_LABELS: Record<string, string> = {
   personally: "Myself",
@@ -48,7 +55,7 @@ export default async function ResearcherOnboardingPage({
       listResearchFields(),
       institution ? listDepartments(institution) : Promise.resolve([]),
       db
-        .select({ id: researchFields.id })
+        .select({ id: researchFields.id, slug: researchFields.slug })
         .from(researcherFields)
         .innerJoin(researchFields, eq(researchFields.id, researcherFields.researchFieldId))
         .where(eq(researcherFields.researcherId, user.id)),
@@ -78,8 +85,13 @@ export default async function ResearcherOnboardingPage({
             recruitingNeeds: profile.recruitingNeeds ?? "",
             recruitingOnBehalfOf: profile.recruitingOnBehalfOf ?? "personally",
           }}
-          fields={claimFields.map((field) => ({ id: field.id, name: field.name }))}
+          fields={claimFields.map((field) => ({ id: field.id, name: field.name, slug: field.slug }))}
           selectedFieldIds={claimSelected.map((field) => field.id)}
+          areas={{
+            disciplines: initialDisciplines(profile.disciplines, claimSelected.map((field) => field.slug)),
+            disciplineOther: profile.disciplineOther ?? "",
+            researchAreaOther: profile.researchAreaOther ?? "",
+          }}
           departments={claimDepartments.map((department) => department.name)}
           source={profile.prefilledSource}
         />
@@ -98,7 +110,7 @@ export default async function ResearcherOnboardingPage({
     institutionId ? listFaculties(institutionId) : Promise.resolve([]),
     institutionId ? listDepartments(institutionId) : Promise.resolve([]),
     db
-      .select({ id: researchFields.id, name: researchFields.name })
+      .select({ id: researchFields.id, name: researchFields.name, slug: researchFields.slug })
       .from(researcherFields)
       .innerJoin(researchFields, eq(researchFields.id, researcherFields.researchFieldId))
       .where(eq(researcherFields.researcherId, user.id)),
@@ -112,6 +124,17 @@ export default async function ResearcherOnboardingPage({
     { label: "Faculty", value: profile.faculty ?? "Not set" },
     { label: "Lab or group", value: profile.labName ?? "Not set" },
     { label: "Lab website", value: profile.labWebsite ?? "Not set" },
+    {
+      label: "Disciplines",
+      value:
+        profile.disciplines
+          .map((slug) =>
+            slug === OTHER_DISCIPLINE_SLUG
+              ? profile.disciplineOther ?? "Other"
+              : DISCIPLINES.find((discipline) => discipline.slug === slug)?.name ?? slug,
+          )
+          .join(", ") || "None selected",
+    },
     { label: "Research areas", value: selected.length > 0 ? selected.map((field) => field.name).join(", ") : "None selected" },
     { label: "Recruiting for", value: labelOr(RECRUITING_LABELS, profile.recruitingOnBehalfOf) },
     { label: "Biography", value: profile.biography ?? "Not set" },
@@ -143,8 +166,12 @@ export default async function ResearcherOnboardingPage({
             contactEmail: profile.contactEmail,
             biography: profile.biography,
             recruitingOnBehalfOf: profile.recruitingOnBehalfOf,
+            disciplines: initialDisciplines(profile.disciplines, selected.map((field) => field.slug)),
+            disciplineOther: profile.disciplineOther,
+            researchAreaOther: profile.researchAreaOther,
+            photoUrl: photoUrl(profile.photoFileId),
           }}
-          fields={fields.map((field) => ({ id: field.id, name: field.name }))}
+          fields={fields.map((field) => ({ id: field.id, name: field.name, slug: field.slug }))}
           selectedFieldIds={selected.map((field) => field.id)}
           faculties={faculties.map((faculty) => faculty.name)}
           departments={departments.map((department) => department.name)}

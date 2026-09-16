@@ -96,11 +96,51 @@ describe("researcher profile step", () => {
     ["department", "Health Research Methods, Evidence, and Impact"],
     ["biography", "My group studies cardiovascular outcomes using routinely collected clinical data."],
     ["recruitingOnBehalfOf", "personally"],
+    ["disciplines", "health-medicine"],
   ];
 
   it("saves with a single research area selected", () => {
     const parsed = parseForm(researcherProfileSchema, form([...base, ["researchFieldIds", uuid]]));
     expect(parsed.ok).toBe(true);
+  });
+
+  it("saves without a biography", () => {
+    const withoutBio = base.filter(([key]) => key !== "biography");
+    const parsed = parseForm(researcherProfileSchema, form([...withoutBio, ["researchFieldIds", uuid]]));
+    expect(parsed.ok).toBe(true);
+  });
+
+  it("requires a discipline", () => {
+    const withoutDiscipline = base.filter(([key]) => key !== "disciplines");
+    const parsed = parseForm(researcherProfileSchema, form([...withoutDiscipline, ["researchFieldIds", uuid]]));
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok || parsed.result.ok) return;
+    expect(parsed.result.fieldErrors?.disciplines?.[0]).toContain("discipline");
+  });
+
+  it("asks for the discipline when Other is chosen", () => {
+    const parsed = parseForm(
+      researcherProfileSchema,
+      form([...base, ["disciplines", "other"], ["researchFieldIds", uuid]]),
+    );
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok || parsed.result.ok) return;
+    expect(parsed.result.fieldErrors?.disciplineOther?.[0]).toBe("Please specify your discipline.");
+  });
+
+  it("accepts a specified Other research area in place of a listed one", () => {
+    const parsed = parseForm(
+      researcherProfileSchema,
+      form([...base, ["researchAreaOtherSelected", "on"], ["researchAreaOther", "Sleep medicine"]]),
+    );
+    expect(parsed.ok).toBe(true);
+  });
+
+  it("asks for the research area when Other is ticked but left blank", () => {
+    const parsed = parseForm(researcherProfileSchema, form([...base, ["researchAreaOtherSelected", "on"]]));
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok || parsed.result.ok) return;
+    expect(parsed.result.fieldErrors?.researchAreaOther?.[0]).toBe("Please specify your research area.");
   });
 
   it("rejects a lab website that is not a full web address", () => {

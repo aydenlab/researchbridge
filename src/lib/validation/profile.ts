@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DISCIPLINE_SLUGS, OTHER_DISCIPLINE_SLUG } from "@/lib/disciplines";
 import { arrayField } from "./shared";
 
 const trimmed = (max: number) => z.string().trim().max(max);
@@ -184,6 +185,44 @@ export const directMessageSchema = z.object({
     .max(4000, "Messages are limited to 4000 characters."),
 });
 
+/**
+ * Discipline and research area, as the picker in
+ * components/app/research-area-picker.tsx submits them. Either a listed area or
+ * a specified Other area is enough, and choosing an Other asks for its text.
+ */
+const researchAreaShape = {
+  disciplines: arrayField(
+    z.string().refine((slug) => slug === OTHER_DISCIPLINE_SLUG || DISCIPLINE_SLUGS.has(slug), "Choose a listed discipline."),
+    { min: 1, max: 18, message: "Choose at least one discipline." },
+  ),
+  disciplineOther: optionalText(120),
+  researchFieldIds: arrayField(z.string().uuid(), { max: 40 }),
+  researchAreaOtherSelected: z.string().optional(),
+  researchAreaOther: optionalText(120),
+};
+
+function refineResearchAreas(
+  value: {
+    disciplines: string[];
+    disciplineOther: string | null;
+    researchFieldIds: string[];
+    researchAreaOtherSelected?: string;
+    researchAreaOther: string | null;
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (value.disciplines.includes(OTHER_DISCIPLINE_SLUG) && !value.disciplineOther) {
+    ctx.addIssue({ code: "custom", path: ["disciplineOther"], message: "Please specify your discipline." });
+  }
+  const otherArea = Boolean(value.researchAreaOtherSelected);
+  if (otherArea && !value.researchAreaOther) {
+    ctx.addIssue({ code: "custom", path: ["researchAreaOther"], message: "Please specify your research area." });
+  }
+  if (value.researchFieldIds.length === 0 && !otherArea) {
+    ctx.addIssue({ code: "custom", path: ["researchFieldIds"], message: "Choose at least one research area." });
+  }
+}
+
 export const researcherProfileSchema = z.object({
   firstName: requiredText("First name", 80),
   lastName: requiredText("Last name", 80),
@@ -211,12 +250,12 @@ export const researcherProfileSchema = z.object({
   linkedinUrl: optionalUrl,
   orcidId: optionalOrcid,
   contactEmail: optionalEmail,
-  biography: requiredText("Short biography", 2500),
+  biography: optionalText(2500),
   recruitingOnBehalfOf: z.enum(["personally", "lab", "another_investigator"], {
     message: "Tell us who you are recruiting for.",
   }),
-  researchFieldIds: arrayField(z.string().uuid(), { min: 1, max: 12, message: "Choose at least one research area." }),
-});
+  ...researchAreaShape,
+}).superRefine(refineResearchAreas);
 
 /**
  * The claim form for a pre-filled faculty profile.
@@ -235,8 +274,8 @@ export const facultyClaimSchema = z.object({
   biography: optionalText(2500),
   recruitingNeeds: requiredText("What you are looking for", 2000),
   recruitingOnBehalfOf: z.enum(["personally", "lab", "another_investigator"]).default("personally"),
-  researchFieldIds: arrayField(z.string().uuid(), { min: 1, max: 12, message: "Choose at least one research area." }),
-});
+  ...researchAreaShape,
+}).superRefine(refineResearchAreas);
 
 export type StudentBasicsInput = z.infer<typeof studentBasicsSchema>;
 export type ResearcherProfileInput = z.infer<typeof researcherProfileSchema>;

@@ -12,6 +12,7 @@ import {
   type ExperienceRow,
   type SkillRow,
 } from "@/components/app/inputs";
+import { ResearchAreaPicker, type PickerField } from "@/components/app/research-area-picker";
 import { StepActions } from "@/components/app/onboarding-shell";
 import { Field, FormError, FormNote, Input, RadioRow, Select, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
@@ -298,7 +299,7 @@ export function InterestsForm({
   selectedFieldIds,
   summary,
 }: {
-  fields: { id: string; name: string }[];
+  fields: PickerField[];
   selectedFieldIds: string[];
   summary: string | null;
 }) {
@@ -310,11 +311,13 @@ export function InterestsForm({
       <FormError>{state?.ok === false ? state.error : null}</FormError>
 
       <fieldset>
-        <legend className="mb-2 text-[13px] font-medium text-ink">Research areas</legend>
-        <CheckboxGrid
-          name="researchFieldIds"
-          options={fields.map((field) => ({ value: field.id, label: field.name }))}
-          initial={selectedFieldIds}
+        <legend className="sr-only">Research areas</legend>
+        <ResearchAreaPicker
+          fields={fields}
+          initialAreaIds={selectedFieldIds}
+          withOther={false}
+          required={false}
+          areaLabel="Research areas"
         />
       </fieldset>
 

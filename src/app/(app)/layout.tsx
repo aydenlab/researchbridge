@@ -78,6 +78,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         homeHref={homeHref}
         displayName={user.displayName}
         email={user.email}
+        photoFileId={user.photoFileId}
         roleLabel={ROLE_LABELS[user.role] ?? "Member"}
         unreadCount={unread}
         unreadMessageCount={unreadMessages}

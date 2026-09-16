@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { db, opportunities } from "@/db";
 import { Badge, Tag } from "@/components/ui/badge";
+import { Avatar } from "@/components/app/avatar";
 import { OpportunityActions } from "@/components/app/opportunity-actions";
 import { currentUser } from "@/lib/auth/permissions";
 import { evaluateDeterministic } from "@/lib/criteria/engine";
@@ -592,13 +593,22 @@ export default async function OpportunityDetailPage({ params }: Params) {
 
             <Section title="About the researcher" eyebrow="Who you would work with">
               <div className="rounded-[10px] border border-line bg-white p-5">
-                <p className="text-[16px] font-medium text-ink">
-                  {detail.researcher.firstName} {detail.researcher.lastName}
-                </p>
-                <p className="mt-0.5 text-[13.5px] text-muted">
-                  {detail.researcher.title ?? labelOr(RESEARCHER_TYPE_LABELS, detail.researcher.researcherType)}
-                  {detail.researcher.department ? `, ${detail.researcher.department}` : ""}
-                </p>
+                <div className="flex items-center gap-3.5">
+                  <Avatar
+                    fileId={detail.researcher.photoFileId}
+                    name={detail.researcher.firstName}
+                    className="size-14 text-[20px]"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[16px] font-medium text-ink">
+                      {detail.researcher.firstName} {detail.researcher.lastName}
+                    </p>
+                    <p className="mt-0.5 text-[13.5px] text-muted">
+                      {detail.researcher.title ?? labelOr(RESEARCHER_TYPE_LABELS, detail.researcher.researcherType)}
+                      {detail.researcher.department ? `, ${detail.researcher.department}` : ""}
+                    </p>
+                  </div>
+                </div>
                 {detail.researcher.biography ? (
                   <p className="mt-3 text-[14.5px] leading-7 text-muted">{detail.researcher.biography}</p>
                 ) : null}

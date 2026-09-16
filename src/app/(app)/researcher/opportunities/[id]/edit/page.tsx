@@ -110,7 +110,7 @@ export default async function EditOpportunityPage({
             department: detail.opportunity.department ?? "",
             labName: detail.opportunity.labName ?? "",
           }}
-          fields={fields.map((field) => ({ id: field.id, name: field.name }))}
+          fields={fields.map((field) => ({ id: field.id, name: field.name, slug: field.slug }))}
           selectedFieldIds={detail.fields.map((field) => field.id)}
           departments={departments.map((department) => department.name)}
         />

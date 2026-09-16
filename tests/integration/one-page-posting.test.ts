@@ -59,6 +59,7 @@ async function signIn(verified: boolean) {
     onboardingCompletedAt: user.onboardingCompletedAt,
     displayName: "Test Researcher",
     researcherVerification: verified ? "verified" : "pending",
+    photoFileId: null,
   };
   return user;
 }

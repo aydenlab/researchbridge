@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { CheckboxGrid } from "@/components/app/inputs";
+import { PhotoField } from "@/components/app/photo-field";
+import { ResearchAreaPicker, type PickerField } from "@/components/app/research-area-picker";
 import { StepActions } from "@/components/app/onboarding-shell";
 import { Field, FormError, FormNote, Input, RadioRow, Select, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
@@ -29,6 +30,10 @@ export type ResearcherDraft = {
   contactEmail: string | null;
   biography: string | null;
   recruitingOnBehalfOf: string | null;
+  disciplines: string[];
+  disciplineOther: string | null;
+  researchAreaOther: string | null;
+  photoUrl: string | null;
 };
 
 export function ResearcherDetailsForm({
@@ -39,13 +44,18 @@ export function ResearcherDetailsForm({
   departments,
 }: {
   draft: ResearcherDraft;
-  fields: { id: string; name: string }[];
+  fields: PickerField[];
   selectedFieldIds: string[];
   faculties: string[];
   departments: string[];
 }) {
   const [state, action] = useActionState<ActionResult | null, FormData>(saveResearcherDetailsAction, null);
   const errors = state?.ok === false ? state.fieldErrors : undefined;
+
+  // A rejected URL or ORCID is no use inside a collapsed section.
+  const optionalHasError = ["labWebsite", "personalWebsite", "linkedinUrl", "orcidId", "contactEmail"].some(
+    (key) => errors?.[key]?.length,
+  );
 
   return (
     <form action={action} className="flex flex-col gap-5">
@@ -77,18 +87,11 @@ export function ResearcherDetailsForm({
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Faculty" htmlFor="faculty">
-          <Select id="faculty" name="faculty" defaultValue={draft.faculty ?? ""}>
-            <option value="">Not listed</option>
-            {faculties.map((faculty) => (
-              <option key={faculty} value={faculty}>
-                {faculty}
-              </option>
-            ))}
-          </Select>
-        </Field>
         <Field label="Department" htmlFor="department" required error={errors?.department?.[0]}>
           <Input id="department" name="department" list="departments" defaultValue={draft.department ?? ""} required />
+        </Field>
+        <Field label="Lab or research group" htmlFor="labName">
+          <Input id="labName" name="labName" defaultValue={draft.labName ?? ""} />
         </Field>
       </div>
       <datalist id="departments">
@@ -97,71 +100,25 @@ export function ResearcherDetailsForm({
         ))}
       </datalist>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Lab or research group" htmlFor="labName">
-          <Input id="labName" name="labName" defaultValue={draft.labName ?? ""} />
-        </Field>
-        <Field label="Lab website" htmlFor="labWebsite" error={errors?.labWebsite?.[0]}>
-          <Input id="labWebsite" name="labWebsite" type="url" defaultValue={draft.labWebsite ?? ""} placeholder="https://" />
-        </Field>
-      </div>
-
-      <Field label="Personal research page" htmlFor="personalWebsite" error={errors?.personalWebsite?.[0]}>
-        <Input id="personalWebsite" name="personalWebsite" type="url" defaultValue={draft.personalWebsite ?? ""} placeholder="https://" />
-      </Field>
-
-      <Field
-        label="LinkedIn"
-        htmlFor="linkedinUrl"
-        hint="Optional."
-        error={errors?.linkedinUrl?.[0]}
-      >
-        <Input id="linkedinUrl" name="linkedinUrl" type="url" defaultValue={draft.linkedinUrl ?? ""} placeholder="https://www.linkedin.com/in/" />
-      </Field>
-
-      <Field
-        label="ORCID iD"
-        htmlFor="orcidId"
-        hint="Optional. Students use it to find your published work."
-        error={errors?.orcidId?.[0]}
-      >
-        <Input id="orcidId" name="orcidId" type="text" defaultValue={draft.orcidId ?? ""} placeholder="0000-0002-1825-0097" />
-      </Field>
-
-      <Field
-        label="Contact email"
-        htmlFor="contactEmail"
-        hint="Optional. Shown to students you contact, if it differs from your sign-in address."
-        error={errors?.contactEmail?.[0]}
-      >
-        <Input id="contactEmail" name="contactEmail" type="email" defaultValue={draft.contactEmail ?? ""} />
-      </Field>
-
-      <fieldset>
-        <legend className="mb-2 text-[13px] font-medium text-ink">
-          Research areas <span className="text-clay">*</span>
-        </legend>
-        {errors?.researchFieldIds?.[0] ? (
-          <p role="alert" className="mb-2 text-[12.5px] text-bad">
-            {errors.researchFieldIds[0]}
-          </p>
-        ) : null}
-        <CheckboxGrid
-          name="researchFieldIds"
-          options={fields.map((field) => ({ value: field.id, label: field.name }))}
-          initial={selectedFieldIds}
-        />
-      </fieldset>
+      <ResearchAreaPicker
+        fields={fields}
+        initialDisciplines={draft.disciplines}
+        initialAreaIds={selectedFieldIds}
+        initialDisciplineOther={draft.disciplineOther ?? ""}
+        initialAreaOther={draft.researchAreaOther ?? ""}
+        errors={errors}
+      />
 
       <Field
         label="Short biography"
         htmlFor="biography"
-        required
         hint="A few sentences students will read on your listings. What your group works on, and what a student joining would actually do."
         error={errors?.biography?.[0]}
       >
-        <Textarea id="biography" name="biography" rows={6} defaultValue={draft.biography ?? ""} required maxLength={2500} />
+        <Textarea id="biography" name="biography" rows={4} defaultValue={draft.biography ?? ""} maxLength={2500} />
       </Field>
+
+      <PhotoField currentUrl={draft.photoUrl} name={[draft.firstName, draft.lastName].filter(Boolean).join(" ")} />
 
       <fieldset>
         <legend className="mb-2 text-[13px] font-medium text-ink">
@@ -192,9 +149,65 @@ export function ResearcherDetailsForm({
         </div>
       </fieldset>
 
-      <Field label="Profile photo" htmlFor="photo" hint="Optional. PNG, JPEG, or WebP up to 4 MB.">
-        <Input id="photo" name="photo" type="file" accept="image/png,image/jpeg,image/webp" className="py-1.5" />
-      </Field>
+      {/*
+        Everything a researcher can skip lives behind one disclosure. Seven
+        optional fields in the open turn a five-minute sign-up into something
+        that looks like a grant application, and none of them gate the account.
+      */}
+      <details open={optionalHasError || undefined} className="rounded-[10px] border border-line bg-shell/40 px-4 py-3">
+        <summary className="cursor-pointer text-[13px] font-medium text-ink">
+          Links and other optional details
+        </summary>
+        <p className="mt-1 text-[12.5px] leading-5 text-muted">
+          All optional. You can add any of these later from your profile.
+        </p>
+
+        <div className="mt-4 flex flex-col gap-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Faculty" htmlFor="faculty">
+              <Select id="faculty" name="faculty" defaultValue={draft.faculty ?? ""}>
+                <option value="">Not listed</option>
+                {faculties.map((faculty) => (
+                  <option key={faculty} value={faculty}>
+                    {faculty}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Lab website" htmlFor="labWebsite" error={errors?.labWebsite?.[0]}>
+              <Input id="labWebsite" name="labWebsite" type="url" defaultValue={draft.labWebsite ?? ""} placeholder="https://" />
+            </Field>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Personal research page" htmlFor="personalWebsite" error={errors?.personalWebsite?.[0]}>
+              <Input id="personalWebsite" name="personalWebsite" type="url" defaultValue={draft.personalWebsite ?? ""} placeholder="https://" />
+            </Field>
+            <Field label="LinkedIn" htmlFor="linkedinUrl" error={errors?.linkedinUrl?.[0]}>
+              <Input id="linkedinUrl" name="linkedinUrl" type="url" defaultValue={draft.linkedinUrl ?? ""} placeholder="https://www.linkedin.com/in/" />
+            </Field>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field
+              label="ORCID iD"
+              htmlFor="orcidId"
+              hint="Students use it to find your published work."
+              error={errors?.orcidId?.[0]}
+            >
+              <Input id="orcidId" name="orcidId" type="text" defaultValue={draft.orcidId ?? ""} placeholder="0000-0002-1825-0097" />
+            </Field>
+            <Field
+              label="Contact email"
+              htmlFor="contactEmail"
+              hint="Shown to students you contact, if it differs from your sign-in address."
+              error={errors?.contactEmail?.[0]}
+            >
+              <Input id="contactEmail" name="contactEmail" type="email" defaultValue={draft.contactEmail ?? ""} />
+            </Field>
+          </div>
+        </div>
+      </details>
 
       <Actions />
     </form>
@@ -216,8 +229,8 @@ export function ResearcherReviewForm({
 
       <FormNote>
         {verificationStatus === "verified"
-          ? "Your account is already verified. Submitting saves these details and takes you straight to posting a position."
-          : "You go straight to posting a position after this. Verification happens in the background: an administrator checks your account and your first listing before students see it, usually within a day. You do not need an institutional email address to get this far, and you will be emailed when verification is done."}
+          ? "Your account is already verified. Submitting saves these details and puts your profile live."
+          : "Submitting puts your profile live. Verification happens in the background: an administrator checks your account and your first listing before students see it, usually within a day. You do not need an institutional email address to get this far, and you will be emailed when verification is done."}
       </FormNote>
 
       <dl className="divide-y divide-line border-y border-line">
@@ -229,7 +242,7 @@ export function ResearcherReviewForm({
         ))}
       </dl>
 
-      <Actions backHref="/onboarding/researcher?step=1" submitLabel="Save and post a position" />
+      <Actions backHref="/onboarding/researcher?step=1" submitLabel="Create my profile" />
     </form>
   );
 }

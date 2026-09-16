@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { CheckboxGrid } from "@/components/app/inputs";
+import { ResearchAreaPicker, type PickerField } from "@/components/app/research-area-picker";
 import { Button } from "@/components/ui/button";
 import { Field, FormError, FormNote, Input, RadioRow, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
@@ -27,6 +27,7 @@ export function FacultyClaimForm({
   draft,
   fields,
   selectedFieldIds,
+  areas,
   departments,
   source,
 }: {
@@ -41,8 +42,9 @@ export function FacultyClaimForm({
     recruitingNeeds: string;
     recruitingOnBehalfOf: string;
   };
-  fields: { id: string; name: string }[];
+  fields: PickerField[];
   selectedFieldIds: string[];
+  areas: { disciplines: string[]; disciplineOther: string; researchAreaOther: string };
   departments: string[];
   source: string;
 }) {
@@ -103,21 +105,16 @@ export function FacultyClaimForm({
           </Field>
         </div>
 
-        <fieldset className="mt-5">
-          <legend className="mb-2 text-[13px] font-medium text-ink">
-            Research areas <span className="text-clay">*</span>
-          </legend>
-          {errors?.researchFieldIds?.[0] ? (
-            <p role="alert" className="mb-2 text-[12.5px] text-bad">
-              {errors.researchFieldIds[0]}
-            </p>
-          ) : null}
-          <CheckboxGrid
-            name="researchFieldIds"
-            options={fields.map((field) => ({ value: field.id, label: field.name }))}
-            initial={selectedFieldIds}
+        <div className="mt-5">
+          <ResearchAreaPicker
+            fields={fields}
+            initialDisciplines={areas.disciplines}
+            initialAreaIds={selectedFieldIds}
+            initialDisciplineOther={areas.disciplineOther}
+            initialAreaOther={areas.researchAreaOther}
+            errors={errors}
           />
-        </fieldset>
+        </div>
       </section>
 
       <section className="rounded-[12px] border border-forest/30 bg-moss/40 p-5">

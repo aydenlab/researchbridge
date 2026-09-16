@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bell, ChevronDown, Inbox, Menu, X } from "lucide-react";
+import { Avatar } from "@/components/app/avatar";
 import { Logo } from "@/components/marketing/brand";
 import { cn } from "@/components/ui/cn";
 
@@ -14,6 +15,7 @@ export function AppHeader({
   homeHref,
   displayName,
   email,
+  photoFileId,
   roleLabel,
   unreadCount,
   unreadMessageCount,
@@ -22,6 +24,7 @@ export function AppHeader({
   homeHref: string;
   displayName: string | null;
   email: string;
+  photoFileId: string | null;
   roleLabel: string;
   unreadCount: number;
   unreadMessageCount: number;
@@ -29,30 +32,78 @@ export function AppHeader({
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const navRef = useRef<HTMLElement | null>(null);
+  const [navEdges, setNavEdges] = useState({ start: false, end: false });
 
   useEffect(() => {
     setMenuOpen(false);
     setAccountOpen(false);
   }, [pathname]);
 
+  // An admin's nine destinations do not fit every window, so the strip scrolls.
+  // When it does, the page they are on is brought into view and whichever edge
+  // has more behind it is faded, so a clipped label reads as "there is more"
+  // rather than as a layout that has gone wrong.
+  useEffect(() => {
+    const strip = navRef.current;
+    if (!strip) return;
+
+    const measure = () =>
+      setNavEdges({
+        start: strip.scrollLeft > 1,
+        end: strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1,
+      });
+
+    strip.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(strip);
+    strip.addEventListener("scroll", measure, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      strip.removeEventListener("scroll", measure);
+    };
+  }, [pathname, nav]);
+
+  const navMask =
+    navEdges.start && navEdges.end
+      ? "linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent)"
+      : navEdges.start
+        ? "linear-gradient(to right, transparent, #000 28px)"
+        : navEdges.end
+          ? "linear-gradient(to right, #000 calc(100% - 28px), transparent)"
+          : undefined;
+
   const isActive = (href: string) => pathname === href || (href !== homeHref && pathname.startsWith(`${href}/`));
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white/85 backdrop-blur-md">
-      <div className="mx-auto flex max-w-[1560px] items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
-        <div className="flex min-w-0 items-center gap-6">
+      <div className="mx-auto flex max-w-[1560px] items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-4 xl:gap-6">
           <Link href={homeHref} className="inline-flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80">
             <Logo className="h-8 w-auto sm:h-9" priority />
           </Link>
 
-          <nav aria-label="Application" className="hidden items-center gap-1 md:flex">
+          {/*
+            An admin carries nine destinations, so the row has to be allowed to
+            run out of room rather than shrink into the account menu. Items keep
+            their own width and the strip scrolls once they stop fitting.
+          */}
+          <nav
+            ref={navRef}
+            aria-label="Application"
+            className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto rb-hide-scroll lg:flex"
+            style={navMask ? { maskImage: navMask } : undefined}
+          >
             {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
-                  "rounded-full px-3 py-1.5 text-[13.5px] font-medium transition-colors",
+                  "shrink-0 whitespace-nowrap rounded-full px-2.5 py-1.5 text-[13.5px] font-medium transition-colors xl:px-3",
                   isActive(item.href) ? "bg-moss text-forest" : "text-muted hover:bg-cream hover:text-ink",
                 )}
               >
@@ -62,7 +113,7 @@ export function AppHeader({
           </nav>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/messages"
             className="relative inline-flex size-9 items-center justify-center rounded-full border border-line text-muted transition-colors hover:border-ink/30 hover:text-ink"
@@ -93,16 +144,14 @@ export function AppHeader({
             </span>
           </Link>
 
-          <div className="relative hidden md:block">
+          <div className="relative hidden lg:block">
             <button
               type="button"
               onClick={() => setAccountOpen((value) => !value)}
               aria-expanded={accountOpen}
               className="inline-flex items-center gap-2 rounded-full border border-line py-1 pl-1 pr-2.5 transition-colors hover:border-ink/30"
             >
-              <span className="inline-flex size-7 items-center justify-center rounded-full bg-forest text-[11px] font-medium text-white">
-                {(displayName ?? email).slice(0, 1).toUpperCase()}
-              </span>
+              <Avatar fileId={photoFileId} name={displayName ?? email} className="size-7 text-[11px]" />
               <span className="max-w-[140px] truncate text-[13px] text-ink">{displayName ?? email}</span>
               <ChevronDown className="size-3.5 text-muted" aria-hidden="true" />
             </button>
@@ -134,7 +183,7 @@ export function AppHeader({
             onClick={() => setMenuOpen((value) => !value)}
             aria-expanded={menuOpen}
             aria-controls="app-mobile-nav"
-            className="inline-flex size-9 items-center justify-center rounded-full border border-line text-ink md:hidden"
+            className="inline-flex size-9 items-center justify-center rounded-full border border-line text-ink lg:hidden"
           >
             {menuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
             <span className="sr-only">{menuOpen ? "Close menu" : "Open menu"}</span>
@@ -143,7 +192,7 @@ export function AppHeader({
       </div>
 
       {menuOpen ? (
-        <div id="app-mobile-nav" className="rb-fade-in border-t border-line bg-white px-4 py-2 md:hidden">
+        <div id="app-mobile-nav" className="rb-fade-in border-t border-line bg-white px-4 py-2 lg:hidden">
           <ul className="flex flex-col">
             {nav.map((item) => (
               <li key={item.href}>

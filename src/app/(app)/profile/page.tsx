@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db, researcherFields, researcherProfiles, researchFields } from "@/db";
+import { Avatar } from "@/components/app/avatar";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge, Tag } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -94,6 +95,11 @@ export default async function ProfilePage() {
 
     return (
       <div className="mx-auto max-w-[880px] px-4 py-8 sm:px-6 sm:py-10">
+        <Avatar
+          fileId={profile.photoFileId}
+          name={`${profile.firstName} ${profile.lastName}`}
+          className="mb-4 size-20 text-[28px]"
+        />
         <PageHeader
           eyebrow="Researcher profile"
           title={`${profile.firstName} ${profile.lastName}`}

@@ -32,6 +32,12 @@ const resendProvider: EmailProvider = {
         }),
       });
       if (!response.ok) {
+        // Resend explains a refusal in the body. The common one is a 403 for an
+        // unverified sending domain, which only lets mail through to the account
+        // owner: every other address fails, and sign-up looks broken for everyone
+        // but you. Without the body the log only ever says "403".
+        const detail = (await response.text().catch(() => "")).slice(0, 500);
+        log.error("resend_request_rejected", { status: response.status, detail });
         return { ok: false, error: `provider_status_${response.status}` };
       }
       const body = (await response.json()) as { id?: string };

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { TokenField } from "@/components/app/inputs";
+import { ResearchAreaPicker, type PickerField } from "@/components/app/research-area-picker";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CheckboxRow, Field, FormError, FormNote, Input, Textarea } from "@/components/ui/field";
 import type { FormValues, ResubmitResult } from "@/lib/action-utils";
@@ -83,11 +84,14 @@ function Legend({ label, required }: { label: string; required?: boolean }) {
 
 export function SimpleOpportunityForm({
   fields,
+  disciplines,
   skillGroups,
   department,
   verified,
 }: {
-  fields: { id: string; name: string }[];
+  fields: PickerField[];
+  /** The researcher's own disciplines, so the field list starts narrowed to their work. */
+  disciplines: string[];
   skillGroups: { category: string; skills: string[] }[];
   department: string;
   /** An unverified account can still post; the listing waits for a reviewer. */
@@ -166,19 +170,18 @@ export function SimpleOpportunityForm({
 
       <Section title="Field and outcomes" description="What the project belongs to, and what a student would walk away with.">
         <fieldset>
-          <Legend label="Research field" required />
-          <OptionGrid
-            type="radio"
-            name="researchFieldId"
-            options={fields.map((field) => ({ value: field.id, label: field.name }))}
-            initial={chosen("researchFieldId")}
-            other={{
-              name: "otherResearchField",
-              description: "Name your own field.",
-              placeholder: "Sleep and circadian biology",
-              initial: text("otherResearchField"),
-            }}
-            required
+          <legend className="sr-only">Research field</legend>
+          <ResearchAreaPicker
+            fields={fields}
+            initialDisciplines={chosen("disciplines").length > 0 ? chosen("disciplines") : disciplines}
+            initialAreaIds={chosen("researchFieldId")}
+            initialAreaOther={text("otherResearchField")}
+            otherDiscipline={false}
+            otherName="otherResearchField"
+            otherPlaceholder="Sleep and circadian biology"
+            single
+            inputName="researchFieldId"
+            areaLabel="Research field"
           />
           <FormError>{fieldErrors?.researchFieldId?.[0] ?? fieldErrors?.otherResearchField?.[0]}</FormError>
         </fieldset>

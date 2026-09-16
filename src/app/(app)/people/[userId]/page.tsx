@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { FileText } from "lucide-react";
 import { db, researcherProfiles, researchFields, researcherFields, studentResearchInterests } from "@/db";
+import { Avatar } from "@/components/app/avatar";
 import { FollowButton } from "@/components/app/follow-button";
 import { PersonRow } from "@/components/app/person-row";
 import { Badge, Tag } from "@/components/ui/badge";
@@ -94,7 +95,11 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
   const needsRows =
     person.role === "researcher"
       ? await db
-          .select({ recruitingNeeds: researcherProfiles.recruitingNeeds, biography: researcherProfiles.biography })
+          .select({
+            recruitingNeeds: researcherProfiles.recruitingNeeds,
+            biography: researcherProfiles.biography,
+            photoFileId: researcherProfiles.photoFileId,
+          })
           .from(researcherProfiles)
           .where(eq(researcherProfiles.userId, userId))
           .limit(1)
@@ -113,17 +118,22 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
       </nav>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-[28px] text-ink" style={{ letterSpacing: "-0.4px" }}>
-            {person.displayName}
-          </h1>
-          <p className="mt-1 text-[14px] text-muted">
-            {[person.headline, person.institutionName].filter(Boolean).join(" · ") || "Profile not filled in yet"}
-          </p>
-          <p className="mt-2 text-[13px] text-subtle">
-            {counts.followers} {counts.followers === 1 ? "follower" : "followers"} · {counts.following} following
-            {referrals.length > 0 ? ` · ${referrals.length} ${referrals.length === 1 ? "referral" : "referrals"}` : ""}
-          </p>
+        <div className="flex items-start gap-4">
+          {person.role === "researcher" ? (
+            <Avatar fileId={researcher?.photoFileId} name={person.displayName} className="size-16 text-[22px]" />
+          ) : null}
+          <div>
+            <h1 className="font-display text-[28px] text-ink" style={{ letterSpacing: "-0.4px" }}>
+              {person.displayName}
+            </h1>
+            <p className="mt-1 text-[14px] text-muted">
+              {[person.headline, person.institutionName].filter(Boolean).join(" · ") || "Profile not filled in yet"}
+            </p>
+            <p className="mt-2 text-[13px] text-subtle">
+              {counts.followers} {counts.followers === 1 ? "follower" : "followers"} · {counts.following} following
+              {referrals.length > 0 ? ` · ${referrals.length} ${referrals.length === 1 ? "referral" : "referrals"}` : ""}
+            </p>
+          </div>
         </div>
         {isSelf ? (
           <Badge tone="neutral">This is you</Badge>

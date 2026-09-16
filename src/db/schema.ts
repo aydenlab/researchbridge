@@ -480,6 +480,12 @@ export const researcherProfiles = pgTable(
     recruitingOnBehalfOf: text("recruiting_on_behalf_of"),
     /** What this person actually wants from a student. Asked once, on claim. */
     recruitingNeeds: text("recruiting_needs"),
+    /** Discipline slugs from src/lib/disciplines.ts. They only narrow the research area picker. */
+    disciplines: jsonb("disciplines").$type<string[]>().notNull().default([]),
+    /** Free text for the standalone Other discipline. */
+    disciplineOther: text("discipline_other"),
+    /** Free text for an Other research area. */
+    researchAreaOther: text("research_area_other"),
     photoFileId: uuid("photo_file_id"),
     /**
      * Set when the profile was imported from a faculty list rather than typed.

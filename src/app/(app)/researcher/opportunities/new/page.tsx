@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { PageHeader } from "@/components/app/page-header";
 import { db, researcherProfiles } from "@/db";
 import { isVerifiedResearcher, requireResearcher } from "@/lib/auth/permissions";
+import { OTHER_DISCIPLINE_SLUG } from "@/lib/disciplines";
 import { listResearchFields, listSkills } from "@/lib/queries/taxonomy";
 import { SimpleOpportunityForm } from "./simple-form";
 
@@ -21,7 +22,7 @@ export default async function NewOpportunityPage() {
     listResearchFields(),
     listSkills(),
     db
-      .select({ department: researcherProfiles.department })
+      .select({ department: researcherProfiles.department, disciplines: researcherProfiles.disciplines })
       .from(researcherProfiles)
       .where(eq(researcherProfiles.userId, user.id))
       .limit(1),
@@ -47,7 +48,8 @@ export default async function NewOpportunityPage() {
       />
 
       <SimpleOpportunityForm
-        fields={fields.map((field) => ({ id: field.id, name: field.name }))}
+        fields={fields.map((field) => ({ id: field.id, name: field.name, slug: field.slug }))}
+        disciplines={(profileRows[0]?.disciplines ?? []).filter((slug) => slug !== OTHER_DISCIPLINE_SLUG)}
         skillGroups={skillGroups}
         department={profileRows[0]?.department ?? ""}
         verified={verified}

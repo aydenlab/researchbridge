@@ -21,6 +21,7 @@ function session(
     displayName: null,
     researcherVerification:
       verification === undefined ? (role === "researcher" ? "verified" : null) : verification,
+    photoFileId: null,
   };
 }
 

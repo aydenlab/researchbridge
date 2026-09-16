@@ -2,7 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { CheckboxGrid, MultiSelectGrid } from "@/components/app/inputs";
+import { MultiSelectGrid } from "@/components/app/inputs";
+import { ResearchAreaPicker, type PickerField } from "@/components/app/research-area-picker";
 import { CriterionRows, OpportunitySkillRows, QuestionRows, type CriterionDraft, type QuestionDraft, type SkillDraft } from "@/components/app/builder-inputs";
 import { StepActions } from "@/components/app/onboarding-shell";
 import { Field, FormError, FormNote, Input, RadioRow, Select, Textarea } from "@/components/ui/field";
@@ -38,7 +39,7 @@ export function ProjectStep({
 }: {
   id: string;
   draft: { title: string; summary: string; description: string; projectGoals: string; department: string; labName: string };
-  fields: { id: string; name: string }[];
+  fields: PickerField[];
   selectedFieldIds: string[];
   departments: string[];
 }) {
@@ -81,15 +82,14 @@ export function ProjectStep({
       </datalist>
 
       <fieldset>
-        <legend className="mb-2 text-[13px] font-medium text-ink">
-          Research fields <span className="text-clay">*</span>
-        </legend>
-        {errors?.researchFieldIds?.[0] ? (
-          <p role="alert" className="mb-2 text-[12.5px] text-bad">
-            {errors.researchFieldIds[0]}
-          </p>
-        ) : null}
-        <CheckboxGrid name="researchFieldIds" options={fields.map((field) => ({ value: field.id, label: field.name }))} initial={selectedFieldIds} />
+        <legend className="sr-only">Research fields</legend>
+        <ResearchAreaPicker
+          fields={fields}
+          initialAreaIds={selectedFieldIds}
+          withOther={false}
+          areaLabel="Research fields"
+          errors={errors}
+        />
       </fieldset>
 
       <Actions />
