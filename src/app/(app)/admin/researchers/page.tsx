@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AdminPanel } from "@/components/app/admin-ui";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/auth/permissions";
 import { formatShortDate } from "@/lib/format";
 import { RESEARCHER_TYPE_LABELS, VERIFICATION_LABELS, labelOr } from "@/lib/labels";
@@ -79,6 +80,9 @@ export default async function AdminResearchersPage() {
                         <p className="rb-measure mt-2.5 text-[13.5px] leading-6 text-muted">{row.biography}</p>
                       ) : null}
                     </div>
+                    <ButtonLink href={`/admin/researchers/${row.userId}`} variant="outline" size="sm">
+                      Edit profile
+                    </ButtonLink>
                   </div>
 
                   <div className="mt-4 border-t border-line pt-4">
@@ -107,6 +111,9 @@ export default async function AdminResearchersPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge tone={TONE[row.verificationStatus]}>{labelOr(VERIFICATION_LABELS, row.verificationStatus)}</Badge>
+                    <ButtonLink href={`/admin/researchers/${row.userId}`} variant="outline" size="sm">
+                      Edit
+                    </ButtonLink>
                     <details className="text-[12.5px]">
                       <summary className="cursor-pointer text-muted underline decoration-line-strong underline-offset-4 hover:text-ink">
                         Change

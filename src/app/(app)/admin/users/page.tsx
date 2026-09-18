@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { AdminPanel, DataTable, FilterTabs } from "@/components/app/admin-ui";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { requireAdmin } from "@/lib/auth/permissions";
 import { formatShortDate } from "@/lib/format";
 import { VERIFICATION_LABELS, labelOr } from "@/lib/labels";
 import { adminUsers } from "@/lib/queries/admin";
-import { AccountControls } from "./account-controls";
+import { AccountControls, RoleControls } from "./account-controls";
 
 export const metadata: Metadata = {
   title: "Users",
@@ -83,6 +84,7 @@ export default async function AdminUsersPage({
             </div>,
             <div key={`${row.id}-role`} className="flex flex-col gap-1">
               <span className="text-[13px] capitalize text-ink">{row.role ?? "Not chosen"}</span>
+              {row.role === "admin" ? <Badge tone="forest">Admin</Badge> : null}
               {row.role === "researcher" && row.researcherStatus ? (
                 <Badge tone={row.researcherStatus === "verified" ? "ok" : row.researcherStatus === "rejected" ? "bad" : "warn"}>
                   {labelOr(VERIFICATION_LABELS, row.researcherStatus)}
@@ -103,7 +105,18 @@ export default async function AdminUsersPage({
               </p>
               <p className="text-subtle">{row.onboardingCompletedAt ? "Onboarded" : "Onboarding incomplete"}</p>
             </div>,
-            <AccountControls key={`${row.id}-actions`} userId={row.id} status={row.accountStatus} />,
+            <div key={`${row.id}-actions`} className="flex flex-col gap-2">
+              <AccountControls userId={row.id} status={row.accountStatus} />
+              <RoleControls userId={row.id} role={row.role} />
+              {row.role === "researcher" ? (
+                <Link
+                  href={`/admin/researchers/${row.id}`}
+                  className="text-[12px] text-forest underline decoration-line-strong underline-offset-4 hover:text-ink"
+                >
+                  Edit profile
+                </Link>
+              ) : null}
+            </div>,
           ])}
         />
       </AdminPanel>

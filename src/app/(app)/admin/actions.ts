@@ -11,6 +11,7 @@ import {
   researchFields,
   researcherProfiles,
   skills,
+  studentProfiles,
   users,
 } from "@/db";
 import { requireAdmin } from "@/lib/auth/permissions";
@@ -18,6 +19,7 @@ import { optionalText, parseForm, toActionError } from "@/lib/action-utils";
 import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
 import { setFlag, type FeatureFlagKey } from "@/lib/flags";
+import { log } from "@/lib/log";
 import { slugify } from "@/lib/format";
 import { sendResearcherApproved } from "@/lib/email";
 import { z } from "zod";
@@ -129,6 +131,92 @@ export async function setAccountStatusAction(_prev: ActionResult | null, formDat
     return { ok: true as const, data: undefined, message: `Account ${status}` };
   } catch (error) {
     return toActionError(error, "set_account_status_failed");
+  }
+}
+
+/**
+ * Grants or withdraws administrator rights.
+ *
+ * ADMIN_EMAILS still exists and still promotes on sign-in, but it lives in the
+ * deployment's environment: using it means a redeploy, and it cannot be undone
+ * by anyone who is not holding the Railway account. An admin who is already in
+ * the room is the right person to decide this, so it is done here and written
+ * to the audit log with a name against it.
+ *
+ * Withdrawing puts somebody back to the role their profile implies, so an
+ * administrator who is also a professor keeps their listings and their profile.
+ */
+export async function setUserRoleAction(_prev: ActionResult | null, formData: FormData) {
+  const admin = await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  const makeAdmin = String(formData.get("role") ?? "") === "admin";
+
+  if (userId === admin.id) {
+    return { ok: false as const, error: "You cannot change your own role. Ask another administrator." };
+  }
+
+  try {
+    const rows = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        role: users.role,
+        onboardingCompletedAt: users.onboardingCompletedAt,
+        researcherId: researcherProfiles.userId,
+        studentId: studentProfiles.userId,
+      })
+      .from(users)
+      .leftJoin(researcherProfiles, eq(researcherProfiles.userId, users.id))
+      .leftJoin(studentProfiles, eq(studentProfiles.userId, users.id))
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    const account = rows[0];
+    if (!account) return { ok: false as const, error: "That account could not be found." };
+
+    if (!makeAdmin && account.role !== "admin") {
+      return { ok: false as const, error: "That account is not an administrator." };
+    }
+
+    const now = new Date();
+    const role = makeAdmin
+      ? ("admin" as const)
+      : account.researcherId
+        ? ("researcher" as const)
+        : account.studentId
+          ? ("student" as const)
+          : null;
+
+    await db
+      .update(users)
+      .set({
+        role,
+        // An admin lands on the admin pages, not in a half-finished sign-up, so
+        // onboarding counts as done from the moment the role is granted.
+        ...(makeAdmin ? { accountStatus: "active" as const, onboardingCompletedAt: account.onboardingCompletedAt ?? now } : {}),
+        updatedAt: now,
+      })
+      .where(eq(users.id, userId));
+
+    await recordAudit({
+      actorId: admin.id,
+      action: makeAdmin ? "admin_granted" : "admin_revoked",
+      subjectType: "user",
+      subjectId: userId,
+      detail: { email: account.email, role },
+    });
+    log.warn(makeAdmin ? "admin_granted" : "admin_revoked", { actorId: admin.id, userId });
+
+    revalidatePath("/admin/users");
+    return {
+      ok: true as const,
+      data: undefined,
+      message: makeAdmin
+        ? `${account.email} is an administrator. The admin tabs appear the next time they load a page.`
+        : `${account.email} is no longer an administrator.`,
+    };
+  } catch (error) {
+    return toActionError(error, "set_user_role_failed");
   }
 }
 

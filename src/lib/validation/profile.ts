@@ -49,6 +49,16 @@ const optionalEmail = z
     message: "Enter a valid email address.",
   });
 
+const requiredEmailField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1, "An email address is required.")
+  .max(254)
+  .refine((value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value), {
+    message: "Enter a valid email address.",
+  });
+
 export const studentBasicsSchema = z.object({
   firstName: requiredText("First name", 80),
   lastName: requiredText("Last name", 80),
@@ -276,6 +286,55 @@ export const facultyClaimSchema = z.object({
   recruitingOnBehalfOf: z.enum(["personally", "lab", "another_investigator"]).default("personally"),
   ...researchAreaShape,
 }).superRefine(refineResearchAreas);
+
+/**
+ * An administrator correcting somebody else's profile.
+ *
+ * Deliberately looser than the form the researcher fills in themselves: an
+ * admin is usually here to fix one wrong detail on an imported row, and being
+ * made to choose a discipline or invent a department before a misspelled email
+ * can be saved would mean inventing data to fix data. Only the name and a
+ * usable email are insisted on. The email is included because a typo in it is
+ * the one mistake the professor cannot fix for themselves, since it is the
+ * address they would have to sign in with.
+ */
+export const adminResearcherProfileSchema = z.object({
+  email: requiredEmailField,
+  firstName: requiredText("First name", 80),
+  lastName: requiredText("Last name", 80),
+  researcherType: z
+    .enum([
+      "faculty",
+      "professor",
+      "principal_investigator",
+      "postdoc",
+      "phd_student",
+      "masters_student",
+      "lab_manager",
+      "research_staff",
+      "student_lead",
+      "other",
+    ])
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  title: optionalText(160),
+  faculty: optionalText(160),
+  department: optionalText(160),
+  labName: optionalText(160),
+  personalWebsite: optionalUrl,
+  linkedinUrl: optionalUrl,
+  orcidId: optionalOrcid,
+  contactEmail: optionalEmail,
+  biography: optionalText(2500),
+  disciplines: arrayField(
+    z.string().refine((slug) => slug === OTHER_DISCIPLINE_SLUG || DISCIPLINE_SLUGS.has(slug), "Choose a listed discipline."),
+    { max: 18 },
+  ),
+  disciplineOther: optionalText(120),
+  researchFieldIds: arrayField(z.string().uuid(), { max: 40 }),
+  researchAreaOtherSelected: z.string().optional(),
+  researchAreaOther: optionalText(120),
+});
 
 export type StudentBasicsInput = z.infer<typeof studentBasicsSchema>;
 export type ResearcherProfileInput = z.infer<typeof researcherProfileSchema>;

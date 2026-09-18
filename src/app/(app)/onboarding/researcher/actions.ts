@@ -7,39 +7,11 @@ import { requireUser } from "@/lib/auth/permissions";
 import { parseForm, toActionError } from "@/lib/action-utils";
 import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
-import { OTHER_DISCIPLINE_SLUG } from "@/lib/disciplines";
-import { ensureResearchField } from "@/lib/queries/taxonomy";
+import { resolveResearchAreas } from "@/lib/queries/taxonomy";
 import { storeFile } from "@/lib/storage";
 import { facultyClaimSchema, researcherProfileSchema } from "@/lib/validation/profile";
 
 const TOTAL_STEPS = 3;
-
-type ResearchAreaInput = {
-  disciplines: string[];
-  disciplineOther: string | null;
-  researchFieldIds: string[];
-  researchAreaOtherSelected?: string;
-  researchAreaOther: string | null;
-};
-
-/**
- * The profile columns and field ids for a discipline and area selection. A
- * specified Other area also becomes a research field, so the directory search
- * and matching can find it like any listed area.
- */
-async function resolveResearchAreas(input: ResearchAreaInput) {
-  const areaOther = input.researchAreaOtherSelected ? input.researchAreaOther : null;
-  const ids = new Set(input.researchFieldIds);
-  if (areaOther) ids.add(await ensureResearchField(areaOther));
-  return {
-    columns: {
-      disciplines: input.disciplines,
-      disciplineOther: input.disciplines.includes(OTHER_DISCIPLINE_SLUG) ? input.disciplineOther : null,
-      researchAreaOther: areaOther,
-    },
-    fieldIds: [...ids],
-  };
-}
 
 export async function saveResearcherDetailsAction(_prev: ActionResult | null, formData: FormData) {
   const parsed = parseForm(researcherProfileSchema, formData);

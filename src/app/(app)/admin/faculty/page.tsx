@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { AdminPanel } from "@/components/app/admin-ui";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +50,7 @@ export default async function AdminFacultyPage() {
 
         <AdminPanel
           title="Waiting to be claimed"
-          description="Imported profiles nobody has signed in to yet. These accounts are pending and are not counted as active users."
+          description="Imported profiles nobody has signed in to yet. These accounts are pending and are not counted as active users. Edit one to correct a detail, or to delete a row that should not be there."
         >
           {unclaimed.length === 0 ? (
             <p className="px-5 py-8 text-center text-[13.5px] text-muted">
@@ -66,6 +67,9 @@ export default async function AdminFacultyPage() {
                     <th scope="col" className="px-5 py-2.5 text-[12px] font-medium text-subtle">Department</th>
                     <th scope="col" className="px-5 py-2.5 text-[12px] font-medium text-subtle">Source</th>
                     <th scope="col" className="px-5 py-2.5 text-[12px] font-medium text-subtle">Imported</th>
+                    <th scope="col" className="px-5 py-2.5 text-[12px] font-medium text-subtle">
+                      <span className="sr-only">Edit</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -80,6 +84,14 @@ export default async function AdminFacultyPage() {
                       <td className="px-5 py-2.5 text-subtle">{row.prefilledSource}</td>
                       <td className="px-5 py-2.5 text-subtle">
                         {row.prefilledAt ? formatShortDate(row.prefilledAt) : "Unknown"}
+                      </td>
+                      <td className="px-5 py-2.5 text-right">
+                        <Link
+                          href={`/admin/researchers/${row.userId}`}
+                          className="text-[13px] text-forest underline decoration-line-strong underline-offset-4 hover:text-ink"
+                        >
+                          Edit
+                        </Link>
                       </td>
                     </tr>
                   ))}
