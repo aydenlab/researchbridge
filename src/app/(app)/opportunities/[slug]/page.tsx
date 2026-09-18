@@ -620,17 +620,6 @@ export default async function OpportunityDetailPage({ params }: Params) {
                   </div>
                 ) : null}
                 <div className="mt-4 flex flex-wrap gap-4 text-[13.5px]">
-                  {detail.researcher.labWebsite ? (
-                    <a
-                      href={detail.researcher.labWebsite}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-forest underline decoration-line-strong underline-offset-4"
-                    >
-                      Lab website
-                      <ExternalLink className="size-3.5" aria-hidden="true" />
-                    </a>
-                  ) : null}
                   {detail.researcher.personalWebsite ? (
                     <a
                       href={detail.researcher.personalWebsite}

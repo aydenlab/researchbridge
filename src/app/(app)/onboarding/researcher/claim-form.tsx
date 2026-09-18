@@ -37,7 +37,8 @@ export function FacultyClaimForm({
     title: string;
     department: string;
     labName: string;
-    labWebsite: string;
+    personalWebsite: string;
+    linkedinUrl: string;
     biography: string;
     recruitingNeeds: string;
     recruitingOnBehalfOf: string;
@@ -83,8 +84,11 @@ export function FacultyClaimForm({
           <Field label="Lab or group" htmlFor="labName">
             <Input id="labName" name="labName" defaultValue={draft.labName} />
           </Field>
-          <Field label="Lab website" htmlFor="labWebsite" error={errors?.labWebsite?.[0]}>
-            <Input id="labWebsite" name="labWebsite" defaultValue={draft.labWebsite} placeholder="https://" />
+          <Field label="Research page" htmlFor="personalWebsite" error={errors?.personalWebsite?.[0]}>
+            <Input id="personalWebsite" name="personalWebsite" defaultValue={draft.personalWebsite} placeholder="https://" />
+          </Field>
+          <Field label="LinkedIn" htmlFor="linkedinUrl" error={errors?.linkedinUrl?.[0]}>
+            <Input id="linkedinUrl" name="linkedinUrl" defaultValue={draft.linkedinUrl} placeholder="https://www.linkedin.com/in/" />
           </Field>
         </div>
 

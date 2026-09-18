@@ -36,7 +36,18 @@ async function shrink(file: File): Promise<File | null> {
   }
 }
 
-export function PhotoField({ currentUrl, name }: { currentUrl: string | null; name: string }) {
+export function PhotoField({
+  currentUrl,
+  name,
+  label = "Profile photo",
+  hint = "Students see it beside your name. Saved when you continue.",
+}: {
+  currentUrl: string | null;
+  /** The person the photo is of. Its first letter stands in until there is one. */
+  name: string;
+  label?: string;
+  hint?: string;
+}) {
   const [preview, setPreview] = useState<string | null>(currentUrl);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,7 +94,7 @@ export function PhotoField({ currentUrl, name }: { currentUrl: string | null; na
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor="photo" className="text-[13px] font-medium text-ink">
-        Profile photo
+        {label}
         <span className="ml-1.5 text-[11.5px] font-normal text-subtle">Optional</span>
       </label>
       <div className="flex items-center gap-4">
@@ -105,7 +116,7 @@ export function PhotoField({ currentUrl, name }: { currentUrl: string | null; na
             className="max-w-full text-[13px] text-muted file:mr-3 file:rounded-full file:border file:border-line-strong file:bg-white file:px-3 file:py-1.5 file:text-[13px] file:text-ink hover:file:bg-shell"
           />
           <p className="text-[12.5px] leading-5 text-muted">
-            {busy ? "Preparing photo…" : "Students see it beside your name. Saved when you continue."}
+            {busy ? "Preparing photo…" : hint}
           </p>
           {message ? (
             <p role="alert" className="text-[12.5px] text-bad">

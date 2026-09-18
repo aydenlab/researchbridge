@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { PhotoField } from "@/components/app/photo-field";
 import { Button } from "@/components/ui/button";
 import { Field, FormError, Input, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
@@ -52,12 +53,15 @@ export function AddFacultyForm() {
         </Field>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Lab or research group" htmlFor="add-labName">
           <Input id="add-labName" name="labName" maxLength={160} />
         </Field>
-        <Field label="Lab website" htmlFor="add-labWebsite">
-          <Input id="add-labWebsite" name="labWebsite" placeholder="example.org/lab" />
+        <Field label="Research page" htmlFor="add-personalWebsite" hint="Their faculty or lab research page.">
+          <Input id="add-personalWebsite" name="personalWebsite" placeholder="example.org/research" />
+        </Field>
+        <Field label="LinkedIn" htmlFor="add-linkedinUrl">
+          <Input id="add-linkedinUrl" name="linkedinUrl" placeholder="linkedin.com/in/" />
         </Field>
       </div>
 
@@ -68,6 +72,13 @@ export function AddFacultyForm() {
       <Field label="Short bio" htmlFor="add-biography">
         <Textarea id="add-biography" name="biography" rows={3} maxLength={2500} />
       </Field>
+
+      <PhotoField
+        currentUrl={null}
+        name=""
+        label="Profile photo"
+        hint="Usually the headshot from their department page. They can change it when they sign in."
+      />
 
       <FormError>{state?.ok === false ? state.error : null}</FormError>
       {state?.ok && state.message ? (

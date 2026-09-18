@@ -471,7 +471,7 @@ export const researcherProfiles = pgTable(
     department: text("department"),
     faculty: text("faculty"),
     labName: text("lab_name"),
-    labWebsite: text("lab_website"),
+    /** The page a student should read to understand this person's research. */
     personalWebsite: text("personal_website"),
     linkedinUrl: text("linkedin_url"),
     orcidId: text("orcid_id"),

@@ -65,14 +65,14 @@ export default async function AdminResearchersPage() {
                         {row.email}, {row.institutionName ?? "no institution linked"}, submitted{" "}
                         {formatShortDate(row.createdAt)}
                       </p>
-                      {row.labWebsite ? (
+                      {row.personalWebsite ? (
                         <a
-                          href={row.labWebsite}
+                          href={row.personalWebsite}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="mt-1.5 inline-block text-[13px] text-forest underline decoration-line-strong underline-offset-4"
                         >
-                          {row.labWebsite}
+                          {row.personalWebsite}
                         </a>
                       ) : null}
                       {row.biography ? (

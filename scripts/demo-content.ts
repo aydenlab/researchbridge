@@ -157,7 +157,7 @@ async function main() {
       department: "Kinesiology",
       faculty: "Health Sciences",
       labName: "Mobility and Recovery Lab",
-      labWebsite: "https://example.mcmaster.ca/mobility-recovery-lab",
+      personalWebsite: "https://example.mcmaster.ca/mobility-recovery-lab",
       biography:
         "Priya Raman studies how people relearn to walk after a stroke, and how wearable sensors can measure that recovery outside a clinic. This is a demonstration profile used to show how a ResearchBridge posting looks when it is fully filled in.",
       recruitingOnBehalfOf: "personally",

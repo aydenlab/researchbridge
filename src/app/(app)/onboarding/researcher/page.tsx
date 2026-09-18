@@ -80,7 +80,8 @@ export default async function ResearcherOnboardingPage({
             title: profile.title ?? "",
             department: profile.department ?? "",
             labName: profile.labName ?? "",
-            labWebsite: profile.labWebsite ?? "",
+            personalWebsite: profile.personalWebsite ?? "",
+            linkedinUrl: profile.linkedinUrl ?? "",
             biography: profile.biography ?? "",
             recruitingNeeds: profile.recruitingNeeds ?? "",
             recruitingOnBehalfOf: profile.recruitingOnBehalfOf ?? "personally",
@@ -123,7 +124,8 @@ export default async function ResearcherOnboardingPage({
     { label: "Department", value: profile.department ?? "Not set" },
     { label: "Faculty", value: profile.faculty ?? "Not set" },
     { label: "Lab or group", value: profile.labName ?? "Not set" },
-    { label: "Lab website", value: profile.labWebsite ?? "Not set" },
+    { label: "Research page", value: profile.personalWebsite ?? "Not set" },
+    { label: "LinkedIn", value: profile.linkedinUrl ?? "Not set" },
     {
       label: "Disciplines",
       value:
@@ -159,7 +161,6 @@ export default async function ResearcherOnboardingPage({
             faculty: profile.faculty,
             department: profile.department,
             labName: profile.labName,
-            labWebsite: profile.labWebsite,
             personalWebsite: profile.personalWebsite,
             linkedinUrl: profile.linkedinUrl,
             orcidId: profile.orcidId,

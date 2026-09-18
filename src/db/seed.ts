@@ -247,7 +247,7 @@ async function main() {
       department: "Health Research Methods, Evidence, and Impact",
       faculty: "Faculty of Health Sciences",
       labName: "Cardiovascular Outcomes Group",
-      labWebsite: "https://lab.example.edu/cardiovascular-outcomes",
+      personalWebsite: "https://research.example.edu/amara-okonjo",
       biography:
         "I study how routinely collected clinical data can explain differences in cardiovascular readmission. My group works with retrospective hospital records and spends a lot of time on data quality, which is where most new students start.",
       verificationStatus: "verified" as const,
@@ -262,7 +262,7 @@ async function main() {
       department: "Department of Psychiatry and Behavioural Neurosciences",
       faculty: "Faculty of Health Sciences",
       labName: "Developmental Neuroimaging Lab",
-      labWebsite: "https://lab.example.edu/dev-neuroimaging",
+      personalWebsite: "https://research.example.edu/rosalind-halden",
       biography:
         "Our lab uses structural and functional imaging to study how attention networks develop through adolescence. Students on the team learn preprocessing pipelines and quality control before touching analysis.",
       verificationStatus: "verified" as const,
@@ -277,7 +277,7 @@ async function main() {
       department: "Department of Biochemistry and Biomedical Sciences",
       faculty: "Faculty of Health Sciences",
       labName: "Tumour Microenvironment Lab",
-      labWebsite: null,
+      personalWebsite: null,
       biography:
         "I work on how stromal cells shape drug response in solid tumours. Most of my week is spent at the bench, and I supervise undergraduate students on focused sub-projects.",
       verificationStatus: "verified" as const,
@@ -292,7 +292,7 @@ async function main() {
       department: "School of Rehabilitation Science",
       faculty: "Faculty of Health Sciences",
       labName: "Mobility and Aging Lab",
-      labWebsite: "https://lab.example.edu/mobility-aging",
+      personalWebsite: "https://research.example.edu/marisol-delacruz",
       biography:
         "My work looks at how community exercise programs affect mobility outcomes for older adults. Students help with data collection sessions and participant scheduling.",
       verificationStatus: "verified" as const,
@@ -307,7 +307,7 @@ async function main() {
       department: "Department of Biology",
       faculty: "Faculty of Science",
       labName: "Gut Microbiome Group",
-      labWebsite: null,
+      personalWebsite: null,
       biography:
         "I am finishing a thesis on diet-associated shifts in gut microbial communities. I am recruiting a student to help with a literature review that will support the final chapter.",
       verificationStatus: "verified" as const,
@@ -322,7 +322,7 @@ async function main() {
       department: "Department of Pathology and Molecular Medicine",
       faculty: "Faculty of Health Sciences",
       labName: "Clinical Genomics Core",
-      labWebsite: null,
+      personalWebsite: null,
       biography:
         "I run the day-to-day operations of a genomics core facility and coordinate the undergraduate students who support sequencing workflows.",
       verificationStatus: "pending" as const,
@@ -353,7 +353,7 @@ async function main() {
       department: seed.department,
       faculty: seed.faculty,
       labName: seed.labName,
-      labWebsite: seed.labWebsite,
+      personalWebsite: seed.personalWebsite,
       biography: seed.biography,
       recruitingOnBehalfOf: "personally",
       verificationStatus: seed.verificationStatus,

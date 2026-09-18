@@ -173,7 +173,7 @@ export async function pendingResearchers() {
       department: researcherProfiles.department,
       faculty: researcherProfiles.faculty,
       labName: researcherProfiles.labName,
-      labWebsite: researcherProfiles.labWebsite,
+      personalWebsite: researcherProfiles.personalWebsite,
       researcherType: researcherProfiles.researcherType,
       biography: researcherProfiles.biography,
       verificationStatus: researcherProfiles.verificationStatus,

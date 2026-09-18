@@ -127,7 +127,6 @@ export default async function ProfilePage() {
                 { label: "Faculty", value: profile.faculty ?? "Not set" },
                 { label: "Department", value: profile.department ?? "Not set" },
                 { label: "Lab or group", value: profile.labName ?? "Not set" },
-                { label: "Lab website", value: profile.labWebsite ?? "Not set" },
                 { label: "Research page", value: profile.personalWebsite ?? "Not set" },
                 { label: "LinkedIn", value: profile.linkedinUrl ?? "Not set" },
                 { label: "ORCID iD", value: profile.orcidId ?? "Not set" },

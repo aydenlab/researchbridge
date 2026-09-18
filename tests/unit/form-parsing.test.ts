@@ -143,14 +143,14 @@ describe("researcher profile step", () => {
     expect(parsed.result.fieldErrors?.researchAreaOther?.[0]).toBe("Please specify your research area.");
   });
 
-  it("rejects a lab website that is not a full web address", () => {
+  it("rejects a research page that is not a full web address", () => {
     const parsed = parseForm(
       researcherProfileSchema,
-      form([...base, ["researchFieldIds", uuid], ["labWebsite", "lab.example.edu"]]),
+      form([...base, ["researchFieldIds", uuid], ["personalWebsite", "lab.example.edu"]]),
     );
     expect(parsed.ok).toBe(false);
     if (parsed.ok || parsed.result.ok) return;
-    expect(parsed.result.fieldErrors?.labWebsite?.[0]).toContain("http");
+    expect(parsed.result.fieldErrors?.personalWebsite?.[0]).toContain("http");
   });
 });
 

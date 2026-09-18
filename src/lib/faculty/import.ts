@@ -13,7 +13,6 @@ export type FacultyCandidate = {
   department: string | null;
   faculty: string | null;
   labName: string | null;
-  labWebsite: string | null;
   personalWebsite: string | null;
   linkedinUrl: string | null;
   orcidId: string | null;
@@ -146,7 +145,6 @@ async function planRow(row: CsvRow, seen: Set<string>): Promise<FacultyRowOutcom
       department: optional(readField(row, "department"), 160),
       faculty: optional(readField(row, "faculty"), 160),
       labName: optional(readField(row, "labName"), 160),
-      labWebsite: normalizeUrl(readField(row, "labWebsite")),
       personalWebsite: normalizeUrl(readField(row, "personalWebsite")),
       linkedinUrl: normalizeUrl(readField(row, "linkedinUrl")),
       orcidId: optional(readField(row, "orcidId"), 40),
@@ -166,7 +164,7 @@ async function planRow(row: CsvRow, seen: Set<string>): Promise<FacultyRowOutcom
 export async function addFacultyMember(
   fields: Partial<Record<keyof FacultyCandidate, string>>,
   options: { source: string; institutionId?: string | null },
-): Promise<{ ok: true; created: boolean; email: string } | { ok: false; reason: string }> {
+): Promise<{ ok: true; created: boolean; email: string; userId: string } | { ok: false; reason: string }> {
   const row: CsvRow = {
     email: fields.email ?? "",
     firstname: fields.firstName ?? "",
@@ -175,7 +173,6 @@ export async function addFacultyMember(
     department: fields.department ?? "",
     faculty: fields.faculty ?? "",
     labname: fields.labName ?? "",
-    labwebsite: fields.labWebsite ?? "",
     personalwebsite: fields.personalWebsite ?? "",
     linkedin: fields.linkedinUrl ?? "",
     orcid: fields.orcidId ?? "",
@@ -187,9 +184,23 @@ export async function addFacultyMember(
   if (!outcome) return { ok: false, reason: "An email address is required." };
   if (outcome.status === "rejected") return { ok: false, reason: outcome.reason };
 
-  const created = await upsertCandidate(outcome.candidate, options);
+  const { created, userId } = await upsertCandidate(outcome.candidate, options);
   log.info("faculty_member_added", { source: options.source, created });
-  return { ok: true, created, email: outcome.candidate.email };
+  return { ok: true, created, email: outcome.candidate.email, userId };
+}
+
+/**
+ * Attaches an uploaded photo to a profile the admin has just added.
+ *
+ * Kept separate from the add so a rejected row never leaves an orphan upload
+ * behind, and so a photo is never written over a profile its owner has already
+ * confirmed: from that point the picture is theirs to change.
+ */
+export async function setFacultyPhoto(userId: string, photoFileId: string): Promise<void> {
+  await db
+    .update(researcherProfiles)
+    .set({ photoFileId, updatedAt: new Date() })
+    .where(and(eq(researcherProfiles.userId, userId), isNull(researcherProfiles.claimedAt)));
 }
 
 export type FacultyImportResult = {
@@ -225,7 +236,7 @@ export async function applyFacultyImport(
     }
 
     try {
-      const wasNew = await upsertCandidate(outcome.candidate, options);
+      const { created: wasNew } = await upsertCandidate(outcome.candidate, options);
       if (wasNew) result.created += 1;
       else result.refreshed += 1;
     } catch (error) {
@@ -248,7 +259,7 @@ export async function applyFacultyImport(
 async function upsertCandidate(
   candidate: FacultyCandidate,
   options: { source: string; institutionId?: string | null },
-): Promise<boolean> {
+): Promise<{ created: boolean; userId: string }> {
   const institution = options.institutionId ?? (await resolveInstitutionForEmail(candidate.email))?.id ?? null;
   const now = new Date();
 
@@ -284,7 +295,6 @@ async function upsertCandidate(
     department: candidate.department,
     faculty: candidate.faculty,
     labName: candidate.labName,
-    labWebsite: candidate.labWebsite,
     personalWebsite: candidate.personalWebsite,
     linkedinUrl: candidate.linkedinUrl,
     orcidId: candidate.orcidId,
@@ -320,7 +330,7 @@ async function upsertCandidate(
       .onConflictDoNothing();
   }
 
-  return wasNew;
+  return { created: wasNew, userId };
 }
 
 /** Imported accounts that nobody has signed in to claim yet. */

@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db, researcherFields, researcherProfiles, users } from "@/db";
-import { addFacultyMember, applyFacultyImport, listUnclaimedFaculty, planFacultyImport } from "@/lib/faculty/import";
+import {
+  addFacultyMember,
+  applyFacultyImport,
+  listUnclaimedFaculty,
+  planFacultyImport,
+  setFacultyPhoto,
+} from "@/lib/faculty/import";
 import { parseCsv, splitAreas } from "@/lib/faculty/csv";
 import { ensureInstitution, createStudent } from "../fixtures";
 
@@ -130,12 +136,23 @@ describe("importing a faculty list", () => {
   it("adds a scheme to a bare website rather than dropping it", async () => {
     const email = uniqueEmail("website");
     await applyFacultyImport(
-      csv(["email,first name,last name,lab website", `${email},Barbara,McClintock,cytogenetics.example.edu`]),
+      csv(["email,first name,last name,research page", `${email},Barbara,McClintock,cytogenetics.example.edu`]),
       { source: "faculty_list" },
     );
 
     const row = await profileFor(email);
-    expect(row?.profile.labWebsite).toBe("https://cytogenetics.example.edu");
+    expect(row?.profile.personalWebsite).toBe("https://cytogenetics.example.edu");
+  });
+
+  it("still reads a list whose column is named after a lab website", async () => {
+    const email = uniqueEmail("legacy-website");
+    await applyFacultyImport(
+      csv(["email,first name,last name,lab website", `${email},Rosalyn,Yalow,yalow.example.edu`]),
+      { source: "faculty_list" },
+    );
+
+    const row = await profileFor(email);
+    expect(row?.profile.personalWebsite).toBe("https://yalow.example.edu");
   });
 
   it("refreshes an unclaimed profile on a re-import", async () => {
@@ -229,7 +246,7 @@ describe("adding one professor from the admin form", () => {
         lastName: "Kelsey",
         title: "Associate Professor",
         department: "Pharmacology",
-        labWebsite: "kelsey.example.edu",
+        personalWebsite: "kelsey.example.edu",
         researchAreas: "Pharmacology, Drug safety",
       },
       { source: "admin_form" },
@@ -240,7 +257,7 @@ describe("adding one professor from the admin form", () => {
     const row = await profileFor(email);
     expect(row?.user.accountStatus).toBe("pending");
     expect(row?.profile.researcherType).toBe("professor");
-    expect(row?.profile.labWebsite).toBe("https://kelsey.example.edu");
+    expect(row?.profile.personalWebsite).toBe("https://kelsey.example.edu");
     expect(row?.profile.prefilledSource).toBe("admin_form");
   });
 
@@ -248,5 +265,40 @@ describe("adding one professor from the admin form", () => {
     const result = await addFacultyMember({ email: uniqueEmail("form-noname"), firstName: "Frances" }, { source: "admin_form" });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toContain("name");
+  });
+
+  it("attaches an uploaded photo to the profile it just created", async () => {
+    const email = uniqueEmail("form-photo");
+    const result = await addFacultyMember(
+      { email, firstName: "Chien-Shiung", lastName: "Wu", department: "Physics" },
+      { source: "admin_form" },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const fileId = randomUUID();
+    await setFacultyPhoto(result.userId, fileId);
+
+    const row = await profileFor(email);
+    expect(row?.profile.photoFileId).toBe(fileId);
+  });
+
+  it("leaves the photo alone once the professor has confirmed the profile", async () => {
+    const email = uniqueEmail("form-photo-claimed");
+    const result = await addFacultyMember(
+      { email, firstName: "Lise", lastName: "Meitner", department: "Physics" },
+      { source: "admin_form" },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    await db
+      .update(researcherProfiles)
+      .set({ claimedAt: new Date() })
+      .where(eq(researcherProfiles.userId, result.userId));
+    await setFacultyPhoto(result.userId, randomUUID());
+
+    const row = await profileFor(email);
+    expect(row?.profile.photoFileId).toBeNull();
   });
 });

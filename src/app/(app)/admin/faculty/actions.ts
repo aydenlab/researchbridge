@@ -3,9 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/permissions";
 import { optionalText, toActionError } from "@/lib/action-utils";
-import type { ActionResult } from "@/lib/errors";
+import { AppError, type ActionResult } from "@/lib/errors";
 import { recordAudit } from "@/lib/events";
-import { addFacultyMember, applyFacultyImport, planFacultyImport, type FacultyRowOutcome } from "@/lib/faculty/import";
+import {
+  addFacultyMember,
+  applyFacultyImport,
+  planFacultyImport,
+  setFacultyPhoto,
+  type FacultyRowOutcome,
+} from "@/lib/faculty/import";
+import { log } from "@/lib/log";
+import { storeFile } from "@/lib/storage";
 
 /** One professor typed into the form, for when there is no list to paste. */
 export async function addFacultyMemberAction(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
@@ -22,13 +30,18 @@ export async function addFacultyMemberAction(_prev: ActionResult | null, formDat
         department: text("department"),
         faculty: text("faculty"),
         labName: text("labName"),
-        labWebsite: text("labWebsite"),
+        personalWebsite: text("personalWebsite"),
+        linkedinUrl: text("linkedinUrl"),
         researchAreas: text("researchAreas"),
         biography: text("biography"),
       },
       { source: "admin_form" },
     );
     if (!result.ok) return { ok: false, error: result.reason };
+
+    // The photo is stored only once the row is accepted, so a refused add never
+    // leaves an upload with nothing pointing at it.
+    const photoNote = await attachPhoto(formData.get("photo"), result.userId);
 
     await recordAudit({
       actorId: admin.id,
@@ -39,13 +52,28 @@ export async function addFacultyMemberAction(_prev: ActionResult | null, formDat
 
     revalidatePath("/admin/faculty");
     revalidatePath("/admin/researchers");
-    return {
-      ok: true,
-      data: undefined,
-      message: result.created ? `Added ${result.email}` : `Updated the existing profile for ${result.email}`,
-    };
+    const added = result.created ? `Added ${result.email}` : `Updated the existing profile for ${result.email}`;
+    return { ok: true, data: undefined, message: photoNote ? `${added}. ${photoNote}` : added };
   } catch (error) {
     return toActionError(error, "faculty_member_add_failed");
+  }
+}
+
+/**
+ * Saves the picked photo against the new profile. A photo that the storage layer
+ * refuses is reported beside the success rather than failing the whole add: the
+ * professor is on the list either way, and a picture is the easiest thing to fix
+ * afterwards.
+ */
+async function attachPhoto(photo: FormDataEntryValue | null, userId: string): Promise<string | null> {
+  if (!(photo instanceof File) || photo.size === 0) return null;
+  try {
+    const stored = await storeFile({ file: photo, purpose: "photo", ownerId: userId });
+    await setFacultyPhoto(userId, stored.id);
+    return null;
+  } catch (error) {
+    log.error("faculty_photo_failed", { userId, error });
+    return error instanceof AppError ? `The photo was not saved: ${error.message}` : "The photo could not be saved.";
   }
 }
 

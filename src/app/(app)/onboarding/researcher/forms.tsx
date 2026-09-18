@@ -23,7 +23,6 @@ export type ResearcherDraft = {
   faculty: string | null;
   department: string | null;
   labName: string | null;
-  labWebsite: string | null;
   personalWebsite: string | null;
   linkedinUrl: string | null;
   orcidId: string | null;
@@ -53,7 +52,7 @@ export function ResearcherDetailsForm({
   const errors = state?.ok === false ? state.fieldErrors : undefined;
 
   // A rejected URL or ORCID is no use inside a collapsed section.
-  const optionalHasError = ["labWebsite", "personalWebsite", "linkedinUrl", "orcidId", "contactEmail"].some(
+  const optionalHasError = ["personalWebsite", "linkedinUrl", "orcidId", "contactEmail"].some(
     (key) => errors?.[key]?.length,
   );
 
@@ -174,21 +173,20 @@ export function ResearcherDetailsForm({
                 ))}
               </Select>
             </Field>
-            <Field label="Lab website" htmlFor="labWebsite" error={errors?.labWebsite?.[0]}>
-              <Input id="labWebsite" name="labWebsite" type="url" defaultValue={draft.labWebsite ?? ""} placeholder="https://" />
+            <Field
+              label="Research page"
+              htmlFor="personalWebsite"
+              hint="Your faculty or lab page, whichever describes the work."
+              error={errors?.personalWebsite?.[0]}
+            >
+              <Input id="personalWebsite" name="personalWebsite" type="url" defaultValue={draft.personalWebsite ?? ""} placeholder="https://" />
             </Field>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Personal research page" htmlFor="personalWebsite" error={errors?.personalWebsite?.[0]}>
-              <Input id="personalWebsite" name="personalWebsite" type="url" defaultValue={draft.personalWebsite ?? ""} placeholder="https://" />
-            </Field>
             <Field label="LinkedIn" htmlFor="linkedinUrl" error={errors?.linkedinUrl?.[0]}>
               <Input id="linkedinUrl" name="linkedinUrl" type="url" defaultValue={draft.linkedinUrl ?? ""} placeholder="https://www.linkedin.com/in/" />
             </Field>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2">
             <Field
               label="ORCID iD"
               htmlFor="orcidId"
@@ -197,6 +195,9 @@ export function ResearcherDetailsForm({
             >
               <Input id="orcidId" name="orcidId" type="text" defaultValue={draft.orcidId ?? ""} placeholder="0000-0002-1825-0097" />
             </Field>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
             <Field
               label="Contact email"
               htmlFor="contactEmail"
