@@ -78,7 +78,7 @@ export function ProfileReferences({ references, max }: { references: ProfileRefe
                   <p className="mt-0.5 truncate text-[12.5px] text-subtle">
                     {[reference.refereeName ? reference.refereeEmail : null, reference.relationship]
                       .filter(Boolean)
-                      .join(" · ") || "No relationship given"}
+                      .join(", ") || "No relationship given"}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

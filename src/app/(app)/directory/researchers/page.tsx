@@ -124,7 +124,7 @@ export default async function ResearcherDirectoryPage({
                       </Link>
                       <p className="mt-0.5 text-[13px] text-muted">
                         {[researcher.title, researcher.department].filter(Boolean).join(", ") || "Role not set"}
-                        {researcher.labName ? ` · ${researcher.labName}` : ""}
+                        {researcher.labName ? `, ${researcher.labName}` : ""}
                       </p>
                       {researcher.institutionName ? (
                         <p className="mt-0.5 text-[12.5px] text-subtle">{researcher.institutionName}</p>

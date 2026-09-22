@@ -52,7 +52,7 @@ export default async function MessagesPage() {
                     {conversation.unread > 0 ? <Badge tone="clay">{conversation.unread} new</Badge> : null}
                   </p>
                   <p className="mt-0.5 truncate text-[12.5px] text-subtle">
-                    {[conversation.person.headline, conversation.person.institutionName].filter(Boolean).join(" · ")}
+                    {[conversation.person.headline, conversation.person.institutionName].filter(Boolean).join(", ")}
                   </p>
                   <p className="rb-measure mt-1.5 line-clamp-2 text-[13.5px] leading-6 text-muted">
                     {conversation.lastFromMe ? "You: " : ""}

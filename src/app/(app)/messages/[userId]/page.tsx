@@ -46,7 +46,7 @@ export default async function ThreadPage({ params }: { params: Promise<{ userId:
           </Link>
         </h1>
         <p className="mt-1 text-[13px] text-muted">
-          {[person.headline, person.institutionName].filter(Boolean).join(" · ") || "Profile not filled in yet"}
+          {[person.headline, person.institutionName].filter(Boolean).join(", ") || "Profile not filled in yet"}
         </p>
       </header>
 
@@ -67,7 +67,7 @@ export default async function ThreadPage({ params }: { params: Promise<{ userId:
                 >
                   <p className="whitespace-pre-line text-[14.5px] leading-7 text-ink">{message.body}</p>
                   <p className="mt-1.5 text-[11.5px] text-subtle">
-                    {mine ? "You" : person.displayName} · {formatShortDate(message.createdAt)}
+                    {mine ? "You" : person.displayName}, {formatShortDate(message.createdAt)}
                   </p>
                 </div>
               </li>

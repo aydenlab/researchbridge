@@ -19,7 +19,7 @@ export function PersonRow({ person, action }: { person: PersonSummary; action?: 
           {person.displayName}
         </Link>
         <p className="mt-0.5 truncate text-[12.5px] text-subtle">
-          {[person.headline, person.institutionName].filter(Boolean).join(" · ") || "Profile not filled in yet"}
+          {[person.headline, person.institutionName].filter(Boolean).join(", ") || "Profile not filled in yet"}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">

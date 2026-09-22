@@ -224,13 +224,13 @@ export default async function StudentDirectoryPage({
                       <p className="mt-0.5 text-[13px] text-muted">
                         {student.program ?? "Program not set"}
                         {student.yearLevel ? `, year ${student.yearLevel}` : ""}
-                        {student.institutionName ? ` · ${student.institutionName}` : ""}
+                        {student.institutionName ? `, ${student.institutionName}` : ""}
                       </p>
                       <p className="mt-0.5 text-[12.5px] text-subtle">
                         {labelOr(DEGREE_LABELS, student.degreeLevel)}
-                        {student.weeklyHours !== null ? ` · ${student.weeklyHours} hours per week` : ""}
+                        {student.weeklyHours !== null ? `, ${student.weeklyHours} hours per week` : ""}
                         {student.programCategory
-                          ? ` · ${labelOr(PROGRAM_CATEGORY_LABELS, student.programCategory)}`
+                          ? `, ${labelOr(PROGRAM_CATEGORY_LABELS, student.programCategory)}`
                           : ""}
                       </p>
                     </div>
@@ -273,7 +273,7 @@ export default async function StudentDirectoryPage({
 
                   {selectedPosting && (matchScores.get(student.id)?.reasons.length ?? 0) > 0 ? (
                     <p className="mt-2 text-[12.5px] leading-5 text-subtle">
-                      {matchScores.get(student.id)?.reasons.slice(0, 3).join(" · ")}
+                      {matchScores.get(student.id)?.reasons.slice(0, 3).join(", ")}
                     </p>
                   ) : null}
                 </li>

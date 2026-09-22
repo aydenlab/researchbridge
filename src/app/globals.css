@@ -3,7 +3,8 @@
 @theme {
   --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-display), Georgia, serif;
-  --font-mono: var(--font-mono), ui-monospace, monospace;
+  /* Inter with tabular figures, so zeros stay plain instead of dotted. */
+  --font-mono: var(--font-body), ui-sans-serif, system-ui, sans-serif;
 
   --color-ink: #14201a;
   --color-paper: #ffffff;
@@ -213,4 +214,8 @@ body {
     opacity: 1;
     transform: none;
   }
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
 }

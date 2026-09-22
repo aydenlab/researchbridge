@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Sans, Inter, JetBrains_Mono } from "next/font/google";
+import { Instrument_Sans, Inter } from "next/font/google";
 import { env } from "@/lib/env";
 import "./globals.css";
 
@@ -15,13 +15,6 @@ const body = Inter({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
-});
-
-const mono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-  display: "swap",
-  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -64,7 +57,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body>{children}</body>
     </html>
   );

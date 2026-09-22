@@ -99,6 +99,9 @@ export function SignInForm() {
         We sent a six-digit code to <span className="font-medium text-ink">{sentTo}</span>. It expires in ten minutes and
         can be used once.
       </p>
+      <p className="mt-2 text-[14.5px] leading-6 text-muted">
+        Not in your inbox after a minute? Check your spam or junk folder.
+      </p>
 
       <form action={codeAction} className="mt-8 flex flex-col gap-4">
         <FormError>{codeState?.ok === false ? codeState.error : null}</FormError>

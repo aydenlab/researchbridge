@@ -127,11 +127,11 @@ export default async function PersonPage({ params }: { params: Promise<{ userId:
               {person.displayName}
             </h1>
             <p className="mt-1 text-[14px] text-muted">
-              {[person.headline, person.institutionName].filter(Boolean).join(" · ") || "Profile not filled in yet"}
+              {[person.headline, person.institutionName].filter(Boolean).join(", ") || "Profile not filled in yet"}
             </p>
             <p className="mt-2 text-[13px] text-subtle">
-              {counts.followers} {counts.followers === 1 ? "follower" : "followers"} · {counts.following} following
-              {referrals.length > 0 ? ` · ${referrals.length} ${referrals.length === 1 ? "referral" : "referrals"}` : ""}
+              {counts.followers} {counts.followers === 1 ? "follower" : "followers"}, {counts.following} following
+              {referrals.length > 0 ? `, ${referrals.length} ${referrals.length === 1 ? "referral" : "referrals"}` : ""}
             </p>
           </div>
         </div>
