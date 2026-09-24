@@ -120,7 +120,7 @@ export default function HowItWorksPage() {
       <ContentSection>
         <Reveal>
           <div className="flex flex-wrap gap-3">
-            <ButtonLink href="/waitlist">Join the student waitlist</ButtonLink>
+            <ButtonLink href="/signup">Sign up as a student</ButtonLink>
             <ButtonLink href="/opportunities" variant="outline">
               Explore opportunities
             </ButtonLink>

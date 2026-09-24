@@ -18,6 +18,7 @@ export const verifyCodeSchema = z.object({
     .string()
     .trim()
     .regex(/^\d{6}$/, "Enter the six-digit verification code sent to your institutional email."),
+  intent: z.enum(["student"]).optional(),
 });
 
 export const roleChoiceSchema = z.object({

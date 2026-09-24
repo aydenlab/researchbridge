@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { db, users } from "@/db";
+import { db, studentProfiles, users } from "@/db";
 import {
   assertVerifiableEmail,
   consumeVerificationCode,
@@ -71,7 +71,7 @@ export async function verifyCodeAction(_prev: ActionResult | null, formData: For
   const parsed = parseForm(verifyCodeSchema, formData);
   if (!parsed.ok) return parsed.result;
 
-  const { email, code } = parsed.data;
+  const { email, code, intent } = parsed.data;
   let destination = "/onboarding";
 
   try {
@@ -98,11 +98,15 @@ export async function verifyCodeAction(_prev: ActionResult | null, formData: For
           institutionId: institution?.id ?? null,
           accountStatus: "active",
           emailVerifiedAt: new Date(),
-          role: bootstrapAdmin ? "admin" : null,
+          role: bootstrapAdmin ? "admin" : intent === "student" ? "student" : null,
           onboardingCompletedAt: bootstrapAdmin ? new Date() : null,
         })
         .returning();
       account = created;
+      // Signing up from /signup skips the role choice and goes straight to the student profile.
+      if (account.role === "student") {
+        await db.insert(studentProfiles).values({ userId: account.id, firstName: "", lastName: "" });
+      }
       if (bootstrapAdmin) {
         await recordAudit({
           actorId: account.id,

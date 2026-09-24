@@ -96,7 +96,7 @@ export default function AboutPage() {
         </Reveal>
         <Reveal delay={80}>
           <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink href="/waitlist">Join the student waitlist</ButtonLink>
+            <ButtonLink href="/signup">Sign up as a student</ButtonLink>
             <ButtonLink href="/contact" variant="outline">
               Contact the team
             </ButtonLink>

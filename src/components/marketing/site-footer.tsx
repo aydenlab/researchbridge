@@ -14,7 +14,7 @@ const COLUMNS = [
   {
     title: "Pilot",
     links: [
-      { href: "/waitlist", label: "Join the student pilot" },
+      { href: "/signup", label: "Sign up as a student" },
       { href: "/researchers/interest", label: "Recruit students" },
       { href: "/about", label: "About ResearchBridge" },
       { href: "/contact", label: "Contact" },

@@ -18,7 +18,8 @@ function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: st
   );
 }
 
-export function SignInForm() {
+export function SignInForm({ mode = "signin" }: { mode?: "signin" | "signup" }) {
+  const signup = mode === "signup";
   const [emailState, emailAction] = useActionState<ActionResult<{ email: string }> | null, FormData>(
     requestCodeAction,
     null,
@@ -34,11 +35,12 @@ export function SignInForm() {
     return (
       <div>
         <h1 className="font-display text-[30px] text-ink" style={{ letterSpacing: "-0.5px" }}>
-          Sign in to ResearchBridge
+          {signup ? "Create your student account" : "Sign in to ResearchBridge"}
         </h1>
         <p className="mt-3 text-[14.5px] leading-6 text-muted">
-          Enter your email address. We send a six-digit code to confirm it is you. There is no password to
-          remember.
+          {signup
+            ? "Enter your university email. We send a six-digit code to confirm it, then you set up your profile. It is free, and there is no password to remember."
+            : "Enter your email address. We send a six-digit code to confirm it is you. There is no password to remember."}
         </p>
 
         <form action={emailAction} className="mt-8 flex flex-col gap-4">
@@ -66,17 +68,31 @@ export function SignInForm() {
           <SubmitButton label="Send verification code" pendingLabel="Sending code" />
         </form>
 
-        <FormNote>
-          Not part of the pilot yet?{" "}
-          <Link href="/waitlist" className="underline decoration-line-strong underline-offset-4 hover:text-ink">
-            Join the student waitlist
-          </Link>{" "}
-          or{" "}
-          <Link href="/researchers/interest" className="underline decoration-line-strong underline-offset-4 hover:text-ink">
-            register interest as a researcher
-          </Link>
-          .
-        </FormNote>
+        {signup ? (
+          <FormNote>
+            Already have an account?{" "}
+            <Link href="/signin" className="underline decoration-line-strong underline-offset-4 hover:text-ink">
+              Sign in
+            </Link>
+            . Recruiting for a project?{" "}
+            <Link href="/researchers/interest" className="underline decoration-line-strong underline-offset-4 hover:text-ink">
+              Register interest as a researcher
+            </Link>
+            .
+          </FormNote>
+        ) : (
+          <FormNote>
+            New here?{" "}
+            <Link href="/signup" className="underline decoration-line-strong underline-offset-4 hover:text-ink">
+              Create a student account
+            </Link>{" "}
+            or{" "}
+            <Link href="/researchers/interest" className="underline decoration-line-strong underline-offset-4 hover:text-ink">
+              register interest as a researcher
+            </Link>
+            .
+          </FormNote>
+        )}
       </div>
     );
   }
@@ -106,6 +122,7 @@ export function SignInForm() {
       <form action={codeAction} className="mt-8 flex flex-col gap-4">
         <FormError>{codeState?.ok === false ? codeState.error : null}</FormError>
         <input type="hidden" name="email" value={sentTo} />
+        {signup ? <input type="hidden" name="intent" value="student" /> : null}
 
         <Field
           label="Verification code"

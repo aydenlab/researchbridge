@@ -57,8 +57,8 @@ export function SiteHeader({ signedIn = false, homeHref = "/dashboard" }: { sign
               >
                 Sign In
               </Link>
-              <ButtonLink href="/waitlist" size="sm" className="tracking-[0.14px]">
-                Join Pilot
+              <ButtonLink href="/signup" size="sm" className="tracking-[0.14px]">
+                Sign Up
               </ButtonLink>
             </>
           )}

@@ -63,8 +63,8 @@ export function Hero() {
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <ButtonLink href="/waitlist" size="lg" variant="onDark">
-                Join the student waitlist
+              <ButtonLink href="/signup" size="lg" variant="onDark">
+                Sign up as a student
               </ButtonLink>
               <ButtonLink
                 href="/researchers/interest"
