@@ -95,6 +95,24 @@ export async function requireAdmin(): Promise<SessionUser> {
   return user;
 }
 
+/**
+ * Admins see applications only in aggregate. These accounts, the people running
+ * the pilot, may also open a submitted application and read it in full, apart
+ * from researcher notes, which stay with the researcher who wrote them. They
+ * must hold the admin role as well, so revoking admin revokes this.
+ */
+const APPLICATION_READER_EMAILS: ReadonlySet<string> = new Set(["ayden.hwang1@gmail.com"]);
+
+export function canReadAllApplications(user: SessionUser): boolean {
+  return user.role === "admin" && APPLICATION_READER_EMAILS.has(user.email.trim().toLowerCase());
+}
+
+export async function requireApplicationReader(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!canReadAllApplications(user)) deny(user, "read_all_applications");
+  return user;
+}
+
 export async function canManageOpportunity(user: SessionUser, opportunityId: string): Promise<boolean> {
   if (user.role === "admin") return true;
   if (user.role !== "researcher") return false;

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { AdminPanel, DataTable } from "@/components/app/admin-ui";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/app/status-pill";
 import { ButtonLink } from "@/components/ui/button";
-import { requireAdmin } from "@/lib/auth/permissions";
+import { canReadAllApplications, requireAdmin } from "@/lib/auth/permissions";
 import type { ApplicationStatus } from "@/lib/application-status";
 import { formatShortDate } from "@/lib/format";
 import { adminApplications } from "@/lib/queries/admin";
@@ -14,15 +15,20 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminApplicationsPage() {
-  await requireAdmin();
+  const user = await requireAdmin();
   const rows = await adminApplications();
+  const canRead = canReadAllApplications(user);
 
   return (
     <div className="mx-auto max-w-[1360px] px-4 py-8 sm:px-6 sm:py-10">
       <PageHeader
         eyebrow="Admin"
         title="Applications"
-        lede="Aggregate visibility for pilot operations. Written responses and private researcher notes are not shown here."
+        lede={
+          canRead
+            ? "Open any application to read it in full. Private researcher notes are not shown."
+            : "Aggregate visibility for pilot operations. Written responses and private researcher notes are not shown here."
+        }
         actions={
           <ButtonLink href="/api/admin/export?dataset=applications" variant="outline">
             Export CSV
@@ -37,9 +43,18 @@ export default async function AdminApplicationsPage() {
           columns={["Student", "Position", "Researcher", "Institution", "Submitted", "Status"]}
           rows={rows.map((row) => [
             <div key={`${row.id}-student`}>
-              <p className="text-[13.5px] font-medium text-ink">
-                {row.studentFirst} {row.studentLast}
-              </p>
+              {canRead ? (
+                <Link
+                  href={`/admin/applications/${row.id}`}
+                  className="text-[13.5px] font-medium text-ink underline decoration-line-strong underline-offset-4 hover:text-forest"
+                >
+                  {row.studentFirst} {row.studentLast}
+                </Link>
+              ) : (
+                <p className="text-[13.5px] font-medium text-ink">
+                  {row.studentFirst} {row.studentLast}
+                </p>
+              )}
               <p className="mt-0.5 text-[12px] text-subtle">{row.studentProgram ?? "Program not set"}</p>
             </div>,
             row.opportunityTitle,
@@ -51,10 +66,12 @@ export default async function AdminApplicationsPage() {
         />
       </AdminPanel>
 
-      <p className="mt-5 text-[12.5px] leading-6 text-subtle">
-        Application text, uploaded files, and researcher notes are deliberately excluded from this view and from broad
-        exports. Access them only through the researcher review flow where the access is scoped to a single position.
-      </p>
+      {canRead ? null : (
+        <p className="mt-5 text-[12.5px] leading-6 text-subtle">
+          Application text, uploaded files, and researcher notes are deliberately excluded from this view and from broad
+          exports. Access them only through the researcher review flow where the access is scoped to a single position.
+        </p>
+      )}
     </div>
   );
 }

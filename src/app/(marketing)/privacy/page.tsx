@@ -108,8 +108,9 @@ export default function PrivacyPage() {
           <p>
             <span className="font-medium text-ink">Administrators</span> can see account records, listings, and
             aggregate pilot statistics in order to approve researcher accounts, moderate listings, and report on the
-            pilot. The administrator view of applications deliberately excludes written answers, uploaded files, and
-            researcher notes.
+            pilot. The general administrator view of applications excludes written answers, uploaded files, and
+            researcher notes. The person running the pilot can open a submitted application in full, including written
+            answers and uploaded files, to support students and researchers. Researcher notes are never shown to them.
           </p>
           <p>
             Student profiles are not published publicly and are not indexed by search engines. Signed-in areas of the
