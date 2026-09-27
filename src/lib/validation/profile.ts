@@ -113,8 +113,13 @@ export const studentAcademicsSchema = z.object({
   courseCodes: arrayField(z.string().trim().max(40), { max: 60 }),
 });
 
+export const STUDENT_INTEREST_MAX = 40;
+
 export const studentInterestsSchema = z.object({
-  researchFieldIds: arrayField(z.string().uuid(), { max: 24 }),
+  researchFieldIds: arrayField(z.string().uuid(), {
+    max: STUDENT_INTEREST_MAX,
+    maxMessage: `Choose up to ${STUDENT_INTEREST_MAX} research areas.`,
+  }),
   customInterests: arrayField(z.string().trim().min(1).max(80), { max: 12 }),
   researchInterestSummary: optionalText(1500),
 });

@@ -3,7 +3,12 @@ import { z } from "zod";
 import { parseForm } from "@/lib/action-utils";
 import { arrayField } from "@/lib/validation/shared";
 import { logisticsStepSchema, projectStepSchema, reviewPostingSchema } from "@/lib/validation/opportunity";
-import { researcherProfileSchema, studentAvailabilitySchema } from "@/lib/validation/profile";
+import {
+  researcherProfileSchema,
+  STUDENT_INTEREST_MAX,
+  studentAvailabilitySchema,
+  studentInterestsSchema,
+} from "@/lib/validation/profile";
 
 function form(entries: [string, string][]): FormData {
   const data = new FormData();
@@ -277,5 +282,25 @@ describe("opportunity logistics step", () => {
     expect(parsed.ok).toBe(false);
     if (parsed.ok || parsed.result.ok) return;
     expect(parsed.result.fieldErrors?.preferredDurations?.[0]).toContain("at least one length");
+  });
+});
+
+describe("student research interests", () => {
+  const ids = (count: number) =>
+    Array.from({ length: count }, (_, index): [string, string] => [
+      "researchFieldIds",
+      `11111111-1111-4111-8111-${String(index).padStart(12, "0")}`,
+    ]);
+
+  it("accepts more areas than one broad discipline offers", () => {
+    const parsed = parseForm(studentInterestsSchema, form(ids(30)));
+    expect(parsed.ok).toBe(true);
+  });
+
+  it("names the cap when too many areas are ticked", () => {
+    const parsed = parseForm(studentInterestsSchema, form(ids(STUDENT_INTEREST_MAX + 1)));
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok || parsed.result.ok) return;
+    expect(parsed.result.fieldErrors?.researchFieldIds?.[0]).toBe(`Choose up to ${STUDENT_INTEREST_MAX} research areas.`);
   });
 });

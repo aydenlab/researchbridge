@@ -18,7 +18,7 @@ export type PickerField = { id: string; name: string; slug: string };
 export const OTHER_AREA_VALUE = "other";
 
 const card =
-  "flex cursor-pointer items-start gap-2 rounded-[8px] border border-line bg-white px-3 py-2 text-[13.5px] text-ink transition-colors hover:border-forest/40 has-[:checked]:border-forest has-[:checked]:bg-moss/50";
+  "flex cursor-pointer has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 items-start gap-2 rounded-[8px] border border-line bg-white px-3 py-2 text-[13.5px] text-ink transition-colors hover:border-forest/40 has-[:checked]:border-forest has-[:checked]:bg-moss/50";
 const grid = "grid gap-2 sm:grid-cols-2 lg:grid-cols-3";
 
 function Legend({ label, required, hint }: { label: string; required?: boolean; hint?: string }) {
@@ -75,6 +75,7 @@ export function ResearchAreaPicker({
   required = true,
   inputName = "researchFieldIds",
   areaLabel = "Research area",
+  maxAreas,
   errors,
 }: {
   fields: PickerField[];
@@ -90,6 +91,8 @@ export function ResearchAreaPicker({
   required?: boolean;
   inputName?: string;
   areaLabel?: string;
+  /** Multi-select only: stop ticking more areas once this many are chosen. */
+  maxAreas?: number;
   errors?: Record<string, string[] | undefined>;
 }) {
   const bySlug = useMemo(() => new Map(fields.map((field) => [field.slug, field])), [fields]);
@@ -125,6 +128,11 @@ export function ResearchAreaPicker({
       !mappedSlugs.has(field.slug) &&
       field.name.trim().toLowerCase() !== initialAreaOther.trim().toLowerCase(),
   );
+
+  // Only areas still on screen are submitted, so only they count toward the cap.
+  const visibleIds = new Set([...offered.map((area) => area.id), ...extras.map((field) => field.id)]);
+  const chosenCount = areaIds.filter((id) => visibleIds.has(id)).length;
+  const atLimit = !single && maxAreas !== undefined && chosenCount >= maxAreas;
 
   const otherDisciplineChosen = disciplines.includes(OTHER_DISCIPLINE_SLUG);
   const showAreaOther = withOther && areaOtherChecked && offered.some((area) => area.name === OTHER);
@@ -187,7 +195,13 @@ export function ResearchAreaPicker({
         <Legend
           label={areaLabel}
           required={required}
-          hint={single ? "Choose the one that fits best." : "Choose as many as apply."}
+          hint={
+            single
+              ? "Choose the one that fits best."
+              : maxAreas !== undefined
+                ? `Choose up to ${maxAreas}. ${chosenCount} chosen.`
+                : "Choose as many as apply."
+          }
         />
         {offered.length === 0 && extras.length === 0 ? (
           <p className="rounded-[8px] border border-dashed border-line-strong px-3 py-3 text-[13px] text-muted">
@@ -233,6 +247,7 @@ export function ResearchAreaPicker({
                     value={area.id}
                     checked={areaIds.includes(area.id)}
                     onChange={() => toggleArea(area.id as string)}
+                    disabled={atLimit && !areaIds.includes(area.id as string)}
                     required={single && required}
                     className="mt-0.5 size-4 shrink-0 accent-[#1d4436]"
                   />
@@ -255,6 +270,7 @@ export function ResearchAreaPicker({
                     value={field.id}
                     checked={areaIds.includes(field.id)}
                     onChange={() => toggleArea(field.id)}
+                    disabled={atLimit && !areaIds.includes(field.id)}
                     className="mt-0.5 size-4 shrink-0 accent-[#1d4436]"
                   />
                   <span>{field.name}</span>

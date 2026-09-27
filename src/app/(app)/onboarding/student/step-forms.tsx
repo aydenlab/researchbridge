@@ -17,6 +17,7 @@ import { StepActions } from "@/components/app/onboarding-shell";
 import { Field, FormError, FormNote, Input, RadioRow, Select, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
 import { GRADE_SCALES } from "@/lib/gpa";
+import { STUDENT_INTEREST_MAX } from "@/lib/validation/profile";
 import {
   COMPENSATION_PREFERENCE_LABELS,
   COMPENSATION_PREFERENCE_ORDER,
@@ -318,6 +319,8 @@ export function InterestsForm({
           withOther={false}
           required={false}
           areaLabel="Research areas"
+          maxAreas={STUDENT_INTEREST_MAX}
+          errors={errors}
         />
       </fieldset>
 
