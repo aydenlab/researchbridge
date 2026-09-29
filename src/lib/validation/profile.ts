@@ -265,6 +265,7 @@ export const researcherProfileSchema = z.object({
   orcidId: optionalOrcid,
   contactEmail: optionalEmail,
   biography: optionalText(2500),
+  recruitingNeeds: optionalText(2000),
   recruitingOnBehalfOf: z.enum(["personally", "lab", "another_investigator"], {
     message: "Tell us who you are recruiting for.",
   }),

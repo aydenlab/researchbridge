@@ -139,6 +139,7 @@ export default async function ResearcherOnboardingPage({
     },
     { label: "Research areas", value: selected.length > 0 ? selected.map((field) => field.name).join(", ") : "None selected" },
     { label: "Recruiting for", value: labelOr(RECRUITING_LABELS, profile.recruitingOnBehalfOf) },
+    { label: "What you are looking for", value: profile.recruitingNeeds ?? "Not set" },
     { label: "Biography", value: profile.biography ?? "Not set" },
   ];
 
@@ -166,6 +167,7 @@ export default async function ResearcherOnboardingPage({
             orcidId: profile.orcidId,
             contactEmail: profile.contactEmail,
             biography: profile.biography,
+            recruitingNeeds: profile.recruitingNeeds,
             recruitingOnBehalfOf: profile.recruitingOnBehalfOf,
             disciplines: initialDisciplines(profile.disciplines, selected.map((field) => field.slug)),
             disciplineOther: profile.disciplineOther,

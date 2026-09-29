@@ -42,6 +42,7 @@ export async function saveResearcherDetailsAction(_prev: ActionResult | null, fo
         orcidId: parsed.data.orcidId,
         contactEmail: parsed.data.contactEmail,
         biography: parsed.data.biography,
+        recruitingNeeds: parsed.data.recruitingNeeds,
         recruitingOnBehalfOf: parsed.data.recruitingOnBehalfOf,
         ...areas.columns,
         ...(photoFileId ? { photoFileId } : {}),

@@ -28,6 +28,7 @@ export type ResearcherDraft = {
   orcidId: string | null;
   contactEmail: string | null;
   biography: string | null;
+  recruitingNeeds: string | null;
   recruitingOnBehalfOf: string | null;
   disciplines: string[];
   disciplineOther: string | null;
@@ -115,6 +116,22 @@ export function ResearcherDetailsForm({
         error={errors?.biography?.[0]}
       >
         <Textarea id="biography" name="biography" rows={4} defaultValue={draft.biography ?? ""} maxLength={2500} />
+      </Field>
+
+      <Field
+        label="What you are looking for"
+        htmlFor="recruitingNeeds"
+        hint="Students read this first. How many students, doing what, over roughly what period, and anything you will not budge on."
+        error={errors?.recruitingNeeds?.[0]}
+      >
+        <Textarea
+          id="recruitingNeeds"
+          name="recruitingNeeds"
+          rows={4}
+          defaultValue={draft.recruitingNeeds ?? ""}
+          maxLength={2000}
+          placeholder="One or two students for the winter term to help with chart abstraction. No prior research needed, but I want somebody who can commit eight hours a week reliably."
+        />
       </Field>
 
       <PhotoField currentUrl={draft.photoUrl} name={[draft.firstName, draft.lastName].filter(Boolean).join(" ")} />
