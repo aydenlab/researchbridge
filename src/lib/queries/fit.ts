@@ -91,6 +91,8 @@ export async function loadApplicantFits(input: {
   criteria: Criterion[];
   opportunity: OpportunityMatchInput;
   applicants: ApplicantFitSubject[];
+  /** False scores on the deterministic evidence alone, to show what the model changed. */
+  withAnalysis?: boolean;
 }): Promise<Map<string, ApplicantFit>> {
   const fits = new Map<string, ApplicantFit>();
   if (input.applicants.length === 0) return fits;
@@ -189,7 +191,7 @@ export async function loadApplicantFits(input: {
     const stored = evaluationsBy.get(applicant.applicationId) ?? [];
     const results = [
       ...stored.filter((result) => result.source !== "ai_assisted"),
-      ...(analysisBy.get(applicant.applicationId) ?? []),
+      ...(input.withAnalysis === false ? [] : (analysisBy.get(applicant.applicationId) ?? [])),
     ];
 
     fits.set(

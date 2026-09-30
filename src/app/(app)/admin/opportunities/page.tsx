@@ -4,7 +4,7 @@ import { AdminPanel, DataTable, FilterTabs } from "@/components/app/admin-ui";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
-import { requireAdmin } from "@/lib/auth/permissions";
+import { canReadAllApplications, requireAdmin } from "@/lib/auth/permissions";
 import { formatShortDate } from "@/lib/format";
 import { COMPENSATION_LABELS, OPPORTUNITY_STATUS_LABELS, labelOr } from "@/lib/labels";
 import { adminOpportunities } from "@/lib/queries/admin";
@@ -29,7 +29,8 @@ export default async function AdminOpportunitiesPage({
 }: {
   searchParams: Promise<{ filter?: string }>;
 }) {
-  await requireAdmin();
+  const user = await requireAdmin();
+  const canRead = canReadAllApplications(user);
   const { filter } = await searchParams;
   const [rows, all] = await Promise.all([adminOpportunities(filter), adminOpportunities()]);
 
@@ -89,6 +90,14 @@ export default async function AdminOpportunitiesPage({
             </Badge>,
             <div key={`${row.id}-apps`} className="text-[13px]">
               <p className="text-ink">{row.applicationCount}</p>
+              {canRead && row.applicationCount > 0 ? (
+                <Link
+                  href={`/admin/opportunities/${row.id}/applicants`}
+                  className="text-[12px] text-forest underline decoration-line-strong underline-offset-4 hover:text-ink"
+                >
+                  Ranked by fit
+                </Link>
+              ) : null}
               <p className="text-[12px] text-subtle">{row.viewCount} views</p>
             </div>,
             <div key={`${row.id}-dates`} className="text-[12px] leading-5">
