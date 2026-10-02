@@ -122,7 +122,7 @@ Tests run against an in-memory PGlite instance created in `tests/setup.ts`, migr
 Coverage:
 
 - **Unit** grading scale handling, deterministic criteria, weight normalisation, the posting form's sliders becoming criteria, permission and status transition rules, and HTML form parsing including the single-checkbox case.
-- **Integration** verification code lifecycle and rate limiting, posting a position from the one-page form, creating a Future Research Opportunity from a profile, rescoring academic standing on submitted applications, duplicate application prevention, snapshot immutability, criterion persistence, opportunity search and filtering, database constraints, researcher and student authorisation boundaries.
+- **Integration** verification code lifecycle and rate limiting, posting a position from the one-page form, creating a Future Research Opportunity from a profile, rescoring rule-based criteria on submitted applications, duplicate application prevention, snapshot immutability, criterion persistence, opportunity search and filtering, database constraints, researcher and student authorisation boundaries.
 - **AI** structured output parsing, schema rejection, provider errors, rate limits, missing API key, invented criterion ids, prompt injection inside application text, and the paid-position restriction.
 
 ---

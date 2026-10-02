@@ -39,11 +39,11 @@ if (!databaseConfigured) {
   const code = await run("npx", ["tsx", "src/db/migrate.ts"]);
   if (code === 0) {
     log("startup_migrations_complete");
-    // Idempotent: re-reads academic standing from what each student submitted,
-    // so results stored before the grading-scale fix are brought up to date.
-    const rescoreCode = await run("npx", ["tsx", "scripts/rescore-academic.ts"]);
-    if (rescoreCode === 0) log("startup_academic_rescore_complete");
-    else warn("startup_academic_rescore_failed", { exitCode: rescoreCode, message: "This never blocks startup." });
+    // Idempotent: re-evaluates rule-based criteria from what each student
+    // submitted, so results stored under older rules are brought up to date.
+    const rescoreCode = await run("npx", ["tsx", "scripts/rescore-criteria.ts"]);
+    if (rescoreCode === 0) log("startup_criteria_rescore_complete");
+    else warn("startup_criteria_rescore_failed", { exitCode: rescoreCode, message: "This never blocks startup." });
   } else {
     warn("startup_migrations_failed", {
       exitCode: code,
