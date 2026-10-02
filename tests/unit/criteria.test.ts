@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { evaluateCriterion, evaluateDeterministic } from "@/lib/criteria/engine";
 import type { ApplicantEvidence, Criterion } from "@/lib/criteria/types";
+import { EMPTY_DOCUMENTED } from "@/lib/evidence/documented";
 import { IMPORTANCE_WEIGHT, summarizeAlignment, weightOf } from "@/lib/criteria/weights";
 
 function criterion(overrides: Partial<Criterion> & Pick<Criterion, "id" | "type" | "label">): Criterion {
@@ -31,6 +32,12 @@ const baseEvidence: ApplicantEvidence = {
   experiences: [],
   academicRecords: [],
   answers: [],
+  documented: {
+    ...EMPTY_DOCUMENTED,
+    hasResume: true,
+    text: "Summer Research Student, Population Health Lab\nCleaned clinical data in Python for a cohort study",
+    source: "resume_text",
+  },
 };
 
 describe("deterministic availability", () => {
@@ -63,7 +70,7 @@ describe("deterministic availability", () => {
 });
 
 describe("deterministic skills and coursework", () => {
-  it("matches a listed skill and carries its context as evidence", () => {
+  it("matches a skill the resume shows and quotes the line as evidence", () => {
     const result = evaluateCriterion(
       criterion({ id: "skill", type: "skill", label: "Python", config: { skillSlug: "python", skillName: "Python" } }),
       baseEvidence,
@@ -78,6 +85,23 @@ describe("deterministic skills and coursework", () => {
       baseEvidence,
     );
     expect(result?.status).toBe("not_met");
+  });
+
+  it("ignores a skill that is only typed into the profile", () => {
+    const result = evaluateCriterion(
+      criterion({ id: "skill", type: "skill", label: "Cell culture", config: { skillSlug: "cell-culture", skillName: "Cell culture" } }),
+      { ...baseEvidence, skills: [{ name: "Cell culture", slug: "cell-culture", proficiency: "expert", context: null }] },
+    );
+    expect(result?.status).toBe("not_met");
+    expect(result?.evidence[0]).toContain("not used for matching");
+  });
+
+  it("says there is nothing to judge when there is no resume or research", () => {
+    const result = evaluateCriterion(
+      criterion({ id: "skill", type: "skill", label: "Python", config: { skillSlug: "python", skillName: "Python" } }),
+      { ...baseEvidence, documented: EMPTY_DOCUMENTED },
+    );
+    expect(result?.status).toBe("unknown");
   });
 
   it("accepts any one of several alternative course codes", () => {
@@ -153,10 +177,7 @@ describe("weight normalization", () => {
   it("never lets one missing low-importance item swing the result by more than its weight", () => {
     const withSkill = summarizeAlignment(criteria, evaluateDeterministic(criteria, {
       ...baseEvidence,
-      skills: [
-        ...baseEvidence.skills,
-        { name: "Cell culture", slug: "cell-culture", proficiency: "working", context: null },
-      ],
+      documented: { ...baseEvidence.documented!, text: `${baseEvidence.documented!.text}\nMaintained cell culture lines` },
     }));
     const withoutSkill = summarizeAlignment(criteria, evaluateDeterministic(criteria, baseEvidence));
 

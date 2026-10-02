@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { db, studentCompensationPreferences } from "@/db";
+import { db, studentAcademicRecords, studentCompensationPreferences, studentEvidence } from "@/db";
+import { rankCandidatesAgainst } from "@/lib/queries/fit";
 import { loadRankedApplicants } from "@/lib/queries/admin-ranking";
 import { persistCriterionResults } from "@/lib/queries/applications";
 import { loadOpportunityMatchInput } from "@/lib/queries/fit";
-import { scoreMatch } from "@/lib/matching";
+import { MATCH_WEIGHTS, scoreMatch } from "@/lib/matching";
+import { EMPTY_DOCUMENTED } from "@/lib/evidence/documented";
 import { addCriterion, createApplication, createOpportunity, createResearcher, createStudent } from "../fixtures";
 
 describe("ranking a position's applicants by fit", () => {
@@ -56,16 +58,58 @@ describe("ranking a position's applicants by fit", () => {
     const result = scoreMatch(
       {
         fieldNames: [],
-        skillNames: [],
         durations: [],
         compensationPreferences: ["academic_credit"],
         weeklyHours: null,
         locationPreference: null,
-        hasExperience: true,
+        documented: EMPTY_DOCUMENTED,
       },
       input!,
     );
-    expect(result.dimensions.find((entry) => entry.dimension === "compensation")?.score).toBe(15);
-    expect(ranked!.ranked[0].fit.percent).toBe(100);
+    expect(result.dimensions.find((entry) => entry.dimension === "compensation")?.score).toBe(MATCH_WEIGHTS.compensation);
+    expect(ranked!.ranked[0].fit.summary).toBeDefined();
+  });
+
+  it("ranks directory students on GPA and documented research, not on what they typed", async () => {
+    const researcher = await createResearcher();
+    const opportunity = await createOpportunity(researcher.id, { beginnerFriendly: false });
+    await addCriterion(opportunity.id, {
+      type: "academic_metric",
+      label: "GPA and academic standing",
+      required: false,
+      importance: "medium",
+      config: {},
+    });
+    await addCriterion(opportunity.id, {
+      type: "prior_research",
+      label: "Previous research experience",
+      required: false,
+      importance: "high",
+      config: { minExperiences: 1 },
+      sortOrder: 1,
+    });
+
+    const strong = await createStudent();
+    const weak = await createStudent();
+    await db.insert(studentAcademicRecords).values([
+      { studentId: strong.id, metricType: "institution_scale", value: "11.80", scaleMax: "12.00", institutionScaleName: "12 point" },
+      { studentId: weak.id, metricType: "institution_scale", value: "9.00", scaleMax: "12.00", institutionScaleName: "12 point" },
+    ]);
+    await db.insert(studentEvidence).values({
+      studentId: strong.id,
+      resumeText: "Summer Research Student, Cardiac Lab, 2025",
+      resumeReadable: true,
+      researchRoles: [{ role: "Summer Research Student", organization: "Cardiac Lab", quote: null }],
+      researchCount: 1,
+      publications: [{ citation: "Readmission after PCI. Can J Cardiol. 2025.", kind: "peer_reviewed" }],
+      peerReviewedCount: 1,
+      source: "resume_text",
+    });
+
+    const rankings = await rankCandidatesAgainst(opportunity.id, [strong.id, weak.id]);
+    const top = rankings.get(strong.id)!;
+    const bottom = rankings.get(weak.id)!;
+    expect(top.percent - bottom.percent).toBeGreaterThan(30);
+    expect(top.reasons.join(" ")).toContain("1 publication");
   });
 });

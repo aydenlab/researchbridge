@@ -24,4 +24,18 @@ export async function register() {
       }),
     );
   }
+
+  try {
+    const { startEvidenceScheduler } = await import("@/lib/evidence/schedule");
+    startEvidenceScheduler();
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        event: "instrumentation_evidence_scheduler_failed",
+        ts: new Date().toISOString(),
+        error: String(error),
+      }),
+    );
+  }
 }

@@ -39,6 +39,11 @@ if (!databaseConfigured) {
   const code = await run("npx", ["tsx", "src/db/migrate.ts"]);
   if (code === 0) {
     log("startup_migrations_complete");
+    // Quick plain-text reading of any resume not read yet. The model reading
+    // catches up in the background once the server is up.
+    const evidenceCode = await run("npx", ["tsx", "scripts/refresh-evidence.ts"]);
+    if (evidenceCode === 0) log("startup_evidence_refresh_complete");
+    else warn("startup_evidence_refresh_failed", { exitCode: evidenceCode, message: "This never blocks startup." });
     // Idempotent: re-evaluates rule-based criteria from what each student
     // submitted, so results stored under older rules are brought up to date.
     const rescoreCode = await run("npx", ["tsx", "scripts/rescore-criteria.ts"]);

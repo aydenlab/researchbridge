@@ -149,3 +149,102 @@ export const interestAlignmentJsonSchema = {
   },
   required: ["overlaps", "gaps"],
 } as const;
+
+/**
+ * What the model reads out of a resume. Every item quotes the resume, because
+ * matching acts on it and a researcher should be able to see where it came from.
+ */
+export const RESUME_LIMITS = {
+  skills: 40,
+  roles: 12,
+  publications: 30,
+  name: 80,
+  quote: 200,
+  citation: 240,
+  summary: 500,
+} as const;
+
+export const resumeAnalysisSchema = z.object({
+  skills: trimmedArray(
+    z.object({ name: trimmedString(RESUME_LIMITS.name), evidence: trimmedString(RESUME_LIMITS.quote) }),
+    RESUME_LIMITS.skills,
+  ).default([]),
+  researchRoles: trimmedArray(
+    z.object({
+      role: trimmedString(RESUME_LIMITS.name * 2),
+      organization: trimmedString(RESUME_LIMITS.name * 2).nullable().default(null),
+      evidence: trimmedString(RESUME_LIMITS.quote),
+    }),
+    RESUME_LIMITS.roles,
+  ).default([]),
+  publications: trimmedArray(
+    z.object({
+      citation: trimmedString(RESUME_LIMITS.citation),
+      kind: z.enum(["peer_reviewed", "preprint", "manuscript", "poster", "oral_presentation", "abstract", "other"]),
+    }),
+    RESUME_LIMITS.publications,
+  ).default([]),
+  summary: trimmedString(RESUME_LIMITS.summary).default(""),
+  warnings: trimmedArray(trimmedString(LIMITS.note), LIMITS.noteList).default([]),
+});
+
+export type ResumeAnalysis = z.infer<typeof resumeAnalysisSchema>;
+
+export const resumeAnalysisJsonSchema = {
+  type: "object",
+  properties: {
+    skills: {
+      type: "array",
+      maxItems: RESUME_LIMITS.skills,
+      description:
+        "Concrete skills the resume demonstrates: laboratory and clinical techniques, software and programming languages, statistical and analytic methods, research methods. Only skills shown by something the student did, never ones merely named in an objective or interests line.",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", maxLength: RESUME_LIMITS.name, description: "Short conventional name, e.g. 'PCR', 'R', 'Systematic reviews'." },
+          evidence: { type: "string", maxLength: RESUME_LIMITS.quote, description: "Short quote from the resume that shows it." },
+        },
+        required: ["name", "evidence"],
+      },
+    },
+    researchRoles: {
+      type: "array",
+      maxItems: RESUME_LIMITS.roles,
+      description:
+        "Research positions: lab, clinical, field, or thesis research, including volunteer and summer research. Exclude jobs, clubs, and teaching that are not research.",
+      items: {
+        type: "object",
+        properties: {
+          role: { type: "string", maxLength: RESUME_LIMITS.name * 2 },
+          organization: { type: ["string", "null"], maxLength: RESUME_LIMITS.name * 2 },
+          evidence: { type: "string", maxLength: RESUME_LIMITS.quote },
+        },
+        required: ["role", "organization", "evidence"],
+      },
+    },
+    publications: {
+      type: "array",
+      maxItems: RESUME_LIMITS.publications,
+      description:
+        "Research outputs listed on the resume. peer_reviewed only for published or accepted journal articles; manuscript for submitted or in preparation; poster, oral_presentation, or abstract for conference work.",
+      items: {
+        type: "object",
+        properties: {
+          citation: { type: "string", maxLength: RESUME_LIMITS.citation },
+          kind: {
+            type: "string",
+            enum: ["peer_reviewed", "preprint", "manuscript", "poster", "oral_presentation", "abstract", "other"],
+          },
+        },
+        required: ["citation", "kind"],
+      },
+    },
+    summary: {
+      type: "string",
+      maxLength: RESUME_LIMITS.summary,
+      description: "Two neutral sentences on the research experience and methods the resume documents. No judgement of the person.",
+    },
+    warnings: { type: "array", maxItems: LIMITS.noteList, items: { type: "string", maxLength: LIMITS.note } },
+  },
+  required: ["skills", "researchRoles", "publications", "summary", "warnings"],
+} as const;

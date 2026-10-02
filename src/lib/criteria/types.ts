@@ -1,3 +1,4 @@
+import type { DocumentedEvidence } from "@/lib/evidence/documented";
 import type { AcademicMetric } from "@/lib/gpa";
 
 export type CriterionType =
@@ -63,6 +64,12 @@ export type ApplicantEvidence = {
   }[];
   academicRecords: AcademicMetric[];
   answers: { questionId: string; prompt: string; text: string | null }[];
+  /**
+   * What the resume and research history show. Skill and research criteria are
+   * judged on this; `skills` above is what the student typed and is shown to
+   * reviewers but never used to decide a criterion.
+   */
+  documented?: DocumentedEvidence;
 };
 
 export type SkillConfig = { skillSlug?: string; skillName?: string };

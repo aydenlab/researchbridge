@@ -1,5 +1,6 @@
 import { FileText } from "lucide-react";
 import { Tag } from "@/components/ui/badge";
+import { DocumentedEvidenceSummary } from "@/components/app/documented-evidence";
 import { formatDate, formatMonth } from "@/lib/format";
 import { formatMetric } from "@/lib/gpa";
 import { COURSE_STATUS_LABELS, LOCATION_LABELS, PROFICIENCY_LABELS, QUESTION_TYPE_LABELS, labelOr } from "@/lib/labels";
@@ -87,6 +88,15 @@ export function ApplicationDetail({
         )}
       </Panel>
 
+      {profile ? (
+        <Panel
+          title="What the resume shows"
+          subtitle="Research experience, publications, and skills read from the student's resume. Fit and criteria are judged on this."
+        >
+          <DocumentedEvidenceSummary evidence={profile.documented} audience="researcher" />
+        </Panel>
+      ) : null}
+
       <Panel title="Student profile" subtitle="Filled in by the student and included with this application.">
         {profile ? (
           <div className="flex flex-col gap-5">
@@ -137,7 +147,8 @@ export function ApplicationDetail({
             </div>
 
             <div className="border-t border-line pt-4">
-              <p className="text-[12px] font-medium text-subtle">Skills</p>
+              <p className="text-[12px] font-medium text-subtle">Skills the student listed</p>
+              <p className="mt-0.5 text-[12px] text-subtle">Self-reported, and not used for matching.</p>
               {profile.skills.length === 0 ? (
                 <p className="mt-1.5 text-[13.5px] text-muted">None listed.</p>
               ) : (

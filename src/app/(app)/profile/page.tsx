@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db, researcherFields, researcherProfiles, researchFields } from "@/db";
 import { Avatar } from "@/components/app/avatar";
+import { DocumentedEvidenceSummary } from "@/components/app/documented-evidence";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge, Tag } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -271,7 +272,15 @@ export default async function ProfilePage() {
           ) : null}
         </Panel>
 
+        <Panel title="What matching reads from your resume" editHref="/onboarding/student?step=7" editLabel="Update resume">
+          <DocumentedEvidenceSummary evidence={bundle.documented} audience="student" />
+        </Panel>
+
         <Panel title="Skills" editHref="/onboarding/student?step=3">
+          <p className="-mt-1 mb-3 text-[12.5px] leading-5 text-muted">
+            Shown to researchers on your applications. Matching reads your skills from your resume instead, so make sure
+            your resume describes the work you have done.
+          </p>
           {bundle.skills.length === 0 ? (
             <p className="text-[13.5px] text-muted">No skills listed yet.</p>
           ) : (

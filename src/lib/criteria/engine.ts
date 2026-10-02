@@ -22,6 +22,7 @@ import type {
   YearLevelConfig,
 } from "./types";
 import { weightOf, STATUS_FACTOR } from "./weights";
+import { describeTrackRecord, documentsSkill, hasDocumentation } from "@/lib/evidence/documented";
 
 function normalize(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -48,19 +49,30 @@ function result(
 
 function evaluateSkill(criterion: Criterion, evidence: ApplicantEvidence): CriterionResult {
   const config = criterion.config as SkillConfig;
-  const target = config.skillSlug ?? (config.skillName ? normalize(config.skillName) : null);
-  if (!target) return result(criterion, "unknown", ["This criterion has no skill configured."]);
+  const name = config.skillName ?? criterion.label;
+  if (!name) return result(criterion, "unknown", ["This criterion has no skill configured."]);
 
-  const match = evidence.skills.find(
-    (skill) => skill.slug === target || normalize(skill.name) === normalize(config.skillName ?? target),
+  // Judged on what the resume and research history show. The typed skills list
+  // is easy to pad and often incomplete, so it never decides this.
+  const documented = evidence.documented;
+  const selfListed = evidence.skills.some(
+    (skill) => normalize(skill.name) === normalize(name) || (config.skillSlug && skill.slug === config.skillSlug),
   );
-  if (!match) {
-    return result(criterion, "not_met", [`No profile entry found for ${config.skillName ?? target}.`]);
+  if (!documented || !hasDocumentation(documented)) {
+    return result(criterion, "unknown", [
+      `No resume or research experience on file to show ${name}.${selfListed ? " It is listed on the profile, which is not used for matching." : ""}`,
+    ]);
   }
-  const detail = [`Listed on profile as ${match.name}`];
-  if (match.proficiency) detail.push(`Self-reported level: ${match.proficiency}`);
-  if (match.context) detail.push(match.context);
-  return result(criterion, "met", detail);
+
+  const quote = documentsSkill(documented, name);
+  if (quote) {
+    return result(criterion, "met", [`${documented.hasResume ? "Resume" : "Research experience"}: ${quote}`]);
+  }
+  return result(criterion, "not_met", [
+    `${name} does not appear in the ${documented.hasResume ? "resume or research experience" : "research experience"}.${
+      selfListed ? " It is listed on the profile, which is not used for matching." : ""
+    }`,
+  ]);
 }
 
 function evaluateCoursework(criterion: Criterion, evidence: ApplicantEvidence): CriterionResult {
@@ -172,18 +184,21 @@ function evaluateAvailability(criterion: Criterion, evidence: ApplicantEvidence)
 function evaluatePriorResearch(criterion: Criterion, evidence: ApplicantEvidence): CriterionResult {
   const config = criterion.config as PriorResearchConfig;
   const minimum = config.minExperiences ?? 1;
-  const count = evidence.experiences.length;
-  if (count >= minimum) {
-    return result(
-      criterion,
-      "met",
-      evidence.experiences.slice(0, 3).map((item) => `${item.title ?? "Research role"} at ${item.organization}.`),
-    );
-  }
-  if (count > 0) {
-    return result(criterion, "partially_met", [`${count} prior research experience listed. Requested ${minimum}.`]);
-  }
-  return result(criterion, "not_met", ["No prior research experience listed on this profile."]);
+  const documented = evidence.documented;
+  const count = Math.max(documented?.researchCount ?? 0, evidence.experiences.length);
+
+  const roleLines =
+    documented && documented.researchRoles.length > 0
+      ? documented.researchRoles
+          .slice(0, 3)
+          .map((role) => `${role.role}${role.organization ? ` at ${role.organization}` : ""}.`)
+      : evidence.experiences.slice(0, 3).map((item) => `${item.title ?? "Research role"} at ${item.organization}.`);
+  const track = documented ? describeTrackRecord({ ...documented, researchCount: count }) : null;
+  const lines = [...(track ? [`Documented: ${track}.`] : []), ...roleLines];
+
+  if (count >= minimum) return result(criterion, "met", lines);
+  if (count > 0) return result(criterion, "partially_met", [`${count} prior research experience found. Requested ${minimum}.`, ...roleLines]);
+  return result(criterion, "not_met", ["No prior research experience found in the resume or profile."]);
 }
 
 function evaluateResearchInterest(criterion: Criterion, evidence: ApplicantEvidence): CriterionResult {

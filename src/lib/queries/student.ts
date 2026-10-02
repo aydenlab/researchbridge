@@ -10,6 +10,7 @@ import {
   studentCourses,
   studentCourseTypes,
   studentDurations,
+  studentEvidence,
   studentProfiles,
   studentResearchInterests,
   studentSkills,
@@ -17,6 +18,7 @@ import {
 import type { CompensationPreferenceOption, CourseTypeOption, DurationOption } from "@/lib/labels";
 import type { AcademicMetric } from "@/lib/gpa";
 import type { ApplicantEvidence } from "@/lib/criteria/types";
+import { toDocumented, type DocumentedEvidence } from "@/lib/evidence/documented";
 
 export type StudentProfileBundle = {
   profile: typeof studentProfiles.$inferSelect;
@@ -28,6 +30,8 @@ export type StudentProfileBundle = {
   durations: DurationOption[];
   courseTypes: CourseTypeOption[];
   compensationPreferences: CompensationPreferenceOption[];
+  /** What the resume and research history show. Matching reads this, not `skills`. */
+  documented: DocumentedEvidence;
 };
 
 export async function loadStudentProfile(studentId: string): Promise<StudentProfileBundle | null> {
@@ -44,6 +48,7 @@ export async function loadStudentProfile(studentId: string): Promise<StudentProf
     durationRows,
     courseTypeRows,
     compensationRows,
+    evidenceRows,
   ] = await Promise.all([
     db
       .select({
@@ -90,6 +95,7 @@ export async function loadStudentProfile(studentId: string): Promise<StudentProf
       .select({ preference: studentCompensationPreferences.preference })
       .from(studentCompensationPreferences)
       .where(eq(studentCompensationPreferences.studentId, studentId)),
+    db.select().from(studentEvidence).where(eq(studentEvidence.studentId, studentId)).limit(1),
   ]);
 
   return {
@@ -102,6 +108,16 @@ export async function loadStudentProfile(studentId: string): Promise<StudentProf
     durations: durationRows.map((row) => row.duration),
     courseTypes: courseTypeRows.map((row) => row.courseType),
     compensationPreferences: compensationRows.map((row) => row.preference),
+    documented: toDocumented(
+      evidenceRows[0] ?? null,
+      experienceRows.map((row) => ({
+        organization: row.organization,
+        title: row.title,
+        description: row.description,
+        techniques: row.techniques ?? [],
+        outputs: row.outputs ?? [],
+      })),
+    ),
   };
 }
 
@@ -151,6 +167,7 @@ export function toApplicantEvidence(
     })),
     academicRecords: toAcademicMetrics(bundle.academicRecords),
     answers,
+    documented: bundle.documented,
   };
 }
 

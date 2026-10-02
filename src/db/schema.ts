@@ -458,6 +458,41 @@ export const researchExperiences = pgTable(
   (t) => [index("research_experiences_student_idx").on(t.studentId)],
 );
 
+/**
+ * What a student's resume and research history actually show, read by the
+ * platform rather than typed by the student. Matching runs on this instead of
+ * the self-reported skills list, which anyone can pad and strong candidates
+ * often leave short.
+ *
+ * Rebuilt whenever the resume or research experience changes. `source` says
+ * how it was read: by the language model, by the plain-text reader when the
+ * model is unavailable, or from the profile alone when there is no resume.
+ */
+export const studentEvidence = pgTable("student_evidence", {
+  studentId: uuid("student_id")
+    .primaryKey()
+    .references(() => studentProfiles.userId, { onDelete: "cascade" }),
+  resumeFileId: uuid("resume_file_id"),
+  resumeText: text("resume_text"),
+  resumeReadable: boolean("resume_readable").notNull().default(false),
+  skills: jsonb("skills").$type<{ name: string; quote: string | null }[]>().notNull().default([]),
+  researchRoles: jsonb("research_roles")
+    .$type<{ role: string; organization: string | null; quote: string | null }[]>()
+    .notNull()
+    .default([]),
+  researchCount: integer("research_count").notNull().default(0),
+  publications: jsonb("publications").$type<{ citation: string; kind: string }[]>().notNull().default([]),
+  peerReviewedCount: integer("peer_reviewed_count").notNull().default(0),
+  presentationCount: integer("presentation_count").notNull().default(0),
+  summary: text("summary"),
+  source: text("source").notNull().default("profile_only"),
+  analyzerVersion: integer("analyzer_version").notNull().default(0),
+  aiModel: text("ai_model"),
+  aiInputHash: text("ai_input_hash"),
+  aiAttemptedAt: timestamp("ai_attempted_at", { withTimezone: true }),
+  analyzedAt: timestamp("analyzed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const researcherProfiles = pgTable(
   "researcher_profiles",
   {

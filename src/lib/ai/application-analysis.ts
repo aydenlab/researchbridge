@@ -101,8 +101,15 @@ function buildApplicantContent(evidence: ApplicantEvidence): string {
     evidence.degreeLevel ? `Degree level: ${evidence.degreeLevel}` : null,
     evidence.yearLevel ? `Year of study: ${evidence.yearLevel}` : null,
     evidence.weeklyHours ? `Stated availability: ${evidence.weeklyHours} hours per week` : null,
-    evidence.skills.length
-      ? `Listed skills: ${evidence.skills.map((s) => (s.context ? `${s.name} (${s.context})` : s.name)).join("; ")}`
+    // The typed skills list is not evidence; what the resume documents is.
+    evidence.documented?.skills.length
+      ? `Skills shown in the resume or research history: ${evidence.documented.skills.map((s) => s.name).join(", ")}`
+      : null,
+    evidence.documented && (evidence.documented.researchCount > 0 || evidence.documented.publications.length > 0)
+      ? `Research record: ${evidence.documented.researchCount} research positions; outputs: ${
+          evidence.documented.publications.map((p) => `${p.kind.replace(/_/g, " ")}: ${p.citation}`).join("; ") ||
+          "none listed"
+        }`
       : null,
     evidence.courses.length
       ? `Listed coursework: ${evidence.courses.map((c) => `${c.courseCode} ${c.courseName}`).join("; ")}`
@@ -130,9 +137,14 @@ function buildApplicantContent(evidence: ApplicantEvidence): string {
     .map((answer) => `questionId: ${answer.questionId}\nPrompt: ${answer.prompt}\nResponse:\n${answer.text}`)
     .join("\n\n");
 
+  // Resumes carry the clubs, volunteering, and teaching that criteria such as
+  // extracurricular involvement ask about, so the model reads the resume too.
+  const resumeText = evidence.documented?.hasResume ? evidence.documented.text : "";
+
   return [
     wrapUntrusted("profile", profileLines.join("\n")),
     experienceBlock ? wrapUntrusted("research_experience", experienceBlock) : "",
+    resumeText ? wrapUntrusted("resume", resumeText) : "",
     answersBlock ? wrapUntrusted("application_responses", answersBlock) : "",
     "",
     "Return one entry per criterion id listed above.",

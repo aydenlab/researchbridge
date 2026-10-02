@@ -11,8 +11,6 @@ import {
   studentDurations,
   studentProfiles,
   studentResearchInterests,
-  studentSkills,
-  researchExperiences,
   users,
 } from "@/db";
 import type { StudentProfileBundle } from "./student";
@@ -20,6 +18,8 @@ import type { OpportunityListItem } from "./opportunities";
 import { searchOpportunities } from "./opportunities";
 import { scoreMatch, type MatchResult, type OpportunityMatchInput, type StudentMatchInput } from "@/lib/matching";
 import type { CompensationPreferenceOption, DurationOption } from "@/lib/labels";
+import { EMPTY_DOCUMENTED, type DocumentedEvidence } from "@/lib/evidence/documented";
+import { loadDocumentedEvidence } from "@/lib/evidence/refresh";
 
 export type RecommendationReason = string;
 
@@ -34,12 +34,11 @@ export type Recommendation = {
 export function studentMatchInput(bundle: StudentProfileBundle): StudentMatchInput {
   return {
     fieldNames: bundle.fields.map((field) => field.name),
-    skillNames: bundle.skills.map((skill) => skill.name),
     durations: bundle.durations,
     compensationPreferences: bundle.compensationPreferences,
     weeklyHours: bundle.profile.weeklyHours,
     locationPreference: bundle.profile.locationPreference,
-    hasExperience: bundle.experiences.length > 0,
+    documented: bundle.documented,
   };
 }
 
@@ -100,10 +99,9 @@ export type StudentCandidate = {
   weeklyHours: number | null;
   locationPreference: string | null;
   fieldNames: string[];
-  skillNames: string[];
   durations: DurationOption[];
   compensationPreferences: CompensationPreferenceOption[];
-  hasExperience: boolean;
+  documented: DocumentedEvidence;
 };
 
 /**
@@ -148,17 +146,12 @@ export async function loadStudentCandidates(
   if (rows.length === 0) return [];
   const ids = rows.map((row) => row.userId);
 
-  const [fieldRows, skillRows, durationRows, compensationRows, experienceRows] = await Promise.all([
+  const [fieldRows, durationRows, compensationRows, documented] = await Promise.all([
     db
       .select({ studentId: studentResearchInterests.studentId, name: researchFields.name })
       .from(studentResearchInterests)
       .innerJoin(researchFields, eq(researchFields.id, studentResearchInterests.researchFieldId))
       .where(inArray(studentResearchInterests.studentId, ids)),
-    db
-      .select({ studentId: studentSkills.studentId, name: skills.name })
-      .from(studentSkills)
-      .innerJoin(skills, eq(skills.id, studentSkills.skillId))
-      .where(inArray(studentSkills.studentId, ids)),
     db
       .select({ studentId: studentDurations.studentId, duration: studentDurations.duration })
       .from(studentDurations)
@@ -167,10 +160,7 @@ export async function loadStudentCandidates(
       .select({ studentId: studentCompensationPreferences.studentId, preference: studentCompensationPreferences.preference })
       .from(studentCompensationPreferences)
       .where(inArray(studentCompensationPreferences.studentId, ids)),
-    db
-      .select({ studentId: researchExperiences.studentId })
-      .from(researchExperiences)
-      .where(inArray(researchExperiences.studentId, ids)),
+    loadDocumentedEvidence(ids),
   ]);
 
   const group = <T, K extends string>(entries: T[], key: (row: T) => string, value: (row: T) => K) => {
@@ -180,10 +170,8 @@ export async function loadStudentCandidates(
   };
 
   const fieldsBy = group(fieldRows, (row) => row.studentId, (row) => row.name);
-  const skillsBy = group(skillRows, (row) => row.studentId, (row) => row.name);
   const durationsBy = group(durationRows, (row) => row.studentId, (row) => row.duration);
   const compensationBy = group(compensationRows, (row) => row.studentId, (row) => row.preference);
-  const withExperience = new Set(experienceRows.map((row) => row.studentId));
 
   return rows.map((row) => ({
     userId: row.userId,
@@ -195,22 +183,20 @@ export async function loadStudentCandidates(
     weeklyHours: row.weeklyHours,
     locationPreference: row.locationPreference,
     fieldNames: fieldsBy.get(row.userId) ?? [],
-    skillNames: skillsBy.get(row.userId) ?? [],
     durations: durationsBy.get(row.userId) ?? [],
     compensationPreferences: compensationBy.get(row.userId) ?? [],
-    hasExperience: withExperience.has(row.userId),
+    documented: documented.get(row.userId) ?? EMPTY_DOCUMENTED,
   }));
 }
 
 export function candidateMatchInput(candidate: StudentCandidate): StudentMatchInput {
   return {
     fieldNames: candidate.fieldNames,
-    skillNames: candidate.skillNames,
     durations: candidate.durations,
     compensationPreferences: candidate.compensationPreferences,
     weeklyHours: candidate.weeklyHours,
     locationPreference: candidate.locationPreference,
-    hasExperience: candidate.hasExperience,
+    documented: candidate.documented,
   };
 }
 

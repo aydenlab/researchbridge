@@ -10,7 +10,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@electric-sql/pglite", "pg"],
+  // unpdf reads resumes; bundling it breaks its own import.meta use, so Node
+  // loads it as it ships.
+  serverExternalPackages: ["@electric-sql/pglite", "pg", "unpdf"],
   // Must stay above the largest FILE_RULES entry in src/lib/storage/index.ts.
   // A server action rejects an oversized body before any of our own validation
   // runs, so a lower value here silently breaks video and writing-sample
@@ -30,7 +32,7 @@ const nextConfig: NextConfig = {
    */
   webpack(config, { isServer, nextRuntime, webpack }) {
     if (isServer && nextRuntime === "nodejs") return config;
-    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^@\/lib\/notifications\/schedule$/ }));
+    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^@\/lib\/(notifications|evidence)\/schedule$/ }));
     return config;
   },
   /**

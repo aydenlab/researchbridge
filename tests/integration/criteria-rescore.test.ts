@@ -115,7 +115,7 @@ describe("rescoring rule-based criteria on submitted applications", () => {
     expect((await storedStatus(application.id, criterion.id)).status).toBe("partially_met");
   });
 
-  it("reads skills and research areas back from the names a snapshot stores", async () => {
+  it("reads research areas back from the names a snapshot stores, and ignores typed skills", async () => {
     const researcher = await createResearcher();
     const opportunity = await createOpportunity(researcher.id);
     const name = `Rescore Field ${randomUUID().slice(0, 6)}`;
@@ -141,7 +141,8 @@ describe("rescoring rule-based criteria on submitted applications", () => {
     });
 
     await rescoreDeterministicCriteria();
-    expect((await storedStatus(application.id, skill.id)).status).toBe("met");
+    // A typed skill with no resume behind it is not evidence either way.
+    expect((await storedStatus(application.id, skill.id)).status).toBe("unknown");
     // The taxonomy slug differs from slugify(name), so this only passes if it is looked up.
     expect((await storedStatus(application.id, interest.id)).status).toBe("met");
   });

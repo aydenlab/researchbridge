@@ -146,7 +146,8 @@ describe("criteria built from the posting form", () => {
 
     const criterion: Criterion = { id: "skill-1", ...draft };
     const evidence = {
-      skills: [{ name: "Python", slug: "python", proficiency: "working", context: null }],
+      skills: [],
+      documented: { hasResume: true, text: "Analysed survey data in Python", skills: [], researchCount: 0 },
     } as unknown as ApplicantEvidence;
 
     expect(evaluateCriterion(criterion, evidence)?.status).toBe("met");

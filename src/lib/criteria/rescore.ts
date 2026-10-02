@@ -1,11 +1,21 @@
 import { and, eq, inArray, ne } from "drizzle-orm";
-import { applicationSnapshots, applications, criterionEvaluations, db, opportunityCriteria, researchFields } from "@/db";
+import {
+  applicationSnapshots,
+  applications,
+  criterionEvaluations,
+  db,
+  opportunityCriteria,
+  researchFields,
+  studentProfiles,
+} from "@/db";
 import { slugify } from "@/lib/format";
 import type { AcademicMetric, AcademicMetricType } from "@/lib/gpa";
 import { persistCriterionResults } from "@/lib/queries/applications";
 import { loadStudentProfile, toApplicantEvidence } from "@/lib/queries/student";
 import { evaluateDeterministic } from "./engine";
 import { DETERMINISTIC_TYPES, type ApplicantEvidence, type Criterion, type CriterionResult } from "./types";
+import type { DocumentedEvidence } from "@/lib/evidence/documented";
+import { loadDocumentedEvidence } from "@/lib/evidence/refresh";
 
 type SnapshotRecord = {
   metricType?: string;
@@ -37,6 +47,8 @@ type Snapshot = {
     outputs?: string[] | null;
   }[];
   academicRecords?: SnapshotRecord[];
+  resumeFileId?: string | null;
+  documented?: DocumentedEvidence;
 };
 
 function toMetric(record: SnapshotRecord): AcademicMetric | null {
@@ -56,7 +68,11 @@ function toMetric(record: SnapshotRecord): AcademicMetric | null {
  * are resolved against the taxonomy and skills fall back to their slug form,
  * which is how the evaluator matches them anyway.
  */
-export function evidenceFromSnapshot(snapshot: Snapshot, fieldSlugs: Map<string, string>): ApplicantEvidence {
+export function evidenceFromSnapshot(
+  snapshot: Snapshot,
+  fieldSlugs: Map<string, string>,
+  documented?: DocumentedEvidence,
+): ApplicantEvidence {
   return {
     program: snapshot.program ?? null,
     faculty: snapshot.faculty ?? null,
@@ -96,6 +112,7 @@ export function evidenceFromSnapshot(snapshot: Snapshot, fieldSlugs: Map<string,
       .filter((metric): metric is AcademicMetric => metric !== null),
     // No rule-based criterion reads written answers; those are the model's job.
     answers: [],
+    documented: documented ?? snapshot.documented,
   };
 }
 
@@ -132,7 +149,7 @@ function sameResult(stored: { status: string; score: string | null; evidence: st
  * Only rows whose result actually changed are written, so it is cheap to run
  * on every start.
  */
-export async function rescoreDeterministicCriteria(): Promise<{
+export async function rescoreDeterministicCriteria(options: { studentId?: string } = {}): Promise<{
   applications: number;
   evaluated: number;
   changed: number;
@@ -168,7 +185,11 @@ export async function rescoreDeterministicCriteria(): Promise<{
     .from(applications)
     .leftJoin(applicationSnapshots, eq(applicationSnapshots.applicationId, applications.id))
     .where(
-      and(inArray(applications.opportunityId, [...criteriaByOpportunity.keys()]), ne(applications.status, "draft")),
+      and(
+        inArray(applications.opportunityId, [...criteriaByOpportunity.keys()]),
+        ne(applications.status, "draft"),
+        options.studentId ? eq(applications.studentId, options.studentId) : undefined,
+      ),
     );
   if (rows.length === 0) return { applications: 0, evaluated: 0, changed: 0 };
 
@@ -206,12 +227,27 @@ export async function rescoreDeterministicCriteria(): Promise<{
     );
   const stored = new Map(storedRows.map((row) => [`${row.applicationId}:${row.criterionId}`, row]));
 
+  // The current reading of each student's resume. It is used for an
+  // application when the resume is the one that was submitted, which also lets
+  // a model reading that finished after submission count.
+  const current = await loadDocumentedEvidence(rows.map((row) => row.studentId));
+  const currentResume = new Map(
+    (
+      await db
+        .select({ id: studentProfiles.userId, resumeFileId: studentProfiles.resumeFileId })
+        .from(studentProfiles)
+        .where(inArray(studentProfiles.userId, [...new Set(rows.map((row) => row.studentId))]))
+    ).map((row) => [row.id, row.resumeFileId]),
+  );
+
   let evaluated = 0;
   let changed = 0;
   for (const row of rows) {
     let evidence: ApplicantEvidence | null = null;
     if (isProfileSnapshot(row.profile)) {
-      evidence = evidenceFromSnapshot(row.profile, fieldSlugs);
+      const sameResume = (row.profile.resumeFileId ?? null) === (currentResume.get(row.studentId) ?? null);
+      const documented = sameResume || !row.profile.documented ? current.get(row.studentId) : row.profile.documented;
+      evidence = evidenceFromSnapshot(row.profile, fieldSlugs, documented);
     } else {
       const bundle = await loadStudentProfile(row.studentId);
       if (bundle) evidence = toApplicantEvidence(bundle, []);

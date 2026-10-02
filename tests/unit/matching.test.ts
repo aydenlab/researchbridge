@@ -1,21 +1,35 @@
 import { describe, expect, it } from "vitest";
 import {
+  MATCH_WEIGHTS,
   compensationBucket,
   compensationBuckets,
   scoreMatch,
   type OpportunityMatchInput,
   type StudentMatchInput,
 } from "@/lib/matching";
+import { EMPTY_DOCUMENTED, type DocumentedEvidence } from "@/lib/evidence/documented";
+
+function documented(overrides: Partial<DocumentedEvidence> = {}): DocumentedEvidence {
+  return {
+    ...EMPTY_DOCUMENTED,
+    hasResume: true,
+    text: "Research Assistant, Cardiac Outcomes Lab\nCleaned hospital data in Python and R",
+    skills: [{ name: "Python", quote: "Cleaned hospital data in Python and R" }],
+    researchRoles: [{ role: "Research Assistant", organization: "Cardiac Outcomes Lab", quote: null }],
+    researchCount: 1,
+    source: "resume_text",
+    ...overrides,
+  };
+}
 
 function student(overrides: Partial<StudentMatchInput> = {}): StudentMatchInput {
   return {
     fieldNames: ["Cardiology"],
-    skillNames: ["Python"],
     durations: ["one_semester"],
     compensationPreferences: ["paid"],
     weeklyHours: 10,
     locationPreference: "hybrid",
-    hasExperience: true,
+    documented: documented(),
     ...overrides,
   };
 }
@@ -59,7 +73,7 @@ describe("duration matching", () => {
     const wants = scoreMatch(student({ durations: ["multi_year"] }), posting);
     const doesNot = scoreMatch(student({ durations: ["one_semester"] }), posting);
     expect(wants.points).toBeGreaterThan(doesNot.points);
-    expect((wants.percent ?? 0) - (doesNot.percent ?? 0)).toBeGreaterThan(20);
+    expect((wants.percent ?? 0) - (doesNot.percent ?? 0)).toBeGreaterThanOrEqual(15);
   });
 
   it("does not penalise a student who has not answered yet", () => {
@@ -68,7 +82,7 @@ describe("duration matching", () => {
     expect(duration?.score).toBeNull();
     // The weight of an unanswered dimension leaves the percentage alone rather
     // than dragging it down, so a half-filled profile is not punished twice.
-    expect(answered.percent).toBe(100);
+    expect(answered.applicableWeight).toBe(scoreMatch(student(), opportunity()).applicableWeight - MATCH_WEIGHTS.duration);
   });
 
   it("weighs duration alongside interest rather than beneath it", () => {
@@ -168,11 +182,19 @@ describe("explaining a score", () => {
 describe("overall scoring", () => {
   it("reports a percentage only over the dimensions that applied", () => {
     const result = scoreMatch(
-      student({ fieldNames: [], skillNames: [], durations: [], compensationPreferences: [], weeklyHours: null, locationPreference: null }),
+      student({
+        fieldNames: [],
+        durations: [],
+        compensationPreferences: [],
+        weeklyHours: null,
+        locationPreference: null,
+        documented: EMPTY_DOCUMENTED,
+      }),
       opportunity(),
     );
-    expect(result.percent).toBeNull();
-    expect(result.applicableWeight).toBe(0);
+    // Research track record always applies: an empty profile is judged on it alone.
+    expect(result.applicableWeight).toBe(MATCH_WEIGHTS.research);
+    expect(result.percent).toBe(0);
   });
 
   it("gives reasons only for dimensions that actually matched", () => {
@@ -182,8 +204,9 @@ describe("overall scoring", () => {
   });
 
   it("pushes down a position that requires experience the student does not have", () => {
-    const open = scoreMatch(student({ hasExperience: false }), opportunity({ beginnerFriendly: true }));
-    const closed = scoreMatch(student({ hasExperience: false }), opportunity({ priorResearchRequired: true }));
+    const none = documented({ researchCount: 0, researchRoles: [] });
+    const open = scoreMatch(student({ documented: none }), opportunity({ beginnerFriendly: true }));
+    const closed = scoreMatch(student({ documented: none }), opportunity({ priorResearchRequired: true }));
     expect(open.points).toBeGreaterThan(closed.points);
   });
 });
@@ -229,7 +252,7 @@ describe("near misses", () => {
   });
 
   it("does not zero out a student with no overlapping skills", () => {
-    const result = scoreMatch(student({ skillNames: ["R"] }), opportunity({ skillNames: ["Python"] }));
+    const result = scoreMatch(student(), opportunity({ skillNames: ["MATLAB"] }));
     expect(result.dimensions.find((entry) => entry.dimension === "skills")?.score).toBeGreaterThan(0);
   });
 });
@@ -242,5 +265,56 @@ describe("future research opportunities", () => {
     );
     expect(result.dimensions.find((entry) => entry.dimension === "duration")?.score).toBeNull();
     expect(result.caveats).toHaveLength(0);
+  });
+});
+
+describe("matching on documented evidence rather than typed skills", () => {
+  it("credits a skill the resume shows even when it was never typed into the profile", () => {
+    const result = scoreMatch(student(), opportunity({ skillNames: ["R"] }));
+    const skills = result.dimensions.find((entry) => entry.dimension === "skills");
+    expect(skills?.score).toBe(skills?.weight);
+    expect(result.reasons.join(" ")).toContain("Your resume shows R");
+  });
+
+  it("does not credit a skill the resume never shows", () => {
+    const result = scoreMatch(student(), opportunity({ skillNames: ["Western blot"] }));
+    const skills = result.dimensions.find((entry) => entry.dimension === "skills");
+    expect(skills?.score).toBeLessThan(skills?.weight ?? 0);
+  });
+
+  it("leaves skills out entirely when there is no resume or research to read", () => {
+    const result = scoreMatch(student({ documented: EMPTY_DOCUMENTED }), opportunity({ skillNames: ["Python"] }));
+    expect(result.dimensions.find((entry) => entry.dimension === "skills")?.score).toBeNull();
+  });
+
+  it("ranks a student with research and a publication well above one with neither", () => {
+    const published = documented({
+      researchCount: 2,
+      peerReviewedCount: 1,
+      presentationCount: 1,
+      publications: [
+        { citation: "Smith J, et al. Readmission after PCI. CJC. 2025.", kind: "peer_reviewed" },
+        { citation: "Poster, Health Sciences Research Day 2025", kind: "poster" },
+      ],
+    });
+    const strong = scoreMatch(student({ documented: published }), opportunity());
+    const none = scoreMatch(student({ documented: documented({ researchCount: 0, researchRoles: [] }) }), opportunity());
+    expect((strong.percent ?? 0) - (none.percent ?? 0)).toBeGreaterThan(20);
+    expect(strong.reasons.join(" ")).toContain("2 research positions, 1 publication and 1 poster or presentation");
+  });
+
+  it("names a missing research record as a caveat", () => {
+    const result = scoreMatch(student({ documented: documented({ researchCount: 0, researchRoles: [] }) }), opportunity());
+    expect(result.caveats.join(" ")).toContain("No research experience or publications");
+  });
+
+  it("does not hold a missing research record against a student on a beginner-friendly listing", () => {
+    const result = scoreMatch(
+      student({ documented: documented({ researchCount: 0, researchRoles: [] }) }),
+      opportunity({ beginnerFriendly: true }),
+    );
+    const research = result.dimensions.find((entry) => entry.dimension === "research");
+    expect(research?.score).toBe((research?.weight ?? 0) * 0.5);
+    expect(result.caveats.join(" ")).not.toContain("No research experience");
   });
 });

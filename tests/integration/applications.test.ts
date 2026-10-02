@@ -1,15 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import {
-  applicationAnswers,
-  applications,
-  applicationSnapshots,
-  applicationStatusHistory,
-  db,
-  opportunities,
-  savedOpportunities,
-  studentProfiles,
-} from "@/db";
+import { applicationAnswers, applicationSnapshots, applicationStatusHistory, applications, db, opportunities, researchExperiences, savedOpportunities, studentProfiles } from "@/db";
 import { evaluateDeterministic } from "@/lib/criteria/engine";
 import { summarizeAlignment } from "@/lib/criteria/weights";
 import { loadApplication, loadCriteria, loadCriterionResults, persistCriterionResults } from "@/lib/queries/applications";
@@ -154,6 +145,15 @@ describe("criterion evaluation storage", () => {
     const application = await createApplication(opportunity.id, student.id, {
       status: "submitted",
       submittedAt: new Date(),
+    });
+
+    // Documented research that does not mention Python, so the skill is a real
+    // miss rather than nothing to judge.
+    await db.insert(researchExperiences).values({
+      studentId: student.id,
+      organization: "Community Health Lab",
+      title: "Research volunteer",
+      description: "Screened abstracts for a scoping review.",
     });
 
     const criteria = await loadCriteria(opportunity.id);

@@ -1,4 +1,11 @@
 import { DISCIPLINES } from "@/lib/disciplines";
+import {
+  describeTrackRecord,
+  documentsSkill,
+  hasDocumentation,
+  researchStrength,
+  type DocumentedEvidence,
+} from "@/lib/evidence/documented";
 import { slugify } from "@/lib/format";
 import {
   COMPENSATION_PREFERENCE_LABELS,
@@ -14,13 +21,19 @@ import {
  * lets a new dimension be added without silently rescaling the old ones: the
  * score is always reported as a percentage of the weight that actually applied,
  * so a student who has not filled in their durations is not punished for it.
+ *
+ * Research and skills read what the resume and research history document,
+ * never the skills list a student typed. Research track record is the second
+ * heaviest dimension: prior research roles and publications are the strongest
+ * evidence a student can bring.
  */
 export const MATCH_WEIGHTS = {
-  interest: 40,
-  duration: 25,
-  compensation: 15,
+  interest: 32,
+  research: 24,
+  duration: 18,
   skills: 12,
-  availability: 8,
+  compensation: 9,
+  availability: 5,
 } as const;
 
 export type MatchDimension = keyof typeof MATCH_WEIGHTS;
@@ -143,12 +156,12 @@ function listPhrase(values: string[]): string {
 
 export type StudentMatchInput = {
   fieldNames: string[];
-  skillNames: string[];
   durations: DurationOption[];
   compensationPreferences: CompensationPreferenceOption[];
   weeklyHours: number | null;
   locationPreference: string | null;
-  hasExperience: boolean;
+  /** What the resume and research history show. Self-reported skills are not part of matching. */
+  documented: DocumentedEvidence;
 };
 
 export type OpportunityMatchInput = {
@@ -199,6 +212,24 @@ export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityM
   } else {
     dimensions.push({ dimension: "interest", score: null, weight: MATCH_WEIGHTS.interest, reason: null });
   }
+
+  // Research track record, from the resume and the research entries on the
+  // profile. A listing that welcomes beginners does not hold its absence
+  // against anyone, so it earns half the weight there instead of none.
+  const strength = researchStrength(student.documented);
+  const track = describeTrackRecord(student.documented);
+  const researchScore = opportunity.beginnerFriendly ? Math.max(strength, 0.5) : strength;
+  dimensions.push({
+    dimension: "research",
+    score: researchScore * MATCH_WEIGHTS.research,
+    weight: MATCH_WEIGHTS.research,
+    reason: track
+      ? `Your ${student.documented.hasResume ? "resume shows" : "profile lists"} ${track}`
+      : opportunity.beginnerFriendly
+        ? null
+        : "No research experience or publications found on your resume yet",
+    caveat: !track && !opportunity.beginnerFriendly,
+  });
 
   // Duration. Overlap on any single value is a full match: a student wanting one
   // term and a supervisor open to one term or a year want the same thing. A
@@ -257,10 +288,10 @@ export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityM
     dimensions.push({ dimension: "compensation", score: null, weight: MATCH_WEIGHTS.compensation, reason: null });
   }
 
-  // Skills. Someone who listed skills, just not these ones, can learn them.
-  if (student.skillNames.length > 0 && opportunity.skillNames.length > 0) {
-    const studentSkills = lowerSet(student.skillNames);
-    const matched = opportunity.skillNames.filter((name) => studentSkills.has(name.toLowerCase()));
+  // Skills, judged on whether the resume or research history shows them. A
+  // student with documented work, just not these exact skills, can learn them.
+  if (hasDocumentation(student.documented) && opportunity.skillNames.length > 0) {
+    const matched = opportunity.skillNames.filter((name) => documentsSkill(student.documented, name) !== null);
     const ratio = Math.max(
       Math.min(matched.length / Math.min(opportunity.skillNames.length, 3), 1),
       PARTIAL_CREDIT.noSharedSkill,
@@ -269,7 +300,10 @@ export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityM
       dimension: "skills",
       score: ratio * MATCH_WEIGHTS.skills,
       weight: MATCH_WEIGHTS.skills,
-      reason: matched.length > 0 ? `You listed ${listPhrase(matched.slice(0, 3))}` : null,
+      reason:
+        matched.length > 0
+          ? `Your ${student.documented.hasResume ? "resume" : "research experience"} shows ${listPhrase(matched.slice(0, 3))}`
+          : null,
     });
   } else {
     dimensions.push({ dimension: "skills", score: null, weight: MATCH_WEIGHTS.skills, reason: null });
@@ -303,19 +337,20 @@ export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityM
   let points = dimensions.reduce((total, entry) => total + (entry.score ?? 0), 0);
   const applicableWeight = dimensions.reduce((total, entry) => total + (entry.score === null ? 0 : entry.weight), 0);
 
-  // Experience fit is a nudge rather than a dimension: it moves a listing up or
-  // down the page without ever being the reason one is shown.
+  // Openness to beginners is a nudge rather than a dimension: it moves a listing
+  // up or down the page without ever being the reason one is shown.
   const reasons = dimensions
     .filter((entry) => !entry.caveat && entry.score !== null && entry.score > 0 && entry.reason)
     .map((entry) => entry.reason as string);
 
   const caveats = dimensions.filter((entry) => entry.caveat && entry.reason).map((entry) => entry.reason as string);
 
-  if (!student.hasExperience && opportunity.beginnerFriendly) {
+  const hasResearch = student.documented.researchCount > 0;
+  if (!hasResearch && opportunity.beginnerFriendly) {
     points += 4;
     reasons.push("Open to students without previous research");
   }
-  if (!student.hasExperience && opportunity.priorResearchRequired) {
+  if (!hasResearch && opportunity.priorResearchRequired) {
     points -= PRIOR_RESEARCH_PENALTY;
   }
 

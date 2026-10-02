@@ -29,6 +29,7 @@ import { sendApplicationReceived, sendNewApplicantNotice } from "@/lib/email";
 import { loadApplication, loadCriteria, persistCriterionResults } from "@/lib/queries/applications";
 import { loadStudentProfile, toApplicantEvidence } from "@/lib/queries/student";
 import { storeFile } from "@/lib/storage";
+import { queueEvidenceRefresh } from "@/lib/evidence/queue";
 
 async function requireOwnedDraft(applicationId: string) {
   const user = await requireStudent();
@@ -207,6 +208,9 @@ export async function submitApplicationAction(_prev: ActionResult | null, formDa
         institutionScaleName: record.institutionScaleName,
         label: record.label,
       })),
+      // What the resume and research history showed at submission. Matching
+      // reads this rather than the typed skills above.
+      documented: profile.documented,
     };
 
     const submittedAt = new Date();
@@ -480,6 +484,7 @@ export async function attachResumeAction(_prev: ActionResult | null, formData: F
       .update(studentProfiles)
       .set({ resumeFileId: stored.id, updatedAt: new Date() })
       .where(eq(studentProfiles.userId, user.id));
+    queueEvidenceRefresh(user.id);
 
     await recordAudit({
       actorId: user.id,

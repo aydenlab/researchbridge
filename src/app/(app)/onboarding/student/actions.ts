@@ -30,6 +30,7 @@ import {
   studentBasicsSchema,
   studentInterestsSchema,
 } from "@/lib/validation/profile";
+import { queueEvidenceRefresh } from "@/lib/evidence/queue";
 
 const TOTAL_STEPS = 8;
 
@@ -267,6 +268,7 @@ export async function saveExperiencesAction(_prev: ActionResult | null, formData
       .filter((row) => row.organization.length > 0);
 
     if (rows.length > 0) await db.insert(researchExperiences).values(rows);
+    queueEvidenceRefresh(user.id);
 
     next = await advance(user.id, 5);
     await refreshCompletion(user.id);
@@ -362,6 +364,7 @@ export async function saveResumeAction(_prev: ActionResult | null, formData: For
         .update(studentProfiles)
         .set({ ...changes, updatedAt: new Date() })
         .where(eq(studentProfiles.userId, user.id));
+      if ("resumeFileId" in changes) queueEvidenceRefresh(user.id);
     }
 
     next = await advance(user.id, 7);

@@ -286,8 +286,8 @@ export function SkillsForm({ initial, suggestions }: { initial: SkillRow[]; sugg
     <form action={action} className="flex flex-col gap-5">
       <FormError>{state?.ok === false ? state.error : null}</FormError>
       <FormNote>
-        Add what you can actually do, at whatever level you are at. Some exposure is a real answer, and a researcher who
-        needs a beginner would rather see it stated honestly.
+        Add what you can actually do, at whatever level you are at. Researchers see this list on your applications.
+        Matching reads your skills from your resume and research experience instead, so describe the work there too.
       </FormNote>
       <SkillRows initial={initial} suggestions={suggestions} />
       <Actions backHref="/onboarding/student?step=2" />
@@ -510,7 +510,8 @@ export function ResumeForm({
 
       <FormNote>
         Everything on this step is optional and you can finish onboarding without any of it. A resume is only required
-        at the moment you apply to a position, and we will ask for it then.
+        at the moment you apply to a position. Adding it now helps: positions are matched to the research experience,
+        publications, and skills your resume shows.
       </FormNote>
 
       <Field label="Resume" htmlFor="resume" hint="PDF only, up to 8 MB. Required when you apply, not before.">

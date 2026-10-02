@@ -3,13 +3,10 @@ import {
   aiAnalyses,
   criterionEvaluations,
   db,
-  researchExperiences,
   researchFields,
-  skills,
   studentCompensationPreferences,
   studentDurations,
   studentResearchInterests,
-  studentSkills,
 } from "@/db";
 import { analysisToCriterionResults } from "@/lib/ai/application-analysis";
 import { applicationAnalysisSchema } from "@/lib/ai/schemas";
@@ -17,6 +14,12 @@ import { applicantFit, type ApplicantFit } from "@/lib/criteria/fit";
 import type { Criterion, CriterionResult } from "@/lib/criteria/types";
 import type { CompensationPreferenceOption, DurationOption } from "@/lib/labels";
 import { scoreMatch, type OpportunityMatchInput, type StudentMatchInput } from "@/lib/matching";
+import { EMPTY_DOCUMENTED } from "@/lib/evidence/documented";
+import { loadDocumentedEvidence } from "@/lib/evidence/refresh";
+import { evaluateDeterministic } from "@/lib/criteria/engine";
+import { loadCriteria } from "./applications";
+import { loadOpportunityMatchInput as loadOpportunityMatchInputFor, studentMatchInput } from "./recommendations";
+import { loadStudentProfile, toApplicantEvidence } from "./student";
 
 // One loader for the listing side of matching, so the review screens and the
 // student dashboard can never read a listing differently.
@@ -83,7 +86,7 @@ export async function loadApplicantFits(input: {
   const applicationIds = input.applicants.map((applicant) => applicant.applicationId);
   const studentIds = [...new Set(input.applicants.map((applicant) => applicant.studentId))];
 
-  const [evaluationRows, analysisRows, fieldRows, skillRows, durationRows, compensationRows, experienceRows] =
+  const [evaluationRows, analysisRows, fieldRows, durationRows, compensationRows, documented] =
     await Promise.all([
       db.select().from(criterionEvaluations).where(inArray(criterionEvaluations.applicationId, applicationIds)),
       db
@@ -101,11 +104,6 @@ export async function loadApplicantFits(input: {
         .innerJoin(researchFields, eq(researchFields.id, studentResearchInterests.researchFieldId))
         .where(inArray(studentResearchInterests.studentId, studentIds)),
       db
-        .select({ studentId: studentSkills.studentId, name: skills.name })
-        .from(studentSkills)
-        .innerJoin(skills, eq(skills.id, studentSkills.skillId))
-        .where(inArray(studentSkills.studentId, studentIds)),
-      db
         .select({ studentId: studentDurations.studentId, duration: studentDurations.duration })
         .from(studentDurations)
         .where(inArray(studentDurations.studentId, studentIds)),
@@ -116,10 +114,7 @@ export async function loadApplicantFits(input: {
         })
         .from(studentCompensationPreferences)
         .where(inArray(studentCompensationPreferences.studentId, studentIds)),
-      db
-        .select({ studentId: researchExperiences.studentId })
-        .from(researchExperiences)
-        .where(inArray(researchExperiences.studentId, studentIds)),
+      loadDocumentedEvidence(studentIds),
     ]);
 
   const group = <Row, Value>(rows: Row[], key: (row: Row) => string, value: (row: Row) => Value) => {
@@ -151,24 +146,21 @@ export async function loadApplicantFits(input: {
   }
 
   const fieldsBy = group(fieldRows, (row) => row.studentId, (row) => row.name);
-  const skillsBy = group(skillRows, (row) => row.studentId, (row) => row.name);
   const durationsBy = group(durationRows, (row) => row.studentId, (row) => row.duration as DurationOption);
   const compensationBy = group(
     compensationRows,
     (row) => row.studentId,
     (row) => row.preference as CompensationPreferenceOption,
   );
-  const withExperience = new Set(experienceRows.map((row) => row.studentId));
 
   for (const applicant of input.applicants) {
     const student: StudentMatchInput = {
       fieldNames: fieldsBy.get(applicant.studentId) ?? [],
-      skillNames: skillsBy.get(applicant.studentId) ?? [],
       durations: durationsBy.get(applicant.studentId) ?? [],
       compensationPreferences: compensationBy.get(applicant.studentId) ?? [],
       weeklyHours: applicant.weeklyHours,
       locationPreference: applicant.locationPreference,
-      hasExperience: withExperience.has(applicant.studentId),
+      documented: documented.get(applicant.studentId) ?? EMPTY_DOCUMENTED,
     };
 
     const stored = evaluationsBy.get(applicant.applicationId) ?? [];
@@ -184,4 +176,39 @@ export async function loadApplicantFits(input: {
   }
 
   return fits;
+}
+
+export type CandidateRanking = {
+  percent: number;
+  band: ApplicantFit["band"];
+  basis: ApplicantFit["basis"];
+  reasons: string[];
+};
+
+/**
+ * Ranks students who have not applied against one of the researcher's
+ * positions, on exactly the figure their applicant rail would show: the
+ * criteria the researcher set (GPA weight, prior research, skills read from
+ * the resume) combined with the profile match. Scoped to the students already
+ * on the page, so paging the directory never scores the whole platform.
+ */
+export async function rankCandidatesAgainst(
+  opportunityId: string,
+  studentIds: string[],
+): Promise<Map<string, CandidateRanking>> {
+  const rankings = new Map<string, CandidateRanking>();
+  if (studentIds.length === 0) return rankings;
+
+  const [input, criteria] = await Promise.all([loadOpportunityMatchInputFor(opportunityId), loadCriteria(opportunityId)]);
+  if (!input) return rankings;
+
+  const bundles = await Promise.all(studentIds.map((id) => loadStudentProfile(id)));
+  for (const bundle of bundles) {
+    if (!bundle) continue;
+    const match = scoreMatch(studentMatchInput(bundle), input);
+    const results = evaluateDeterministic(criteria, toApplicantEvidence(bundle, []));
+    const fit = applicantFit(criteria, results, match);
+    rankings.set(bundle.profile.userId, { percent: fit.percent, band: fit.band, basis: fit.basis, reasons: match.reasons });
+  }
+  return rankings;
 }

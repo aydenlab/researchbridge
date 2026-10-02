@@ -20,8 +20,7 @@ import {
   labelOr,
 } from "@/lib/labels";
 import { searchStudents } from "@/lib/queries/directory";
-import type { MatchResult } from "@/lib/matching";
-import { scoreCandidatesAgainst } from "@/lib/queries/recommendations";
+import { rankCandidatesAgainst, type CandidateRanking } from "@/lib/queries/fit";
 import { researcherOpportunities } from "@/lib/queries/researcher";
 import { listFollowingIds } from "@/lib/queries/social";
 import { listResearchFields } from "@/lib/queries/taxonomy";
@@ -72,8 +71,8 @@ export default async function StudentDirectoryPage({
   );
   const selectedPosting = scorablePostings.find((posting) => posting.id === matchAgainst) ?? null;
   const matchScores = selectedPosting
-    ? await scoreCandidatesAgainst(selectedPosting.id, results.items.map((item) => item.id))
-    : new Map<string, MatchResult>();
+    ? await rankCandidatesAgainst(selectedPosting.id, results.items.map((item) => item.id))
+    : new Map<string, CandidateRanking>();
 
   // Ranking reorders the page in front of the researcher. It deliberately does
   // not reorder across pages: the filters decide who is in the pool, and the
@@ -159,8 +158,8 @@ export default async function StudentDirectoryPage({
                 Rank these students against one of your positions
               </label>
               <p className="mb-2 text-[12px] leading-5 text-muted">
-                Scored on the same dimensions students see: research interest, how long the position runs, whether it
-                is paid, skills, and hours.
+                Scored the way your applicant list is: the criteria you set for the position, including GPA, combined
+                with research experience and publications from each student&apos;s resume, interests, and logistics.
               </p>
               <select
                 id="match-posting"
@@ -236,11 +235,10 @@ export default async function StudentDirectoryPage({
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {selectedPosting ? (
-                        <Badge tone={(matchScores.get(student.id)?.percent ?? 0) >= 60 ? "forest" : "neutral"}>
-                          {matchScores.get(student.id)?.percent === null ||
-                          matchScores.get(student.id)?.percent === undefined
+                        <Badge tone={(matchScores.get(student.id)?.percent ?? 0) >= 55 ? "forest" : "neutral"}>
+                          {!matchScores.get(student.id) || matchScores.get(student.id)?.basis === "none"
                             ? "Not enough profile to score"
-                            : `${matchScores.get(student.id)?.percent}% match`}
+                            : `${matchScores.get(student.id)?.percent}% fit`}
                         </Badge>
                       ) : null}
                       <FollowButton userId={student.id} following={following.has(student.id)} />
