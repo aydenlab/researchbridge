@@ -38,7 +38,7 @@ describe("rescoring rule-based criteria on submitted applications", () => {
     });
 
     const application = await submittedWith(opportunity.id, [
-      { metricType: "institution_scale", value: "10.50", scaleMax: "12.00", institutionScaleName: "12 point" },
+      { metricType: "institution_scale", value: "11.50", scaleMax: "12.00", institutionScaleName: "12 point" },
     ]);
     // What the old evaluator stored for every weighted GPA.
     await persistCriterionResults(application.id, [

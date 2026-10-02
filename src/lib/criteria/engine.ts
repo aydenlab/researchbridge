@@ -1,8 +1,10 @@
 import {
   academicStrength,
   compareToMinimum,
+  FAIR_TWELVE_POINT,
   formatMetric,
-  toFourPointEquivalent,
+  STRONG_TWELVE_POINT,
+  toTwelvePointEquivalent,
   type AcademicMetric,
   type AcademicMetricType,
 } from "@/lib/gpa";
@@ -201,13 +203,15 @@ function evaluateResearchInterest(criterion: Criterion, evidence: ApplicantEvide
 }
 
 function describeMetric(record: AcademicMetric): string {
-  const four = toFourPointEquivalent(record);
-  const onFour = record.type === "gpa" && record.scaleMax === 4;
-  return four === null || onFour ? formatMetric(record) : `${formatMetric(record)} (about ${four.toFixed(2)} on a 4.0 scale)`;
+  const twelve = toTwelvePointEquivalent(record);
+  const native = record.type === "institution_scale" && record.scaleMax === 12;
+  return twelve === null || native
+    ? formatMetric(record)
+    : `${formatMetric(record)} (about ${Number(twelve.toFixed(1))} on the 12 point scale)`;
 }
 
-/** Half a letter grade below a minimum still counts for something. */
-const ACADEMIC_PARTIAL_GAP = 0.35;
+/** Half a grade point below a minimum still counts for something. */
+const ACADEMIC_PARTIAL_GAP = 0.5;
 
 function evaluateAcademicMetric(criterion: Criterion, evidence: ApplicantEvidence): CriterionResult {
   const config = criterion.config as AcademicMetricConfig;
@@ -218,23 +222,24 @@ function evaluateAcademicMetric(criterion: Criterion, evidence: ApplicantEvidenc
   // The strongest readable record is the one to judge on: a student who shared
   // both a cumulative and a major average should not be marked on the lower.
   const readable = evidence.academicRecords
-    .map((record) => ({ record, four: toFourPointEquivalent(record) }))
-    .filter((entry): entry is { record: AcademicMetric; four: number } => entry.four !== null)
-    .sort((a, b) => b.four - a.four);
+    .map((record) => ({ record, twelve: toTwelvePointEquivalent(record) }))
+    .filter((entry): entry is { record: AcademicMetric; twelve: number } => entry.twelve !== null)
+    .sort((a, b) => b.twelve - a.twelve);
 
   if (typeof config.minValue !== "number") {
-    // Weighted on the one-page form rather than given a cut-off. Graded rather
-    // than pass or fail, so the weight a researcher puts on GPA actually moves
-    // the score: stronger grades earn more of it, and nobody is dropped.
+    // Weighted on the one-page form rather than given a cut-off. Graded on the
+    // 12 point scale so the weight a researcher puts on GPA actually moves the
+    // score: an 11 or 12 earns nearly all of it, a 10 about half, and anything
+    // lower very little.
     const best = readable[0];
     if (!best) {
       return result(criterion, "unknown", [
         `Academic standing shared as ${formatMetric(evidence.academicRecords[0])}, on a scale that could not be compared.`,
       ]);
     }
-    const strength = academicStrength(best.four);
-    const status = strength >= 0.8 ? "met" : strength >= 0.35 ? "partially_met" : "not_met";
-    return result(criterion, status, [`Academic standing: ${describeMetric(best.record)}.`], strength);
+    const status =
+      best.twelve >= STRONG_TWELVE_POINT ? "met" : best.twelve >= FAIR_TWELVE_POINT ? "partially_met" : "not_met";
+    return result(criterion, status, [`Academic standing: ${describeMetric(best.record)}.`], academicStrength(best.twelve));
   }
 
   const minimum = {

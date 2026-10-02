@@ -167,47 +167,53 @@ describe("a weighted GPA criterion with no cut-off", () => {
 
   it("grades the standing so the weight actually moves the score", () => {
     const evidence = {
-      academicRecords: [{ type: "institution_scale", value: 10.5, scaleMax: 12, institutionScaleName: "12 point" }],
+      academicRecords: [{ type: "institution_scale", value: 11.5, scaleMax: 12, institutionScaleName: "12 point" }],
     } as unknown as ApplicantEvidence;
 
     const result = evaluateCriterion(criterion, evidence);
-    // 10.5 on the 12 point scale sits between an A- and an A, about 3.8.
     expect(result?.status).toBe("met");
-    expect(result?.evidence[0]).toContain("10.5");
-    expect(result?.evidence[0]).toContain("4.0 scale");
+    expect(result?.evidence[0]).toContain("11.5 on the 12 point scale");
     expect(result?.score).toBeGreaterThan(0);
   });
 
-  it("ranks a stronger record above a weaker one instead of treating them the same", () => {
+  it("is steep: an A is met, an A- is partly met, and a B+ is not", () => {
     const record = (value: number) =>
-      ({ academicRecords: [{ type: "gpa", value, scaleMax: 4, institutionScaleName: null }] }) as unknown as ApplicantEvidence;
-    const strong = evaluateCriterion(criterion, record(3.9));
-    const middling = evaluateCriterion(criterion, record(3.0));
-    const weak = evaluateCriterion(criterion, record(1.8));
-    expect(strong?.score).toBeGreaterThan(middling?.score ?? 0);
-    expect(middling?.score).toBeGreaterThan(weak?.score ?? 0);
-    // A B average is a partial match, not a rejection.
-    expect(middling?.status).toBe("partially_met");
+      ({
+        academicRecords: [{ type: "institution_scale", value, scaleMax: 12, institutionScaleName: "12 point" }],
+      }) as unknown as ApplicantEvidence;
+    const a = evaluateCriterion(criterion, record(11));
+    const aMinus = evaluateCriterion(criterion, record(10));
+    const bPlus = evaluateCriterion(criterion, record(9));
+    expect(a?.status).toBe("met");
+    expect(aMinus?.status).toBe("partially_met");
+    expect(bPlus?.status).toBe("not_met");
+    expect((a?.score ?? 0) - (aMinus?.score ?? 0)).toBeGreaterThan((aMinus?.score ?? 0) - (bPlus?.score ?? 0));
   });
 
   it("weighs the same grade the same way on every scale", () => {
     const on = (record: object) =>
       evaluateCriterion(criterion, { academicRecords: [record] } as unknown as ApplicantEvidence)?.score ?? 0;
-    const percent = on({ type: "percentage", value: 75, scaleMax: null, institutionScaleName: null });
-    const twelve = on({ type: "institution_scale", value: 8.5, scaleMax: 12, institutionScaleName: "12 point" });
-    const four = on({ type: "gpa", value: 3.15, scaleMax: 4, institutionScaleName: null });
-    expect(percent).toBeCloseTo(four, 3);
-    expect(twelve).toBeCloseTo(four, 3);
+    const percent = on({ type: "percentage", value: 82.5, scaleMax: null, institutionScaleName: null });
+    const twelve = on({ type: "institution_scale", value: 10.5, scaleMax: 12, institutionScaleName: "12 point" });
+    expect(percent).toBeCloseTo(twelve, 3);
+  });
+
+  it("explains a grade on another scale in 12 point terms", () => {
+    const result = evaluateCriterion(criterion, {
+      academicRecords: [{ type: "percentage", value: 86, scaleMax: null, institutionScaleName: null }],
+    } as unknown as ApplicantEvidence);
+    expect(result?.evidence[0]).toContain("on the 12 point scale");
   });
 
   it("moves the overall preference score when GPA is weighted", () => {
     const record = (value: number) =>
-      ({ academicRecords: [{ type: "gpa", value, scaleMax: 4, institutionScaleName: null }] }) as unknown as ApplicantEvidence;
-    const high = summarizeAlignment([criterion], [evaluateCriterion(criterion, record(3.9))!]);
-    const low = summarizeAlignment([criterion], [evaluateCriterion(criterion, record(2.6))!]);
+      ({
+        academicRecords: [{ type: "institution_scale", value, scaleMax: 12, institutionScaleName: "12 point" }],
+      }) as unknown as ApplicantEvidence;
+    const high = summarizeAlignment([criterion], [evaluateCriterion(criterion, record(12))!]);
+    const low = summarizeAlignment([criterion], [evaluateCriterion(criterion, record(9.5))!]);
     expect(high.preferencePercent).toBe(100);
-    expect(low.preferencePercent).toBeGreaterThan(0);
-    expect(low.preferencePercent).toBeLessThan(high.preferencePercent ?? 0);
+    expect(low.preferencePercent).toBeLessThan(30);
   });
 
   it("still says so plainly when the student shared nothing", () => {

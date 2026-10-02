@@ -3,7 +3,9 @@ import {
   GRADE_SCALES,
   academicStrength,
   compareToMinimum,
-  toFourPointEquivalent,
+  FAIR_TWELVE_POINT,
+  STRONG_TWELVE_POINT,
+  toTwelvePointEquivalent,
   formatMetric,
   fractionOfScale,
   isValidMetric,
@@ -87,54 +89,66 @@ describe("thresholds", () => {
   });
 });
 
-describe("4.0 equivalents", () => {
+describe("12 point equivalents", () => {
+  it("reads each McMaster band from its percentage range", () => {
+    // From the published table: A+ 90-100, A 85-89, A- 80-84, B+ 77-79, F 0-49.
+    expect(toTwelvePointEquivalent({ ...percentage, value: 90 })).toBe(12);
+    expect(toTwelvePointEquivalent({ ...percentage, value: 85 })).toBe(11);
+    expect(toTwelvePointEquivalent({ ...percentage, value: 80 })).toBe(10);
+    expect(toTwelvePointEquivalent({ ...percentage, value: 77 })).toBe(9);
+    expect(toTwelvePointEquivalent({ ...percentage, value: 73 })).toBe(8);
+    expect(toTwelvePointEquivalent({ ...percentage, value: 50 })).toBe(1);
+    expect(toTwelvePointEquivalent({ ...percentage, value: 40 })).toBe(0);
+  });
+
+  it("leaves a 12 point average exactly as entered", () => {
+    expect(toTwelvePointEquivalent(institutionScale)).toBe(10.5);
+  });
+
   it("reads the same letter grade as the same number on every scale", () => {
-    // An A- is 80 percent, 10 on the 12 point scale, and 3.7 on a 4.0.
-    expect(toFourPointEquivalent({ ...percentage, value: 80 })).toBeCloseTo(3.7);
-    expect(toFourPointEquivalent({ ...institutionScale, value: 10 })).toBeCloseTo(3.7);
-    expect(toFourPointEquivalent({ ...fourPoint, value: 3.7 })).toBeCloseTo(3.7);
-  });
-
-  it("does not rank a percentage student a band below a 4.0 student with the same grade", () => {
-    // The old fraction-of-maximum comparison put 84 percent at 0.84 and 3.8 at 0.95.
-    const fromPercent = toFourPointEquivalent(percentage) ?? 0;
-    const fromFour = toFourPointEquivalent(fourPoint) ?? 0;
-    expect(Math.abs(fromPercent - fromFour)).toBeLessThan(0.2);
-  });
-
-  it("interpolates between letter grades", () => {
-    const value = toFourPointEquivalent(institutionScale) ?? 0;
-    expect(value).toBeGreaterThan(3.7);
-    expect(value).toBeLessThan(3.9);
-  });
-
-  it("caps the 4.3 scale at a 4.0 A+", () => {
-    expect(toFourPointEquivalent({ type: "gpa", value: 4.3, scaleMax: 4.3, institutionScaleName: null })).toBe(4);
+    // An A is 85 percent, 11 on the 12 point scale, and 3.9 on a 4.0.
+    expect(toTwelvePointEquivalent({ ...percentage, value: 85 })).toBe(11);
+    expect(toTwelvePointEquivalent({ ...fourPoint, value: 3.9 })).toBe(11);
+    expect(toTwelvePointEquivalent({ type: "gpa", value: 4.0, scaleMax: 4.3, institutionScaleName: null })).toBe(11);
   });
 
   it("reports an unreadable scale as unknown rather than guessing", () => {
-    expect(toFourPointEquivalent({ type: "gpa", value: 6, scaleMax: 7, institutionScaleName: null })).toBeNull();
+    expect(toTwelvePointEquivalent({ type: "gpa", value: 6, scaleMax: 7, institutionScaleName: null })).toBeNull();
+  });
+});
+
+describe("academic strength", () => {
+  it("treats an 11 or 12 as strong, a 10 as middling, and below that as weak", () => {
+    expect(academicStrength(12)).toBe(1);
+    expect(academicStrength(11)).toBeGreaterThanOrEqual(0.8);
+    expect(academicStrength(10)).toBeLessThan(0.5);
+    expect(academicStrength(9)).toBeLessThanOrEqual(0.1);
+    expect(academicStrength(8)).toBe(0);
   });
 
-  it("grades strength gently at the bottom and fully at the top", () => {
-    expect(academicStrength(4)).toBe(1);
-    expect(academicStrength(3.0)).toBeGreaterThan(0.4);
-    expect(academicStrength(1.5)).toBe(0);
+  it("separates 11 from 10 by far more than 10 from 9", () => {
+    expect(academicStrength(11) - academicStrength(10)).toBeGreaterThan(0.3);
+  });
+
+  it("sets the met and partly met lines at an A and an A-", () => {
+    expect(STRONG_TWELVE_POINT).toBe(11);
+    expect(FAIR_TWELVE_POINT).toBe(10);
   });
 });
 
 describe("minimums across scales", () => {
   it("compares a 4.0 student against a 12 point minimum", () => {
-    expect(compareToMinimum(fourPoint, { value: 9, scaleMax: 12, type: "institution_scale" })?.meets).toBe(true);
-    expect(compareToMinimum({ ...fourPoint, value: 3.0 }, { value: 10, scaleMax: 12, type: "institution_scale" })?.meets).toBe(false);
+    expect(compareToMinimum(fourPoint, { value: 10, scaleMax: 12, type: "institution_scale" })?.meets).toBe(true);
+    expect(compareToMinimum({ ...fourPoint, value: 3.3 }, { value: 11, scaleMax: 12, type: "institution_scale" })?.meets).toBe(false);
   });
 
-  it("compares a percentage student against a 4.0 minimum", () => {
-    expect(compareToMinimum(percentage, { value: 3.3, scaleMax: 4, type: "gpa" })?.meets).toBe(true);
+  it("compares a percentage student against a 12 point minimum", () => {
+    expect(compareToMinimum({ ...percentage, value: 86 }, { value: 11, scaleMax: 12, type: "institution_scale" })?.meets).toBe(true);
+    expect(compareToMinimum(percentage, { value: 11, scaleMax: 12, type: "institution_scale" })?.meets).toBe(false);
   });
 
-  it("reports how far short a near miss is", () => {
-    const outcome = compareToMinimum({ ...institutionScale, value: 9 }, { value: 10, scaleMax: 12, type: "institution_scale" });
+  it("reports how far short a near miss is, in 12 point units", () => {
+    const outcome = compareToMinimum({ ...institutionScale, value: 10.6 }, { value: 11, scaleMax: 12, type: "institution_scale" });
     expect(outcome?.meets).toBe(false);
     expect(outcome?.gap).toBeCloseTo(0.4);
   });

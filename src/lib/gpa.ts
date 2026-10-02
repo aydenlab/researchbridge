@@ -78,29 +78,32 @@ function trim(value: number): string {
 }
 
 /**
- * Anchor points from each supported scale onto a 4.0 equivalent, taken from the
- * letter-grade bands most Canadian programs (and OMSAS) publish: A+ is 4.0, A is
- * 3.9, A- is 3.7, B+ is 3.3, and so on. Values between anchors interpolate, so
- * a 10.5 average on the 12 point scale sits between an A- and an A.
+ * The pilot runs at McMaster, so the 12 point scale is the reference every
+ * other scale is read onto. The bands are McMaster's published equivalences:
+ * A+ is 12 (90 to 100 percent), A is 11 (85 to 89), A- is 10 (80 to 84), B+ is
+ * 9 (77 to 79), and so on down to F at 0 (below 50). Values between anchors
+ * interpolate, so a 10.5 average sits halfway between an A- and an A.
  *
- * A plain fraction of the maximum is the wrong comparison: 80 percent and a 3.7
- * are the same grade, but 0.80 and 0.925 would rank them a full band apart, and
- * every percentage student would look weaker than every 4.0 student.
+ * A plain fraction of the maximum is the wrong comparison: 85 percent and an 11
+ * are the same grade, but 0.85 and 0.92 would rank them a band apart.
  */
-const FOUR_POINT_ANCHORS: Record<string, [number, number][]> = {
-  institution_12: [
-    [0, 0], [1, 0.7], [2, 1.0], [3, 1.3], [4, 1.7], [5, 2.0], [6, 2.3],
-    [7, 2.7], [8, 3.0], [9, 3.3], [10, 3.7], [11, 3.9], [12, 4.0],
-  ],
-  gpa_9: [
-    [0, 0], [1, 0.7], [2, 1.0], [3, 1.3], [4, 2.0], [5, 2.3], [6, 3.0], [7, 3.3], [8, 3.8], [9, 4.0],
-  ],
-  gpa_4: [[0, 0], [4, 4]],
-  gpa_4_3: [[0, 0], [3.7, 3.7], [4.0, 3.9], [4.3, 4.0]],
+const TWELVE_POINT_ANCHORS: Record<string, [number, number][]> = {
+  institution_12: [[0, 0], [12, 12]],
   percentage: [
-    [0, 0], [45, 0], [50, 0.7], [53, 1.0], [57, 1.3], [60, 1.7], [63, 2.0], [67, 2.3],
-    [70, 2.7], [73, 3.0], [77, 3.3], [80, 3.7], [85, 3.9], [90, 4.0], [100, 4.0],
+    [0, 0], [49, 0], [50, 1], [53, 2], [57, 3], [60, 4], [63, 5], [67, 6],
+    [70, 7], [73, 8], [77, 9], [80, 10], [85, 11], [90, 12], [100, 12],
   ],
+  // The usual letter-grade reading of a 4.0: A+ 4.0, A 3.9, A- 3.7, B+ 3.3.
+  gpa_4: [
+    [0, 0], [0.7, 1], [1.0, 2], [1.3, 3], [1.7, 4], [2.0, 5], [2.3, 6],
+    [2.7, 7], [3.0, 8], [3.3, 9], [3.7, 10], [3.9, 11], [4.0, 12],
+  ],
+  gpa_4_3: [
+    [0, 0], [0.7, 1], [1.0, 2], [1.3, 3], [1.7, 4], [2.0, 5], [2.3, 6],
+    [2.7, 7], [3.0, 8], [3.3, 9], [3.7, 10], [4.0, 11], [4.3, 12],
+  ],
+  // York's 9 point scale: A+ 9, A 8 (80 to 89 percent), B+ 7, B 6, C+ 5, C 4.
+  gpa_9: [[0, 0], [1, 1], [2, 2], [3, 3], [4, 5], [5, 6], [6, 8], [7, 9], [8, 10.5], [9, 12]],
 };
 
 function interpolate(anchors: [number, number][], value: number): number {
@@ -116,54 +119,57 @@ function interpolate(anchors: [number, number][], value: number): number {
 }
 
 /**
- * A grade on any supported scale as its 4.0 equivalent, or null when the scale
- * is one ResearchBridge does not know how to read. An unknown scale is reported
- * as unknown rather than guessed at.
+ * A grade on any supported scale as its McMaster 12 point equivalent, or null
+ * when the scale is one ResearchBridge does not know how to read. An unknown
+ * scale is reported as unknown rather than guessed at.
  */
-export function toFourPointEquivalent(metric: AcademicMetric): number | null {
+export function toTwelvePointEquivalent(metric: AcademicMetric): number | null {
   if (!isValidMetric(metric)) return null;
   const scale = metric.type === "percentage" ? scaleById("percentage") : scaleForMetric(metric);
-  const anchors = scale ? FOUR_POINT_ANCHORS[scale.id] : undefined;
+  const anchors = scale ? TWELVE_POINT_ANCHORS[scale.id] : undefined;
   if (!anchors) return null;
   return Math.round(interpolate(anchors, metric.value) * 100) / 100;
 }
 
 /**
- * Where a 4.0 equivalent sits between "this is a weak academic record" and
- * "this is as strong as grades get", from 0 to 1. Deliberately gentle at the
- * bottom: a B student is a real candidate, not a zero, and a researcher who
- * weights GPA should see an A student ranked above them rather than see them
- * disappear.
+ * How strong a 12 point average is, from 0 to 1, for students competing for
+ * research positions. It is deliberately steep: in health and life sciences an
+ * 11 or a 12 is common and is what supervisors look for, a 10 is middling, and
+ * anything below that counts for very little.
  */
-export const ACADEMIC_FLOOR = 2.0;
-export const ACADEMIC_CEILING = 3.85;
+const STRENGTH_ANCHORS: [number, number][] = [
+  [0, 0], [8, 0], [9, 0.1], [10, 0.4], [10.5, 0.6], [11, 0.8], [11.5, 0.92], [12, 1],
+];
 
-export function academicStrength(fourPoint: number): number {
-  const fraction = (fourPoint - ACADEMIC_FLOOR) / (ACADEMIC_CEILING - ACADEMIC_FLOOR);
-  return Math.round(Math.max(0, Math.min(1, fraction)) * 1000) / 1000;
+/** At or above this a GPA counts as met: an A average. */
+export const STRONG_TWELVE_POINT = 11;
+/** At or above this it counts as partly met: an A- average. */
+export const FAIR_TWELVE_POINT = 10;
+
+export function academicStrength(twelvePoint: number): number {
+  return Math.round(interpolate(STRENGTH_ANCHORS, Math.max(0, Math.min(12, twelvePoint))) * 1000) / 1000;
 }
 
 /**
  * Compares a grade against a minimum that may be on a different scale. Same
- * scale compares the raw numbers; different scales compare 4.0 equivalents.
- * Null only when either side is on a scale that cannot be read.
+ * scale compares the raw numbers; different scales compare 12 point
+ * equivalents. The gap is in 12 point units. Null only when either side is on
+ * a scale that cannot be read.
  */
 export function compareToMinimum(
   metric: AcademicMetric,
   minimum: { value: number; scaleMax: number | null; type: AcademicMetricType },
 ): { meets: boolean; gap: number } | null {
   const direct = meetsThreshold(metric, minimum);
-  const studentFour = toFourPointEquivalent(metric);
-  const minimumFour = toFourPointEquivalent({
+  const student = toTwelvePointEquivalent(metric);
+  const required = toTwelvePointEquivalent({
     type: minimum.type,
     value: minimum.value,
     scaleMax: minimum.type === "percentage" ? null : minimum.scaleMax,
     institutionScaleName: null,
   });
-  if (direct !== null) {
-    const gap = studentFour !== null && minimumFour !== null ? Math.max(0, minimumFour - studentFour) : 0;
-    return { meets: direct, gap: direct ? 0 : gap };
-  }
-  if (studentFour === null || minimumFour === null) return null;
-  return { meets: studentFour >= minimumFour, gap: Math.max(0, Math.round((minimumFour - studentFour) * 100) / 100) };
+  const gap = student !== null && required !== null ? Math.max(0, Math.round((required - student) * 100) / 100) : null;
+  if (direct !== null) return { meets: direct, gap: direct ? 0 : (gap ?? 0) };
+  if (student === null || required === null) return null;
+  return { meets: student >= required, gap: gap ?? 0 };
 }
