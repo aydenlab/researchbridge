@@ -131,6 +131,7 @@ export default async function EditOpportunityPage({
       {step === 3 ? (
         <LogisticsStep
           id={id}
+          futureOpportunity={detail.opportunity.futureOpportunity}
           draft={{
             numberOfOpenings: detail.opportunity.numberOfOpenings,
             startDate: detail.opportunity.startDate ?? "",

@@ -567,6 +567,14 @@ export const opportunities = pgTable(
     academicCreditAvailable: boolean("academic_credit_available").notNull().default(false),
     beginnerFriendly: boolean("beginner_friendly").notNull().default(false),
     priorResearchRequired: boolean("prior_research_required").notNull().default(false),
+    /**
+     * A standing posting from a researcher with no defined project yet: they
+     * want to meet strong students in their area and may recruit from them
+     * later. Matched, applied to, and messaged like any other position; only
+     * the wording around it changes, because there is no start date or
+     * guaranteed place to promise.
+     */
+    futureOpportunity: boolean("future_opportunity").notNull().default(false),
     videoResponseEnabled: boolean("video_response_enabled").notNull().default(false),
     videoPrompt: text("video_prompt"),
     videoMaxSeconds: integer("video_max_seconds").default(60),

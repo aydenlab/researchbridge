@@ -233,3 +233,14 @@ describe("near misses", () => {
     expect(result.dimensions.find((entry) => entry.dimension === "skills")?.score).toBeGreaterThan(0);
   });
 });
+
+describe("future research opportunities", () => {
+  it("leaves duration out, because no length has been decided", () => {
+    const result = scoreMatch(
+      student({ durations: ["multi_year"] }),
+      opportunity({ durations: ["one_semester"], futureOpportunity: true }),
+    );
+    expect(result.dimensions.find((entry) => entry.dimension === "duration")?.score).toBeNull();
+    expect(result.caveats).toHaveLength(0);
+  });
+});

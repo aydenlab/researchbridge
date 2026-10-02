@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -14,6 +14,7 @@ import {
   opportunityQuestions,
   opportunityResearchMaterials,
   opportunitySkills,
+  researcherProfiles,
   researchFields,
 } from "@/db";
 import {
@@ -26,15 +27,24 @@ import { checkboxValue, formList, formValues, optionalText, parseForm, toActionE
 import type { ResubmitResult } from "@/lib/action-utils";
 import type { ActionResult } from "@/lib/errors";
 import { criteriaFromWeights, readWeights } from "@/lib/criteria/from-weights";
+import {
+  buildFutureOpportunity,
+  FUTURE_DURATION_TEXT,
+  FUTURE_DURATIONS,
+  FUTURE_MAX_AREAS,
+  FUTURE_WEIGHTS,
+} from "@/lib/future-opportunity";
 import { recordAudit, recordEvent } from "@/lib/events";
 import { slugify } from "@/lib/format";
 import { PROJECT_OUTCOME_LABELS } from "@/lib/labels";
 import { log } from "@/lib/log";
 import { isEnabled } from "@/lib/flags";
 
+import { activeFutureOpportunity } from "@/lib/queries/researcher";
 import { ensureResearchField, ensureSkill } from "@/lib/queries/taxonomy";
 import {
   DEFAULT_PAPER_PROMPT,
+  futureOpportunitySchema,
   logisticsStepSchema,
   OTHER_CHOICE,
   paperStepSchema,
@@ -205,6 +215,176 @@ export async function createSimpleOpportunityAction(
   redirect(`/opportunities/${slug}`);
 }
 
+/**
+ * Creates a Future Research Opportunity for a researcher with no defined
+ * project. The listing is written from their profile, so all they confirm is
+ * the research areas to be matched on. It goes live, or into review, the same
+ * way the one-page form does, and from then on it is an ordinary posting:
+ * matched, applied to, reviewed, and messaged like any other.
+ *
+ * One live future posting per researcher. A second submit, a double click, or
+ * a stale tab lands on the one that already exists rather than duplicating it.
+ */
+export async function createFutureOpportunityAction(
+  _prev: ResubmitResult | null,
+  formData: FormData,
+): Promise<ResubmitResult> {
+  const parsed = parseForm(futureOpportunitySchema, formData);
+  if (!parsed.ok) return { ...parsed.result, values: formValues(formData) };
+
+  const user = await requireResearcher();
+
+  let slug = "";
+
+  try {
+    const existing = await activeFutureOpportunity(user.id);
+    if (existing) {
+      slug = existing.slug;
+    } else {
+      const data = parsed.data;
+
+      const fieldIds = [...data.researchFieldIds];
+      if (data.researchAreaOtherSelected && data.researchAreaOther) {
+        fieldIds.push(await ensureResearchField(data.researchAreaOther));
+      }
+      const uniqueFieldIds = [...new Set(fieldIds)].slice(0, FUTURE_MAX_AREAS);
+
+      const [profile] = await db
+        .select({
+          firstName: researcherProfiles.firstName,
+          lastName: researcherProfiles.lastName,
+          title: researcherProfiles.title,
+          labName: researcherProfiles.labName,
+          biography: researcherProfiles.biography,
+          recruitingNeeds: researcherProfiles.recruitingNeeds,
+        })
+        .from(researcherProfiles)
+        .where(eq(researcherProfiles.userId, user.id))
+        .limit(1);
+
+      const fields =
+        uniqueFieldIds.length > 0
+          ? await db
+              .select({ id: researchFields.id, name: researchFields.name, slug: researchFields.slug })
+              .from(researchFields)
+              .where(inArray(researchFields.id, uniqueFieldIds))
+          : [];
+      if (fields.length === 0) {
+        return {
+          ok: false,
+          error: "Choose at least one research area so students in it can be matched to you.",
+          fieldErrors: { researchFieldIds: ["Choose at least one research area."] },
+          values: formValues(formData),
+        };
+      }
+      // Keep the order the researcher sees on their profile rather than the database's.
+      const ordered = uniqueFieldIds
+        .map((id) => fields.find((field) => field.id === id))
+        .filter((field): field is (typeof fields)[number] => Boolean(field));
+
+      const content = buildFutureOpportunity({
+        researcherName: profile ? `${profile.firstName} ${profile.lastName}`.trim() : (user.displayName ?? ""),
+        researcherTitle: profile?.title ?? null,
+        department: data.department,
+        labName: profile?.labName ?? null,
+        areaNames: ordered.map((field) => field.name),
+        biography: profile?.biography ?? null,
+        recruitingNeeds: profile?.recruitingNeeds ?? null,
+        note: data.note,
+      });
+
+      const candidate = await uniqueSlug(content.title, "");
+      const reviewRequired = (await isEnabled("OPPORTUNITY_REVIEW_REQUIRED")) || !isVerifiedResearcher(user);
+      const status = reviewRequired ? "pending_review" : "published";
+      const now = new Date();
+
+      const criteria = criteriaFromWeights({
+        weights: FUTURE_WEIGHTS,
+        fields: ordered.map((field) => ({ name: field.name, slug: field.slug })),
+        skillNames: [],
+        priorResearchRequired: false,
+      });
+
+      const row = await db.transaction(async (tx) => {
+        const [inserted] = await tx
+          .insert(opportunities)
+          .values({
+            institutionId: user.institutionId ?? null,
+            researcherId: user.id,
+            title: content.title,
+            slug: candidate,
+            summary: content.summary,
+            description: content.description,
+            department: data.department,
+            labName: profile?.labName ?? null,
+            numberOfOpenings: 1,
+            // No deadline: it stays open until the researcher closes it.
+            deadline: null,
+            duration: FUTURE_DURATION_TEXT,
+            // Hybrid and an unclassified arrangement keep location and pay out
+            // of matching, since neither is decided yet.
+            locationMode: "hybrid",
+            compensationType: "other",
+            compensationDetails: "To be agreed with the researcher if an opportunity comes up.",
+            futureOpportunity: true,
+            status,
+            publishedAt: status === "published" ? now : null,
+            draftStep: TOTAL_STEPS,
+          })
+          .returning({ id: opportunities.id, slug: opportunities.slug });
+
+        await tx
+          .insert(opportunityDurations)
+          .values(FUTURE_DURATIONS.map((duration) => ({ opportunityId: inserted.id, duration })));
+        await tx
+          .insert(opportunityFields)
+          .values(ordered.map((field) => ({ opportunityId: inserted.id, researchFieldId: field.id })));
+        if (criteria.length > 0) {
+          await tx
+            .insert(opportunityCriteria)
+            .values(criteria.map((criterion) => ({ ...criterion, opportunityId: inserted.id })));
+        }
+        return inserted;
+      });
+
+      slug = row.slug;
+
+      await recordEvent({
+        name: "opportunity_created",
+        userId: user.id,
+        institutionId: user.institutionId,
+        subjectType: "opportunity",
+        subjectId: row.id,
+        properties: { futureOpportunity: true },
+      });
+      if (status === "published") {
+        await recordEvent({
+          name: "opportunity_published",
+          userId: user.id,
+          institutionId: user.institutionId,
+          subjectType: "opportunity",
+          subjectId: row.id,
+          properties: { futureOpportunity: true },
+        });
+      }
+      await recordAudit({
+        actorId: user.id,
+        action: status === "published" ? "opportunity_published" : "opportunity_queued",
+        subjectType: "opportunity",
+        subjectId: row.id,
+      });
+
+      revalidatePath("/opportunities");
+      revalidatePath("/researcher/opportunities");
+      log.info("future_opportunity_posted", { opportunityId: row.id, status });
+    }
+  } catch (error) {
+    return { ...toActionError(error, "create_future_opportunity_failed"), values: formValues(formData) };
+  }
+
+  redirect(`/opportunities/${slug}`);
+}
+
 async function advance(opportunityId: string, step: number) {
   const next = Math.min(step + 1, TOTAL_STEPS);
   await db
@@ -282,6 +462,13 @@ export async function saveLogisticsStepAction(_prev: ActionResult | null, formDa
 
   try {
     const { opportunity } = await requireManagedOpportunity(opportunityId);
+    if (!parsed.data.deadline && !opportunity.futureOpportunity) {
+      return {
+        ok: false as const,
+        error: "Some fields need attention before this can be saved.",
+        fieldErrors: { deadline: ["Application deadline is required."] },
+      };
+    }
     await db
       .update(opportunities)
       .set({

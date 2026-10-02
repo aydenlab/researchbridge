@@ -3,6 +3,7 @@ import { Bookmark, CalendarClock, Clock, MapPin, Users } from "lucide-react";
 import { Badge, Tag } from "@/components/ui/badge";
 import { cn } from "@/components/ui/cn";
 import { deadlineNote, hoursLabel } from "@/lib/format";
+import { FUTURE_OPPORTUNITY_LABEL } from "@/lib/future-opportunity";
 import { COMPENSATION_LABELS, LOCATION_LABELS, PAID_COMPENSATION, labelOr } from "@/lib/labels";
 import type { OpportunityListItem } from "@/lib/queries/opportunities";
 
@@ -19,6 +20,9 @@ export function OpportunityCard({
 }) {
   const deadline = deadlineNote(item.deadline);
   const paid = PAID_COMPENSATION.has(item.compensationType);
+  // A standing posting with no project yet: no openings, deadline, or place to
+  // promise, so the card says that instead of showing empty logistics.
+  const future = item.futureOpportunity;
 
   return (
     <article
@@ -60,23 +64,42 @@ export function OpportunityCard({
           <Clock className="size-3.5" aria-hidden="true" />
           {hoursLabel(item.hoursPerWeekMin, item.hoursPerWeekMax)}
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <MapPin className="size-3.5" aria-hidden="true" />
-          {labelOr(LOCATION_LABELS, item.locationMode)}
-          {item.location && item.locationMode !== "remote" ? `, ${item.location}` : ""}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <Users className="size-3.5" aria-hidden="true" />
-          {item.numberOfOpenings} {item.numberOfOpenings === 1 ? "opening" : "openings"}
-        </span>
-        <span className={cn("inline-flex items-center gap-1.5", deadline.urgent && "text-warn")}>
-          <CalendarClock className="size-3.5" aria-hidden="true" />
-          {deadline.text}
-        </span>
+        {future ? (
+          <>
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="size-3.5" aria-hidden="true" />
+              Location to be discussed
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarClock className="size-3.5" aria-hidden="true" />
+              No fixed start date
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="size-3.5" aria-hidden="true" />
+              {labelOr(LOCATION_LABELS, item.locationMode)}
+              {item.location && item.locationMode !== "remote" ? `, ${item.location}` : ""}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Users className="size-3.5" aria-hidden="true" />
+              {item.numberOfOpenings} {item.numberOfOpenings === 1 ? "opening" : "openings"}
+            </span>
+            <span className={cn("inline-flex items-center gap-1.5", deadline.urgent && "text-warn")}>
+              <CalendarClock className="size-3.5" aria-hidden="true" />
+              {deadline.text}
+            </span>
+          </>
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <Badge tone={paid ? "forest" : "neutral"}>{labelOr(COMPENSATION_LABELS, item.compensationType)}</Badge>
+        {future ? (
+          <Badge tone="gold">{FUTURE_OPPORTUNITY_LABEL}</Badge>
+        ) : (
+          <Badge tone={paid ? "forest" : "neutral"}>{labelOr(COMPENSATION_LABELS, item.compensationType)}</Badge>
+        )}
         {item.beginnerFriendly ? <Badge tone="gold">Accepting beginners</Badge> : null}
         {item.priorResearchRequired ? <Badge tone="outline">Prior research required</Badge> : null}
         {item.fieldNames.slice(0, 2).map((field) => (

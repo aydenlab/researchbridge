@@ -38,6 +38,7 @@ export function matchInputFromDetail(detail: {
     locationMode: string;
     beginnerFriendly: boolean;
     priorResearchRequired: boolean;
+    futureOpportunity: boolean;
   };
 }): OpportunityMatchInput {
   return {
@@ -50,6 +51,7 @@ export function matchInputFromDetail(detail: {
     locationMode: detail.opportunity.locationMode,
     beginnerFriendly: detail.opportunity.beginnerFriendly,
     priorResearchRequired: detail.opportunity.priorResearchRequired,
+    futureOpportunity: detail.opportunity.futureOpportunity,
   };
 }
 

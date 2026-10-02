@@ -22,6 +22,7 @@ export async function researcherOpportunities(researcherId: string) {
       updatedAt: opportunities.updatedAt,
       draftStep: opportunities.draftStep,
       viewCount: opportunities.viewCount,
+      futureOpportunity: opportunities.futureOpportunity,
     })
     .from(opportunities)
     .where(eq(opportunities.researcherId, researcherId))
@@ -229,4 +230,23 @@ export async function applicantStatusCounts(researcherId: string, filters: AllAp
   const awaiting = await listAllApplicants(researcherId, { ...filters, filter: "awaiting", perPage: 1, page: 1 });
   const active = await listAllApplicants(researcherId, { ...filters, filter: "active", perPage: 1, page: 1 });
   return { all: all.total, awaiting: awaiting.total, active: active.total };
+}
+
+/**
+ * The researcher's live Future Research Opportunity, if they have one. A closed
+ * or archived one does not count, so they can start again after retiring it.
+ */
+export async function activeFutureOpportunity(researcherId: string) {
+  const [row] = await db
+    .select({ id: opportunities.id, slug: opportunities.slug, title: opportunities.title, status: opportunities.status })
+    .from(opportunities)
+    .where(
+      and(
+        eq(opportunities.researcherId, researcherId),
+        eq(opportunities.futureOpportunity, true),
+        inArray(opportunities.status, ["draft", "pending_review", "published"]),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
 }

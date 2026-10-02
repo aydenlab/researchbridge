@@ -161,6 +161,8 @@ export type OpportunityMatchInput = {
   locationMode: string;
   beginnerFriendly: boolean;
   priorResearchRequired: boolean;
+  /** A Future Research Opportunity has no length yet, so duration does not apply. */
+  futureOpportunity?: boolean;
 };
 
 /**
@@ -201,7 +203,7 @@ export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityM
   // Duration. Overlap on any single value is a full match: a student wanting one
   // term and a supervisor open to one term or a year want the same thing. A
   // length one step away is a partial match rather than none.
-  if (student.durations.length > 0 && opportunity.durations.length > 0) {
+  if (student.durations.length > 0 && opportunity.durations.length > 0 && !opportunity.futureOpportunity) {
     const shared = overlap(opportunity.durations, student.durations);
     const nearby = opportunity.durations.filter((value) =>
       student.durations.some((wanted) => NEARBY_DURATIONS[wanted]?.includes(value)),

@@ -64,7 +64,9 @@ export const logisticsStepSchema = z
     duration: optionalText(160),
     hoursPerWeekMin: optionalHours,
     hoursPerWeekMax: optionalHours,
-    deadline: requiredText("Application deadline", 20),
+    // Required for every ordinary position. Only a Future Research Opportunity
+    // may leave it blank, which the action checks against the stored listing.
+    deadline: optionalText(20),
     locationMode: z.enum(["in_person", "hybrid", "remote"], { message: "Choose a location mode." }),
     location: optionalText(160),
     compensationType: z.enum(
@@ -152,6 +154,32 @@ export const simpleOpportunitySchema = z
   .refine((value) => value.preferredDurations.length > 0 || Boolean(value.otherDuration), {
     message: DURATION_REQUIRED,
     path: ["preferredDurations"],
+  });
+
+/**
+ * The Future Research Opportunity form. Almost everything is written from the
+ * researcher's profile, so this only confirms what cannot be guessed: which
+ * research areas students should be matched on, the department to show, and
+ * an optional note.
+ */
+export const futureOpportunitySchema = z
+  .object({
+    department: requiredText("Department", 160),
+    researchFieldIds: arrayField(z.string().uuid(), {
+      max: 8,
+      maxMessage: "Choose up to 8 research areas. Students are matched on these, so the closest few work best.",
+    }),
+    researchAreaOtherSelected: z.string().optional(),
+    researchAreaOther: optionalText(120),
+    note: optionalText(1500),
+  })
+  .refine((value) => !value.researchAreaOtherSelected || Boolean(value.researchAreaOther), {
+    message: "Please specify your research area.",
+    path: ["researchAreaOther"],
+  })
+  .refine((value) => value.researchFieldIds.length > 0 || Boolean(value.researchAreaOtherSelected), {
+    message: "Choose at least one research area so students in it can be matched to you.",
+    path: ["researchFieldIds"],
   });
 
 export const criterionInputSchema = z.object({

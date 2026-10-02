@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { requireResearcher } from "@/lib/auth/permissions";
 import { deadlineNote, formatShortDate, hoursLabel } from "@/lib/format";
+import { FUTURE_OPPORTUNITY_LABEL } from "@/lib/future-opportunity";
 import {
   COMPENSATION_LABELS,
   LOCATION_LABELS,
@@ -80,6 +81,8 @@ export default async function ResearcherOpportunitiesPage() {
                         <Badge tone={row.authorshipOffered ? "forest" : "outline"}>
                           {row.authorshipOffered ? "Authorship offered" : "No authorship"}
                         </Badge>
+                      ) : row.futureOpportunity ? (
+                        <Badge tone="gold">{FUTURE_OPPORTUNITY_LABEL}</Badge>
                       ) : (
                         <Badge tone="outline">{labelOr(COMPENSATION_LABELS, row.compensationType)}</Badge>
                       )}
@@ -100,7 +103,14 @@ export default async function ResearcherOpportunitiesPage() {
                     {row.summary ? <p className="mt-1 text-[13.5px] leading-6 text-muted">{row.summary}</p> : null}
 
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-muted">
-                      {isReview ? null : (
+                      {isReview ? null : row.futureOpportunity ? (
+                        <>
+                          <span>No fixed start date</span>
+                          <span className={deadline.urgent ? "text-warn" : ""}>
+                            {row.deadline ? deadline.text : "Open until you close it"}
+                          </span>
+                        </>
+                      ) : (
                         <>
                           <span>{row.numberOfOpenings} {row.numberOfOpenings === 1 ? "opening" : "openings"}</span>
                           <span>{hoursLabel(row.hoursPerWeekMin, row.hoursPerWeekMax)}</span>

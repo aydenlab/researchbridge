@@ -57,6 +57,7 @@ export type OpportunityListItem = {
   beginnerFriendly: boolean;
   priorResearchRequired: boolean;
   authorshipOffered: boolean;
+  futureOpportunity: boolean;
   numberOfOpenings: number;
   publishedAt: Date | null;
   researcherFirstName: string;
@@ -208,6 +209,7 @@ export async function searchOpportunities(filters: OpportunityFilters) {
       beginnerFriendly: opportunities.beginnerFriendly,
       priorResearchRequired: opportunities.priorResearchRequired,
       authorshipOffered: opportunities.authorshipOffered,
+      futureOpportunity: opportunities.futureOpportunity,
       numberOfOpenings: opportunities.numberOfOpenings,
       publishedAt: opportunities.publishedAt,
       researcherFirstName: researcherProfiles.firstName,

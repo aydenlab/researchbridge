@@ -1,0 +1,1 @@
+ALTER TABLE "opportunities" ADD COLUMN "future_opportunity" boolean DEFAULT false NOT NULL;

@@ -23,6 +23,7 @@ import { evaluateDeterministic } from "@/lib/criteria/engine";
 import type { Criterion } from "@/lib/criteria/types";
 import { IMPORTANCE_LABEL } from "@/lib/criteria/weights";
 import { deadlineNote, formatDate, hoursLabel, truncate } from "@/lib/format";
+import { FUTURE_OPPORTUNITY_LABEL, FUTURE_OPPORTUNITY_NOTICE } from "@/lib/future-opportunity";
 import {
   COMPENSATION_LABELS,
   CRITERION_TYPE_LABELS,
@@ -290,27 +291,40 @@ export default async function OpportunityDetailPage({ params }: Params) {
   const preferredSkills = detail.skills.filter((skill) => skill.requirementLevel === "preferred");
   const notRequiredSkills = detail.skills.filter((skill) => skill.requirementLevel === "not_required");
 
-  const facts = [
-    { Icon: Clock, label: "Time commitment", value: hoursLabel(detail.opportunity.hoursPerWeekMin, detail.opportunity.hoursPerWeekMax) },
-    { Icon: CalendarClock, label: "Expected start", value: formatDate(detail.opportunity.startDate) },
-    {
-      Icon: Target,
-      label: "Duration",
-      // A free-text length sits beside the matchable ones rather than behind
-      // them: a posting can now carry both, and hiding one would misstate it.
-      value:
-        [...detail.durations.map((value) => DURATION_LABELS[value]), detail.opportunity.duration]
-          .filter(Boolean)
-          .join(", ") || "Not specified",
-    },
-    {
-      Icon: MapPin,
-      label: "Location",
-      value: `${labelOr(LOCATION_LABELS, detail.opportunity.locationMode)}${detail.opportunity.location && detail.opportunity.locationMode !== "remote" ? `, ${detail.opportunity.location}` : ""}`,
-    },
-    { Icon: Users, label: "Openings", value: String(detail.opportunity.numberOfOpenings) },
-    { Icon: FileText, label: "Applications received", value: String(applicationCount) },
-  ];
+  // A Future Research Opportunity has no project behind it yet, so every fact
+  // that would describe one says it is still to be agreed instead.
+  const future = detail.opportunity.futureOpportunity;
+
+  const facts = future
+    ? [
+        { Icon: Clock, label: "Time commitment", value: "To be discussed" },
+        { Icon: CalendarClock, label: "Expected start", value: "No fixed start date" },
+        { Icon: Target, label: "Duration", value: "To be agreed" },
+        { Icon: MapPin, label: "Location", value: "To be discussed" },
+        { Icon: Users, label: "Position", value: "Not guaranteed" },
+        { Icon: FileText, label: "Students interested", value: String(applicationCount) },
+      ]
+    : [
+        { Icon: Clock, label: "Time commitment", value: hoursLabel(detail.opportunity.hoursPerWeekMin, detail.opportunity.hoursPerWeekMax) },
+        { Icon: CalendarClock, label: "Expected start", value: formatDate(detail.opportunity.startDate) },
+        {
+          Icon: Target,
+          label: "Duration",
+          // A free-text length sits beside the matchable ones rather than behind
+          // them: a posting can now carry both, and hiding one would misstate it.
+          value:
+            [...detail.durations.map((value) => DURATION_LABELS[value]), detail.opportunity.duration]
+              .filter(Boolean)
+              .join(", ") || "Not specified",
+        },
+        {
+          Icon: MapPin,
+          label: "Location",
+          value: `${labelOr(LOCATION_LABELS, detail.opportunity.locationMode)}${detail.opportunity.location && detail.opportunity.locationMode !== "remote" ? `, ${detail.opportunity.location}` : ""}`,
+        },
+        { Icon: Users, label: "Openings", value: String(detail.opportunity.numberOfOpenings) },
+        { Icon: FileText, label: "Applications received", value: String(applicationCount) },
+      ];
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 py-8 sm:px-6 sm:py-10">
@@ -331,12 +345,23 @@ export default async function OpportunityDetailPage({ params }: Params) {
         <div className="min-w-0">
           <header className="border-b border-line pb-7">
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge tone={paid ? "forest" : "neutral"}>
-                {labelOr(COMPENSATION_LABELS, detail.opportunity.compensationType)}
-              </Badge>
-              {detail.opportunity.beginnerFriendly ? <Badge tone="gold">Accepting beginners</Badge> : null}
-              {detail.opportunity.academicCreditAvailable ? <Badge tone="outline">Academic credit available</Badge> : null}
-              <Badge tone={deadline.urgent ? "warn" : "outline"}>{deadline.text}</Badge>
+              {future ? (
+                <>
+                  <Badge tone="gold">{FUTURE_OPPORTUNITY_LABEL}</Badge>
+                  <Badge tone="outline">No fixed start date</Badge>
+                </>
+              ) : (
+                <>
+                  <Badge tone={paid ? "forest" : "neutral"}>
+                    {labelOr(COMPENSATION_LABELS, detail.opportunity.compensationType)}
+                  </Badge>
+                  {detail.opportunity.beginnerFriendly ? <Badge tone="gold">Accepting beginners</Badge> : null}
+                  {detail.opportunity.academicCreditAvailable ? (
+                    <Badge tone="outline">Academic credit available</Badge>
+                  ) : null}
+                  <Badge tone={deadline.urgent ? "warn" : "outline"}>{deadline.text}</Badge>
+                </>
+              )}
             </div>
 
             <h1 className="mt-4 font-display text-[30px] leading-tight text-ink sm:text-[38px]" style={{ letterSpacing: "-0.7px" }}>
@@ -354,10 +379,17 @@ export default async function OpportunityDetailPage({ params }: Params) {
               {detail.fields.map((field) => (
                 <Tag key={field.id}>{field.name}</Tag>
               ))}
-              {detail.durations.map((value) => (
-                <Tag key={value}>{DURATION_LABELS[value]}</Tag>
-              ))}
+              {future
+                ? null
+                : detail.durations.map((value) => <Tag key={value}>{DURATION_LABELS[value]}</Tag>)}
             </div>
+
+            {future ? (
+              <div className="mt-5 rounded-[10px] border border-[#e6d7ae] bg-gold-soft px-4 py-3.5">
+                <p className="text-[13.5px] font-medium text-ink">Not a specific opening</p>
+                <p className="mt-1 text-[13.5px] leading-6 text-muted">{FUTURE_OPPORTUNITY_NOTICE}</p>
+              </div>
+            ) : null}
           </header>
 
           <div className="pt-7">
@@ -500,7 +532,9 @@ export default async function OpportunityDetailPage({ params }: Params) {
             <Section title="Compensation" eyebrow="Terms">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={paid ? "forest" : "neutral"}>
-                  {labelOr(COMPENSATION_LABELS, detail.opportunity.compensationType)}
+                  {future && detail.opportunity.compensationType === "other"
+                    ? "To be agreed"
+                    : labelOr(COMPENSATION_LABELS, detail.opportunity.compensationType)}
                 </Badge>
                 {detail.opportunity.academicCreditAvailable ? <Badge tone="outline">Academic credit available</Badge> : null}
               </div>
@@ -648,6 +682,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
               applicationId={state.application?.id ?? null}
               applicationStatus={state.application?.status ?? null}
               acceptingApplications={accepting}
+              applyLabel={future ? "Express interest" : undefined}
               closedReason={
                 pastDeadline
                   ? "The application deadline for this position has passed."
@@ -670,8 +705,10 @@ export default async function OpportunityDetailPage({ params }: Params) {
             <div className="mt-4 flex items-start gap-2 border-t border-line pt-4">
               <Building2 className="mt-0.5 size-3.5 shrink-0 text-subtle" aria-hidden="true" />
               <p className="text-[12.5px] leading-5 text-muted">
-                Application deadline {formatDate(detail.opportunity.deadline)}. Posted{" "}
-                {formatDate(detail.opportunity.publishedAt)}.
+                {future && !detail.opportunity.deadline
+                  ? "No deadline. Open until the researcher closes it."
+                  : `Application deadline ${formatDate(detail.opportunity.deadline)}.`}{" "}
+                Posted {formatDate(detail.opportunity.publishedAt)}.
               </p>
             </div>
           </div>

@@ -37,6 +37,7 @@ export function OpportunityActions({
   applicationStatus,
   acceptingApplications,
   closedReason,
+  applyLabel = "Apply to this project",
 }: {
   opportunityId: string;
   slug: string;
@@ -47,6 +48,8 @@ export function OpportunityActions({
   applicationStatus: string | null;
   acceptingApplications: boolean;
   closedReason: string | null;
+  /** What starting an application is called on this listing. */
+  applyLabel?: string;
 }) {
   const [saveState, saveAction] = useActionState<ActionResult | null, FormData>(toggleSavedAction, null);
   const [applyState, applyAction] = useActionState<ActionResult | null, FormData>(startApplicationAction, null);
@@ -98,7 +101,7 @@ export function OpportunityActions({
       {acceptingApplications ? (
         <form action={applyAction}>
           <input type="hidden" name="opportunityId" value={opportunityId} />
-          <ApplyButton label={applicationId ? "Continue your application" : "Apply to this project"} />
+          <ApplyButton label={applicationId ? "Continue your application" : applyLabel} />
         </form>
       ) : (
         <p className="rounded-[8px] border border-line bg-shell px-3 py-2.5 text-[13px] leading-6 text-muted">

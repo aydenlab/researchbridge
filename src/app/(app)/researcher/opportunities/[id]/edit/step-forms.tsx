@@ -147,8 +147,11 @@ export function RoleStep({
 export function LogisticsStep({
   id,
   draft,
+  futureOpportunity = false,
 }: {
   id: string;
+  /** A Future Research Opportunity may stay open with no deadline. */
+  futureOpportunity?: boolean;
   draft: {
     numberOfOpenings: number;
     startDate: string;
@@ -179,8 +182,14 @@ export function LogisticsStep({
         <Field label="Number of openings" htmlFor="numberOfOpenings" required error={errors?.numberOfOpenings?.[0]}>
           <Input id="numberOfOpenings" name="numberOfOpenings" type="number" min={1} max={50} defaultValue={draft.numberOfOpenings} required />
         </Field>
-        <Field label="Application deadline" htmlFor="deadline" required error={errors?.deadline?.[0]}>
-          <Input id="deadline" name="deadline" type="date" defaultValue={draft.deadline} required />
+        <Field
+          label="Application deadline"
+          htmlFor="deadline"
+          required={!futureOpportunity}
+          hint={futureOpportunity ? "Optional. Leave blank to keep this open until you close it." : undefined}
+          error={errors?.deadline?.[0]}
+        >
+          <Input id="deadline" name="deadline" type="date" defaultValue={draft.deadline} required={!futureOpportunity} />
         </Field>
       </div>
 

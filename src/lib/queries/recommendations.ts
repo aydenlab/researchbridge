@@ -54,6 +54,7 @@ export function matchOpportunity(student: StudentMatchInput, item: OpportunityLi
     locationMode: item.locationMode,
     beginnerFriendly: item.beginnerFriendly,
     priorResearchRequired: item.priorResearchRequired,
+    futureOpportunity: item.futureOpportunity,
   });
 }
 
@@ -230,6 +231,7 @@ export async function loadOpportunityMatchInput(opportunityId: string): Promise<
       locationMode: opportunities.locationMode,
       beginnerFriendly: opportunities.beginnerFriendly,
       priorResearchRequired: opportunities.priorResearchRequired,
+      futureOpportunity: opportunities.futureOpportunity,
     })
     .from(opportunities)
     .where(eq(opportunities.id, opportunityId))
@@ -266,6 +268,7 @@ export async function loadOpportunityMatchInput(opportunityId: string): Promise<
     locationMode: opportunity.locationMode,
     beginnerFriendly: opportunity.beginnerFriendly,
     priorResearchRequired: opportunity.priorResearchRequired,
+    futureOpportunity: opportunity.futureOpportunity,
   };
 }
 

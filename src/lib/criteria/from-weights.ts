@@ -53,15 +53,19 @@ export function importanceOf(weight: number): CriterionImportance | null {
 export function criteriaFromWeights({
   weights,
   field,
+  fields,
   skillNames,
   priorResearchRequired,
 }: {
   weights: Weights;
   /** The research field chosen on the form, used to match stated interests. */
-  field: { name: string; slug: string } | null;
+  field?: { name: string; slug: string } | null;
+  /** Several fields at once, for a posting written from a researcher's profile. */
+  fields?: { name: string; slug: string }[];
   skillNames: string[];
   priorResearchRequired: boolean;
 }): CriterionDraft[] {
+  const interestFields = fields ?? (field ? [field] : []);
   const drafts: { weight: number; draft: Omit<CriterionDraft, "sortOrder"> }[] = [];
 
   function add(weight: number, draft: Omit<CriterionDraft, "sortOrder" | "importance" | "required">) {
@@ -74,8 +78,10 @@ export function criteriaFromWeights({
     type: "academic_metric",
     label: "GPA and academic standing",
     // No threshold: the form never asks for a cut-off, and a weight is not one.
-    // The evaluator reports what the student shared and leaves the judgement.
-    description: "Weighted on the posting form. No minimum was set, so this reports academic standing rather than filtering on it.",
+    // The evaluator grades what the student shared, so stronger grades count
+    // for more without anyone being filtered out on grades alone.
+    description:
+      "Weighted on the posting form. Grades on any scale are compared by letter-grade equivalent: stronger grades count for more, and nobody is filtered out on grades alone.",
     config: {},
   });
 
@@ -109,12 +115,14 @@ export function criteriaFromWeights({
     });
   }
 
-  if (field) {
+  if (interestFields.length > 0) {
+    const names = interestFields.map((entry) => entry.name);
+    const named = names.length <= 2 ? names.join(" or ") : `${names.slice(0, 2).join(", ")}, or a related area`;
     add(weights.weightResearchInterests, {
       type: "research_interest",
-      label: `Research interest in ${field.name}`,
+      label: `Research interest in ${named}`.slice(0, 180),
       description: "How closely the student's stated interests line up with this project.",
-      config: { fieldSlugs: [field.slug] },
+      config: { fieldSlugs: interestFields.map((entry) => entry.slug) },
     });
   }
 
