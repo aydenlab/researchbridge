@@ -9,7 +9,6 @@ import { IMPORTANCE_LABEL } from "@/lib/criteria/weights";
 import { isEnabled } from "@/lib/flags";
 import { deadlineNote, formatDate, hoursLabel } from "@/lib/format";
 import {
-  COMPENSATION_LABELS,
   CRITERION_TYPE_LABELS,
   DURATION_LABELS,
   LOCATION_LABELS,
@@ -20,6 +19,7 @@ import {
 import { loadOpportunityDetail } from "@/lib/queries/opportunities";
 import { listDepartments, listResearchFields, listSkills } from "@/lib/queries/taxonomy";
 import { CriteriaStep, LogisticsStep, PaperStep, ProjectStep, PublishStep, QuestionsStep, RoleStep, VideoStep } from "./step-forms";
+import { arrangementLabel } from "@/lib/future-opportunity";
 
 export const metadata: Metadata = {
   title: "Edit opportunity",
@@ -216,7 +216,7 @@ export default async function EditOpportunityPage({
 
           <article className="rounded-[12px] border border-line bg-white p-5">
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge tone={paid ? "forest" : "neutral"}>{labelOr(COMPENSATION_LABELS, detail.opportunity.compensationType)}</Badge>
+              <Badge tone={paid ? "forest" : "neutral"}>{arrangementLabel(detail.opportunity)}</Badge>
               {detail.opportunity.beginnerFriendly ? <Badge tone="gold">Accepting beginners</Badge> : null}
               <Badge tone="outline">{deadline.text}</Badge>
             </div>

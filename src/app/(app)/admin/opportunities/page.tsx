@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { canReadAllApplications, requireAdmin } from "@/lib/auth/permissions";
 import { formatShortDate } from "@/lib/format";
-import { COMPENSATION_LABELS, OPPORTUNITY_STATUS_LABELS, labelOr } from "@/lib/labels";
+import { OPPORTUNITY_STATUS_LABELS, labelOr } from "@/lib/labels";
 import { adminOpportunities } from "@/lib/queries/admin";
 import { ModerationControls } from "./moderation-controls";
+import { arrangementLabel } from "@/lib/future-opportunity";
 
 export const metadata: Metadata = {
   title: "Opportunities",
@@ -77,7 +78,7 @@ export default async function AdminOpportunitiesPage({
                 {row.title}
               </Link>
               <p className="mt-0.5 text-[12px] text-subtle">{row.department ?? "Department not set"}</p>
-              <p className="mt-0.5 text-[12px] text-muted">{labelOr(COMPENSATION_LABELS, row.compensationType)}</p>
+              <p className="mt-0.5 text-[12px] text-muted">{arrangementLabel(row)}</p>
             </div>,
             <div key={`${row.id}-researcher`}>
               <p className="text-[13px] text-ink">

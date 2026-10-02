@@ -10,11 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { requireStudent } from "@/lib/auth/permissions";
 import { STATUS_LABELS, STUDENT_STATUS_DESCRIPTION, type ApplicationStatus } from "@/lib/application-status";
 import { formatDate, formatShortDate } from "@/lib/format";
-import { COMPENSATION_LABELS, QUESTION_TYPE_LABELS, labelOr } from "@/lib/labels";
+import { QUESTION_TYPE_LABELS, labelOr } from "@/lib/labels";
 import { loadApplication } from "@/lib/queries/applications";
 import { listReferences, MAX_REFERENCES_PER_APPLICATION } from "@/lib/queries/references";
 import { OutcomeForm, WithdrawForm } from "./client-forms";
 import { ReferenceSection } from "./reference-section";
+import { arrangementLabel } from "@/lib/future-opportunity";
 
 export const metadata: Metadata = {
   title: "Application",
@@ -174,7 +175,7 @@ export default async function ApplicationDetailPage({
               {bundle.opportunity.title}
             </Link>
             <div className="mt-3 flex flex-wrap gap-1.5">
-              <Badge tone="outline">{labelOr(COMPENSATION_LABELS, bundle.opportunity.compensationType)}</Badge>
+              <Badge tone="outline">{arrangementLabel(bundle.opportunity)}</Badge>
             </div>
             <dl className="mt-4 divide-y divide-line border-t border-line">
               <div className="flex items-center justify-between gap-3 py-2.5">

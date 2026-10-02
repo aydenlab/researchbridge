@@ -8,8 +8,8 @@ import { ButtonLink } from "@/components/ui/button";
 import { requireStudent } from "@/lib/auth/permissions";
 import { STUDENT_STATUS_DESCRIPTION, isActive, type ApplicationStatus } from "@/lib/application-status";
 import { formatShortDate, deadlineNote } from "@/lib/format";
-import { COMPENSATION_LABELS, labelOr } from "@/lib/labels";
 import { listStudentApplications } from "@/lib/queries/applications";
+import { arrangementLabel } from "@/lib/future-opportunity";
 
 export const metadata: Metadata = {
   title: "Your applications",
@@ -81,7 +81,7 @@ export default async function ApplicationsPage() {
                 </p>
 
                 <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-muted">
-                  <Badge tone="outline">{labelOr(COMPENSATION_LABELS, row.compensationType)}</Badge>
+                  <Badge tone="outline">{arrangementLabel(row)}</Badge>
                   {row.submittedAt ? <span>Submitted {formatShortDate(row.submittedAt)}</span> : null}
                   <span>Updated {formatShortDate(row.updatedAt)}</span>
                   {row.status === "draft" ? <span className={deadline.urgent ? "text-warn" : ""}>{deadline.text}</span> : null}

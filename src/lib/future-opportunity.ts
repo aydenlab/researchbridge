@@ -1,5 +1,5 @@
 import type { DurationOption } from "@/lib/labels";
-import { DURATION_ORDER } from "@/lib/labels";
+import { COMPENSATION_LABELS, DURATION_ORDER, labelOr } from "@/lib/labels";
 import type { Weights } from "@/lib/criteria/from-weights";
 
 /**
@@ -122,4 +122,12 @@ export function buildFutureOpportunity(input: FutureOpportunityInput): FutureOpp
   );
 
   return { title, summary, description: clip(paragraphs.join("\n\n"), 8000) };
+}
+
+/**
+ * How a posting's arrangement is named in a badge. A future posting has no pay
+ * arrangement yet, so it is named for what it is rather than "Other arrangement".
+ */
+export function arrangementLabel(opportunity: { compensationType: string; futureOpportunity?: boolean }): string {
+  return opportunity.futureOpportunity ? FUTURE_OPPORTUNITY_LABEL : labelOr(COMPENSATION_LABELS, opportunity.compensationType);
 }

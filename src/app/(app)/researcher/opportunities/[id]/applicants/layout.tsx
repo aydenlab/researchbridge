@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { ApplicantRail } from "./applicant-rail";
 import { requireResearcher, canManageOpportunity } from "@/lib/auth/permissions";
 import { deadlineNote } from "@/lib/format";
-import { COMPENSATION_LABELS, OPPORTUNITY_STATUS_LABELS, labelOr } from "@/lib/labels";
+import { OPPORTUNITY_STATUS_LABELS, labelOr } from "@/lib/labels";
 import { listApplicantsForOpportunity } from "@/lib/queries/applications";
 import { loadApplicantFits, matchInputFromDetail } from "@/lib/queries/fit";
 import { loadOpportunityDetail } from "@/lib/queries/opportunities";
+import { arrangementLabel } from "@/lib/future-opportunity";
 
 export default async function ApplicantsLayout({
   children,
@@ -69,7 +70,7 @@ export default async function ApplicantsLayout({
               <Badge tone={detail.opportunity.status === "published" ? "forest" : "neutral"}>
                 {labelOr(OPPORTUNITY_STATUS_LABELS, detail.opportunity.status)}
               </Badge>
-              <Badge tone="outline">{labelOr(COMPENSATION_LABELS, detail.opportunity.compensationType)}</Badge>
+              <Badge tone="outline">{arrangementLabel(detail.opportunity)}</Badge>
               <Badge tone={deadline.urgent ? "warn" : "outline"}>{deadline.text}</Badge>
             </div>
             <h1 className="mt-2.5 font-display text-[26px] leading-tight text-ink sm:text-[30px]" style={{ letterSpacing: "-0.6px" }}>

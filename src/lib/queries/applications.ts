@@ -133,6 +133,7 @@ export async function listStudentApplications(studentId: string) {
       department: opportunities.department,
       labName: opportunities.labName,
       compensationType: opportunities.compensationType,
+      futureOpportunity: opportunities.futureOpportunity,
       researcherFirstName: researcherProfiles.firstName,
       researcherLastName: researcherProfiles.lastName,
       researcherTitle: researcherProfiles.title,

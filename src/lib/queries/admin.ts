@@ -239,6 +239,7 @@ export async function adminOpportunities(status?: string) {
       status: opportunities.status,
       department: opportunities.department,
       compensationType: opportunities.compensationType,
+      futureOpportunity: opportunities.futureOpportunity,
       deadline: opportunities.deadline,
       publishedAt: opportunities.publishedAt,
       createdAt: opportunities.createdAt,
