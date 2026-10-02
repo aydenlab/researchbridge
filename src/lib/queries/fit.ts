@@ -3,10 +3,6 @@ import {
   aiAnalyses,
   criterionEvaluations,
   db,
-  opportunityDurations,
-  opportunityFields,
-  opportunitySkills,
-  opportunities,
   researchExperiences,
   researchFields,
   skills,
@@ -22,53 +18,38 @@ import type { Criterion, CriterionResult } from "@/lib/criteria/types";
 import type { CompensationPreferenceOption, DurationOption } from "@/lib/labels";
 import { scoreMatch, type OpportunityMatchInput, type StudentMatchInput } from "@/lib/matching";
 
+// One loader for the listing side of matching, so the review screens and the
+// student dashboard can never read a listing differently.
+export { loadOpportunityMatchInput } from "./recommendations";
+
 /**
- * Everything about a listing that the match engine reads, in one round trip.
- * Kept separate from `loadOpportunityDetail` so a page that only needs to score
- * an applicant does not pull criteria, questions, and materials with it.
+ * The listing side of matching, from a detail bundle a page has already loaded.
+ * Skills nobody needs are left out and academic credit is carried through, the
+ * same as the loader above, so the rail and the review screen agree with it.
  */
-export async function loadOpportunityMatchInput(opportunityId: string): Promise<OpportunityMatchInput | null> {
-  const rows = await db
-    .select({
-      compensationType: opportunities.compensationType,
-      hoursPerWeekMin: opportunities.hoursPerWeekMin,
-      locationMode: opportunities.locationMode,
-      beginnerFriendly: opportunities.beginnerFriendly,
-      priorResearchRequired: opportunities.priorResearchRequired,
-    })
-    .from(opportunities)
-    .where(eq(opportunities.id, opportunityId))
-    .limit(1);
-
-  const row = rows[0];
-  if (!row) return null;
-
-  const [fieldRows, skillRows, durationRows] = await Promise.all([
-    db
-      .select({ name: researchFields.name })
-      .from(opportunityFields)
-      .innerJoin(researchFields, eq(researchFields.id, opportunityFields.researchFieldId))
-      .where(eq(opportunityFields.opportunityId, opportunityId)),
-    db
-      .select({ name: skills.name })
-      .from(opportunitySkills)
-      .innerJoin(skills, eq(skills.id, opportunitySkills.skillId))
-      .where(eq(opportunitySkills.opportunityId, opportunityId)),
-    db
-      .select({ duration: opportunityDurations.duration })
-      .from(opportunityDurations)
-      .where(eq(opportunityDurations.opportunityId, opportunityId)),
-  ]);
-
+export function matchInputFromDetail(detail: {
+  fields: { name: string }[];
+  skills: { name: string; requirementLevel: string }[];
+  durations: string[];
+  opportunity: {
+    compensationType: string;
+    academicCreditAvailable: boolean;
+    hoursPerWeekMin: number | null;
+    locationMode: string;
+    beginnerFriendly: boolean;
+    priorResearchRequired: boolean;
+  };
+}): OpportunityMatchInput {
   return {
-    fieldNames: fieldRows.map((field) => field.name),
-    skillNames: skillRows.map((skill) => skill.name),
-    durations: durationRows.map((entry) => entry.duration) as DurationOption[],
-    compensationType: row.compensationType,
-    hoursPerWeekMin: row.hoursPerWeekMin,
-    locationMode: row.locationMode,
-    beginnerFriendly: row.beginnerFriendly,
-    priorResearchRequired: row.priorResearchRequired,
+    fieldNames: detail.fields.map((field) => field.name),
+    skillNames: detail.skills.filter((skill) => skill.requirementLevel !== "not_required").map((skill) => skill.name),
+    durations: detail.durations as DurationOption[],
+    compensationType: detail.opportunity.compensationType,
+    academicCreditAvailable: detail.opportunity.academicCreditAvailable,
+    hoursPerWeekMin: detail.opportunity.hoursPerWeekMin,
+    locationMode: detail.opportunity.locationMode,
+    beginnerFriendly: detail.opportunity.beginnerFriendly,
+    priorResearchRequired: detail.opportunity.priorResearchRequired,
   };
 }
 

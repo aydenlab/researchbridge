@@ -205,3 +205,36 @@ describe("weight normalization", () => {
     expect(summary.preferencePercent).toBe(83);
   });
 });
+
+describe("leniency in deterministic criteria", () => {
+  const base = {
+    program: null, faculty: null, degreeLevel: null, yearLevel: 2, graduationYear: null, weeklyHours: null,
+    locationPreference: null, desiredStartDate: null, semesters: [], summerAvailable: null, skills: [], courses: [],
+    researchFields: [], experiences: [], academicRecords: [], answers: [],
+  };
+  const yearCriterion = {
+    id: "year", type: "year_level" as const, label: "Year 3 or above", description: null, required: false,
+    importance: "medium" as const, config: { minYear: 3 }, sortOrder: 0,
+  };
+  const gpaMinimum = {
+    id: "gpa", type: "academic_metric" as const, label: "Minimum GPA", description: null, required: false,
+    importance: "medium" as const, config: { minValue: 9, metricType: "institution_scale", scaleMax: 12 }, sortOrder: 1,
+  };
+
+  it("treats one year short as partly met rather than a flat no", () => {
+    expect(evaluateDeterministic([yearCriterion], base)[0].status).toBe("partially_met");
+    expect(evaluateDeterministic([yearCriterion], { ...base, yearLevel: 1 })[0].status).toBe("not_met");
+  });
+
+  it("checks a 4.0 student against a 12 point minimum instead of giving up", () => {
+    const strong = { ...base, academicRecords: [{ type: "gpa" as const, value: 3.6, scaleMax: 4, institutionScaleName: null }] };
+    const weak = { ...base, academicRecords: [{ type: "gpa" as const, value: 2.5, scaleMax: 4, institutionScaleName: null }] };
+    expect(evaluateDeterministic([gpaMinimum], strong)[0].status).toBe("met");
+    expect(evaluateDeterministic([gpaMinimum], weak)[0].status).toBe("not_met");
+  });
+
+  it("marks a grade just under the minimum as partly met", () => {
+    const close = { ...base, academicRecords: [{ type: "percentage" as const, value: 76, scaleMax: null, institutionScaleName: null }] };
+    expect(evaluateDeterministic([gpaMinimum], close)[0].status).toBe("partially_met");
+  });
+});

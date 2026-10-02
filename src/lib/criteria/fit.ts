@@ -53,9 +53,9 @@ const REQUIRED_SHARE = 2;
 const PREFERENCE_SHARE = 1;
 
 function band(percent: number): FitBand {
-  if (percent >= 80) return "strong";
-  if (percent >= 60) return "good";
-  if (percent >= 35) return "partial";
+  if (percent >= 75) return "strong";
+  if (percent >= 55) return "good";
+  if (percent >= 30) return "partial";
   return "limited";
 }
 
@@ -63,8 +63,12 @@ function band(percent: number): FitBand {
 function criteriaFraction(summary: AlignmentSummary): number | null {
   // Unknowns are left out rather than counted as a failure, which is the same
   // rule the criteria panel states to the reviewer.
+  // A required criterion that is partly met earns half of its share: close is
+  // not the same as missing, and treating it that way buries candidates a
+  // supervisor would want to see.
   const decidedRequired = summary.requiredMet + summary.requiredUnmet;
-  const required = decidedRequired > 0 ? summary.requiredMet / decidedRequired : null;
+  const required =
+    decidedRequired > 0 ? (summary.requiredMet + summary.requiredPartial * 0.5) / decidedRequired : null;
   const preference = summary.preferencePercent === null ? null : summary.preferencePercent / 100;
 
   if (required !== null && preference !== null) {

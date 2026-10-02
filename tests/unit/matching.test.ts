@@ -187,3 +187,49 @@ describe("overall scoring", () => {
     expect(open.points).toBeGreaterThan(closed.points);
   });
 });
+
+describe("near misses", () => {
+  it("gives part credit for a field in the same discipline instead of none", () => {
+    const related = scoreMatch(student({ fieldNames: ["Neuroscience"] }), opportunity({ fieldNames: ["Genetics"] }));
+    const unrelated = scoreMatch(student({ fieldNames: ["Neuroscience"] }), opportunity({ fieldNames: ["Marketing"] }));
+    const interest = related.dimensions.find((entry) => entry.dimension === "interest");
+    expect(interest?.score).toBeGreaterThan(0);
+    expect(interest?.score).toBeLessThan(interest?.weight ?? 0);
+    expect(related.points).toBeGreaterThan(unrelated.points);
+    expect(related.reasons.join(" ")).toContain("Close to your research interests");
+  });
+
+  it("still ranks an exact field above a related one", () => {
+    const exact = scoreMatch(student({ fieldNames: ["Genetics"] }), opportunity({ fieldNames: ["Genetics"] }));
+    const related = scoreMatch(student({ fieldNames: ["Neuroscience"] }), opportunity({ fieldNames: ["Genetics"] }));
+    expect(exact.points).toBeGreaterThan(related.points);
+  });
+
+  it("gives part credit for a length one step away, and still names it", () => {
+    const nearby = scoreMatch(student({ durations: ["one_semester"] }), opportunity({ durations: ["two_semesters"] }));
+    const far = scoreMatch(student({ durations: ["one_semester"] }), opportunity({ durations: ["multi_year"] }));
+    const duration = nearby.dimensions.find((entry) => entry.dimension === "duration");
+    expect(duration?.score).toBeGreaterThan(0);
+    expect(duration?.score).toBeLessThan(duration?.weight ?? 0);
+    expect(nearby.caveats.join(" ")).toContain("close to it");
+    expect(nearby.points).toBeGreaterThan(far.points);
+  });
+
+  it("gives credit to a student a few hours short of the minimum", () => {
+    const close = scoreMatch(student({ weeklyHours: 8, locationPreference: null }), opportunity({ hoursPerWeekMin: 10 }));
+    const far = scoreMatch(student({ weeklyHours: 4, locationPreference: null }), opportunity({ hoursPerWeekMin: 10 }));
+    expect(close.dimensions.find((entry) => entry.dimension === "availability")?.score).toBeGreaterThan(0);
+    expect(far.dimensions.find((entry) => entry.dimension === "availability")?.score).toBe(0);
+  });
+
+  it("keeps a strong student on a different pay arrangement well above zero", () => {
+    const result = scoreMatch(student({ compensationPreferences: ["paid"] }), opportunity({ compensationType: "volunteer" }));
+    expect(result.percent).toBeGreaterThan(70);
+    expect(result.caveats).toContain("Not the kind of position you said you were looking for");
+  });
+
+  it("does not zero out a student with no overlapping skills", () => {
+    const result = scoreMatch(student({ skillNames: ["R"] }), opportunity({ skillNames: ["Python"] }));
+    expect(result.dimensions.find((entry) => entry.dimension === "skills")?.score).toBeGreaterThan(0);
+  });
+});

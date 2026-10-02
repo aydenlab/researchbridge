@@ -6,9 +6,8 @@ import { ApplicantRail } from "./applicant-rail";
 import { requireResearcher, canManageOpportunity } from "@/lib/auth/permissions";
 import { deadlineNote } from "@/lib/format";
 import { COMPENSATION_LABELS, OPPORTUNITY_STATUS_LABELS, labelOr } from "@/lib/labels";
-import type { DurationOption } from "@/lib/labels";
 import { listApplicantsForOpportunity } from "@/lib/queries/applications";
-import { loadApplicantFits } from "@/lib/queries/fit";
+import { loadApplicantFits, matchInputFromDetail } from "@/lib/queries/fit";
 import { loadOpportunityDetail } from "@/lib/queries/opportunities";
 
 export default async function ApplicantsLayout({
@@ -39,16 +38,7 @@ export default async function ApplicantsLayout({
       config: criterion.config,
       sortOrder: criterion.sortOrder,
     })),
-    opportunity: {
-      fieldNames: detail.fields.map((field) => field.name),
-      skillNames: detail.skills.map((skill) => skill.name),
-      durations: detail.durations as DurationOption[],
-      compensationType: detail.opportunity.compensationType,
-      hoursPerWeekMin: detail.opportunity.hoursPerWeekMin,
-      locationMode: detail.opportunity.locationMode,
-      beginnerFriendly: detail.opportunity.beginnerFriendly,
-      priorResearchRequired: detail.opportunity.priorResearchRequired,
-    },
+    opportunity: matchInputFromDetail(detail),
     applicants: applicants.map((applicant) => ({
       applicationId: applicant.id,
       studentId: applicant.studentId,

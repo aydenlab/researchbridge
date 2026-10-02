@@ -64,7 +64,7 @@ export async function recommendOpportunities(
   const limit = options.limit ?? 4;
   const { items } = await searchOpportunities({
     openOnly: true,
-    perPage: 60,
+    perPage: 100,
     sort: "recent",
     kind: options.kind ?? "research_position",
   });

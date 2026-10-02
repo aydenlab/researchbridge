@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { summarizeAlignment } from "@/lib/criteria/weights";
 import { criteriaFromWeights, importanceOf, readWeight, readWeights } from "@/lib/criteria/from-weights";
 import { evaluateCriterion } from "@/lib/criteria/engine";
 import type { ApplicantEvidence, Criterion } from "@/lib/criteria/types";
@@ -164,15 +165,49 @@ describe("a weighted GPA criterion with no cut-off", () => {
     sortOrder: 0,
   };
 
-  it("reports the standing instead of complaining about a missing threshold", () => {
+  it("grades the standing so the weight actually moves the score", () => {
     const evidence = {
-      academicRecords: [{ type: "institution_scale", value: 10.5, scaleMax: 12 }],
+      academicRecords: [{ type: "institution_scale", value: 10.5, scaleMax: 12, institutionScaleName: "12 point" }],
     } as unknown as ApplicantEvidence;
 
     const result = evaluateCriterion(criterion, evidence);
-    expect(result?.status).toBe("unknown");
+    // 10.5 on the 12 point scale sits between an A- and an A, about 3.8.
+    expect(result?.status).toBe("met");
     expect(result?.evidence[0]).toContain("10.5");
-    expect(result?.evidence[0]).toContain("No minimum was set");
+    expect(result?.evidence[0]).toContain("4.0 scale");
+    expect(result?.score).toBeGreaterThan(0);
+  });
+
+  it("ranks a stronger record above a weaker one instead of treating them the same", () => {
+    const record = (value: number) =>
+      ({ academicRecords: [{ type: "gpa", value, scaleMax: 4, institutionScaleName: null }] }) as unknown as ApplicantEvidence;
+    const strong = evaluateCriterion(criterion, record(3.9));
+    const middling = evaluateCriterion(criterion, record(3.0));
+    const weak = evaluateCriterion(criterion, record(1.8));
+    expect(strong?.score).toBeGreaterThan(middling?.score ?? 0);
+    expect(middling?.score).toBeGreaterThan(weak?.score ?? 0);
+    // A B average is a partial match, not a rejection.
+    expect(middling?.status).toBe("partially_met");
+  });
+
+  it("weighs the same grade the same way on every scale", () => {
+    const on = (record: object) =>
+      evaluateCriterion(criterion, { academicRecords: [record] } as unknown as ApplicantEvidence)?.score ?? 0;
+    const percent = on({ type: "percentage", value: 75, scaleMax: null, institutionScaleName: null });
+    const twelve = on({ type: "institution_scale", value: 8.5, scaleMax: 12, institutionScaleName: "12 point" });
+    const four = on({ type: "gpa", value: 3.15, scaleMax: 4, institutionScaleName: null });
+    expect(percent).toBeCloseTo(four, 3);
+    expect(twelve).toBeCloseTo(four, 3);
+  });
+
+  it("moves the overall preference score when GPA is weighted", () => {
+    const record = (value: number) =>
+      ({ academicRecords: [{ type: "gpa", value, scaleMax: 4, institutionScaleName: null }] }) as unknown as ApplicantEvidence;
+    const high = summarizeAlignment([criterion], [evaluateCriterion(criterion, record(3.9))!]);
+    const low = summarizeAlignment([criterion], [evaluateCriterion(criterion, record(2.6))!]);
+    expect(high.preferencePercent).toBe(100);
+    expect(low.preferencePercent).toBeGreaterThan(0);
+    expect(low.preferencePercent).toBeLessThan(high.preferencePercent ?? 0);
   });
 
   it("still says so plainly when the student shared nothing", () => {

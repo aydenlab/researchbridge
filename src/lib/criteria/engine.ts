@@ -1,4 +1,11 @@
-import { formatMetric, type AcademicMetric } from "@/lib/gpa";
+import {
+  academicStrength,
+  compareToMinimum,
+  formatMetric,
+  toFourPointEquivalent,
+  type AcademicMetric,
+  type AcademicMetricType,
+} from "@/lib/gpa";
 import type {
   AcademicMetricConfig,
   ApplicantEvidence,
@@ -22,9 +29,11 @@ function result(
   criterion: Criterion,
   status: CriterionResult["status"],
   evidence: string[],
+  /** A graded share of the weight, for criteria that are not simply met or not. */
+  graded?: number,
 ): CriterionResult {
   const maxScore = criterion.required ? undefined : weightOf(criterion);
-  const factor = STATUS_FACTOR[status];
+  const factor = graded ?? STATUS_FACTOR[status];
   return {
     criterionId: criterion.id,
     status,
@@ -107,6 +116,13 @@ function evaluateYearLevel(criterion: Criterion, evidence: ApplicantEvidence): C
   if (withinMin && withinMax) {
     return result(criterion, "met", [`Student is in year ${evidence.yearLevel}. Requested ${range || "any year"}.`]);
   }
+  // One year either side is close enough to be worth a reviewer's look rather
+  // than a flat no: a strong second year applying to a "year 3 and up" project
+  // is exactly who a supervisor may want to hear from.
+  const offBy = Math.max(min !== null ? min - evidence.yearLevel : 0, max !== null ? evidence.yearLevel - max : 0);
+  if (offBy === 1) {
+    return result(criterion, "partially_met", [`Student is in year ${evidence.yearLevel}. Requested ${range}.`]);
+  }
   return result(criterion, "not_met", [`Student is in year ${evidence.yearLevel}. Requested ${range}.`]);
 }
 
@@ -184,31 +200,64 @@ function evaluateResearchInterest(criterion: Criterion, evidence: ApplicantEvide
   ]);
 }
 
+function describeMetric(record: AcademicMetric): string {
+  const four = toFourPointEquivalent(record);
+  const onFour = record.type === "gpa" && record.scaleMax === 4;
+  return four === null || onFour ? formatMetric(record) : `${formatMetric(record)} (about ${four.toFixed(2)} on a 4.0 scale)`;
+}
+
+/** Half a letter grade below a minimum still counts for something. */
+const ACADEMIC_PARTIAL_GAP = 0.35;
+
 function evaluateAcademicMetric(criterion: Criterion, evidence: ApplicantEvidence): CriterionResult {
   const config = criterion.config as AcademicMetricConfig;
   if (evidence.academicRecords.length === 0) {
     return result(criterion, "unknown", ["No academic standing shared on this profile."]);
   }
+
+  // The strongest readable record is the one to judge on: a student who shared
+  // both a cumulative and a major average should not be marked on the lower.
+  const readable = evidence.academicRecords
+    .map((record) => ({ record, four: toFourPointEquivalent(record) }))
+    .filter((entry): entry is { record: AcademicMetric; four: number } => entry.four !== null)
+    .sort((a, b) => b.four - a.four);
+
   if (typeof config.minValue !== "number") {
-    // Weighted on the one-page form rather than given a cut-off. There is
-    // nothing to pass or fail, so this surfaces the number and stops there:
-    // "unknown" keeps it out of the preference score either way.
+    // Weighted on the one-page form rather than given a cut-off. Graded rather
+    // than pass or fail, so the weight a researcher puts on GPA actually moves
+    // the score: stronger grades earn more of it, and nobody is dropped.
+    const best = readable[0];
+    if (!best) {
+      return result(criterion, "unknown", [
+        `Academic standing shared as ${formatMetric(evidence.academicRecords[0])}, on a scale that could not be compared.`,
+      ]);
+    }
+    const strength = academicStrength(best.four);
+    const status = strength >= 0.8 ? "met" : strength >= 0.35 ? "partially_met" : "not_met";
+    return result(criterion, status, [`Academic standing: ${describeMetric(best.record)}.`], strength);
+  }
+
+  const minimum = {
+    value: config.minValue,
+    type: (config.metricType ?? "institution_scale") as AcademicMetricType,
+    scaleMax: config.scaleMax ?? null,
+  };
+  const compared = evidence.academicRecords
+    .map((record) => ({ record, outcome: compareToMinimum(record, minimum) }))
+    .filter((entry): entry is { record: AcademicMetric; outcome: { meets: boolean; gap: number } } => entry.outcome !== null)
+    .sort((a, b) => Number(b.outcome.meets) - Number(a.outcome.meets) || a.outcome.gap - b.outcome.gap);
+
+  const best = compared[0];
+  if (!best) {
     return result(criterion, "unknown", [
-      `Academic standing: ${evidence.academicRecords.map((record) => formatMetric(record)).join(", ")}. No minimum was set for this position.`,
+      `Academic standing shared as ${formatMetric(evidence.academicRecords[0])}. It uses a scale that could not be compared with the requested minimum.`,
     ]);
   }
-  const comparable = evidence.academicRecords.find(
-    (record: AcademicMetric) =>
-      record.type === (config.metricType ?? record.type) && (record.scaleMax ?? null) === (config.scaleMax ?? null),
-  );
-  if (!comparable) {
-    return result(criterion, "unknown", [
-      `Academic standing shared as ${formatMetric(evidence.academicRecords[0])}. It uses a different scale from the requested threshold.`,
-    ]);
-  }
-  const status = comparable.value >= config.minValue ? "met" : "not_met";
+  const status = best.outcome.meets ? "met" : best.outcome.gap <= ACADEMIC_PARTIAL_GAP ? "partially_met" : "not_met";
   return result(criterion, status, [
-    `Academic standing: ${formatMetric(comparable)}. Requested minimum ${config.minValue}.`,
+    `Academic standing: ${describeMetric(best.record)}. Requested minimum ${config.minValue}${
+      minimum.scaleMax ? ` on a ${minimum.scaleMax} point scale` : minimum.type === "percentage" ? " percent" : ""
+    }.`,
   ]);
 }
 

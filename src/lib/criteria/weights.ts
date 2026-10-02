@@ -34,6 +34,8 @@ export type AlignmentSummary = {
   requiredMet: number;
   requiredUnknown: number;
   requiredUnmet: number;
+  /** Required criteria that were partly met. Counted inside requiredUnmet too. */
+  requiredPartial: number;
   preferenceScore: number;
   preferenceMax: number;
   preferencePercent: number | null;
@@ -49,6 +51,7 @@ export function summarizeAlignment(criteria: Criterion[], results: CriterionResu
   let requiredMet = 0;
   let requiredUnknown = 0;
   let requiredUnmet = 0;
+  let requiredPartial = 0;
   let preferenceScore = 0;
   let preferenceMax = 0;
   let evaluatedPreferences = 0;
@@ -62,14 +65,17 @@ export function summarizeAlignment(criteria: Criterion[], results: CriterionResu
       requiredTotal += 1;
       if (status === "met") requiredMet += 1;
       else if (status === "unknown") requiredUnknown += 1;
-      else requiredUnmet += 1;
+      else {
+        requiredUnmet += 1;
+        if (status === "partially_met") requiredPartial += 1;
+      }
       continue;
     }
 
     const weight = weightOf(criterion);
     if (weight <= 0) continue;
 
-    const factor = STATUS_FACTOR[status];
+    const factor = graded(result) ?? STATUS_FACTOR[status];
     if (factor === null) {
       if (treatsUnknownAsNotMet(criterion)) {
         preferenceMax += weight;
@@ -90,6 +96,7 @@ export function summarizeAlignment(criteria: Criterion[], results: CriterionResu
     requiredMet,
     requiredUnknown,
     requiredUnmet,
+    requiredPartial,
     preferenceScore: round(preferenceScore),
     preferenceMax: round(preferenceMax),
     preferencePercent: preferenceMax > 0 ? Math.round((preferenceScore / preferenceMax) * 100) : null,
@@ -97,6 +104,16 @@ export function summarizeAlignment(criteria: Criterion[], results: CriterionResu
     unscoredPreferences,
     allRequiredMet: requiredUnmet === 0 && requiredUnknown === 0 && requiredTotal > 0,
   };
+}
+
+/**
+ * A result that carries its own share of the weight, such as an academic record
+ * graded along a scale, counts for that share rather than for its status band.
+ */
+function graded(result: CriterionResult | undefined): number | null {
+  if (!result || result.status === "unknown") return null;
+  if (typeof result.score !== "number" || typeof result.maxScore !== "number" || result.maxScore <= 0) return null;
+  return Math.max(0, Math.min(1, result.score / result.maxScore));
 }
 
 function round(value: number): number {

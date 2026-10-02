@@ -89,3 +89,23 @@ describe("applicant fit", () => {
     expect(fit.summary.requiredMet).toBe(1);
   });
 });
+
+describe("leniency", () => {
+  it("gives half credit for a required criterion that is only partly met", () => {
+    const criteria = [criterion({ id: "req", type: "year_level", label: "Year 3+", required: true, importance: "required" })];
+    const partial = applicantFit(criteria, [result({ criterionId: "req", status: "partially_met" })], match(null));
+    const missed = applicantFit(criteria, [result({ criterionId: "req", status: "not_met" })], match(null));
+    expect(partial.percent).toBe(50);
+    expect(missed.percent).toBe(0);
+  });
+
+  it("counts a graded preference for its own share of the weight", () => {
+    const criteria = [criterion({ id: "gpa", type: "academic_metric", label: "GPA", importance: "high" })];
+    const fit = applicantFit(
+      criteria,
+      [result({ criterionId: "gpa", status: "partially_met", score: 2.1, maxScore: 3 })],
+      match(null),
+    );
+    expect(fit.percent).toBe(70);
+  });
+});

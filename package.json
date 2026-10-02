@@ -23,7 +23,8 @@
     "start:next": "next start",
     "db:demo": "tsx scripts/demo-content.ts",
     "db:demo:applicants": "tsx scripts/demo-applicants.ts",
-    "digest:weekly": "tsx scripts/weekly-digest.ts"
+    "digest:weekly": "tsx scripts/weekly-digest.ts",
+    "db:rescore-academic": "tsx scripts/rescore-academic.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",

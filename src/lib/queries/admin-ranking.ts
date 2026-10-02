@@ -3,9 +3,8 @@ import { aiAnalyses, db } from "@/db";
 import { ANALYSIS_TYPE } from "@/lib/ai/application-analysis";
 import type { ApplicantFit } from "@/lib/criteria/fit";
 import type { Criterion } from "@/lib/criteria/types";
-import type { DurationOption } from "@/lib/labels";
 import { listApplicantsForOpportunity, type ApplicantRow } from "./applications";
-import { loadApplicantFits } from "./fit";
+import { loadApplicantFits, matchInputFromDetail } from "./fit";
 import { loadOpportunityDetail } from "./opportunities";
 
 export type AnalysisRun = {
@@ -52,16 +51,7 @@ export async function loadRankedApplicants(opportunityId: string) {
 
   const fitInput = {
     criteria,
-    opportunity: {
-      fieldNames: detail.fields.map((field) => field.name),
-      skillNames: detail.skills.map((skill) => skill.name),
-      durations: detail.durations as DurationOption[],
-      compensationType: detail.opportunity.compensationType,
-      hoursPerWeekMin: detail.opportunity.hoursPerWeekMin,
-      locationMode: detail.opportunity.locationMode,
-      beginnerFriendly: detail.opportunity.beginnerFriendly,
-      priorResearchRequired: detail.opportunity.priorResearchRequired,
-    },
+    opportunity: matchInputFromDetail(detail),
     applicants: applicants.map((applicant) => ({
       applicationId: applicant.id,
       studentId: applicant.studentId,

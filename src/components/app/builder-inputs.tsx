@@ -14,7 +14,7 @@ const CONFIG_HINTS: Record<string, { label: string; placeholder: string; hint: s
   prior_research: { label: "Minimum experiences", placeholder: "1", hint: "Leave at 1 unless you need more than one prior role." },
   research_interest: { label: "Research fields", placeholder: "Epidemiology, Cardiology", hint: "Separate with commas." },
   technique: { label: "Keywords", placeholder: "MRI, preprocessing, EEG", hint: "Used to find related descriptions in written answers." },
-  academic_metric: { label: "Minimum value", placeholder: "9", hint: "On the institution scale configured for your university. Students on other scales are marked as not enough information." },
+  academic_metric: { label: "Minimum value", placeholder: "9", hint: "On the 12 point scale. Students who shared a 4.0 scale or a percentage are compared by letter-grade equivalent, and a grade just under the minimum counts as partly met." },
   written_response: { label: "Not applicable", placeholder: "", hint: "Assessed from written answers rather than a stored field." },
   custom: { label: "Not applicable", placeholder: "", hint: "Assessed from written answers rather than a stored field." },
 };

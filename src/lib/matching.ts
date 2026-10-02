@@ -1,3 +1,5 @@
+import { DISCIPLINES } from "@/lib/disciplines";
+import { slugify } from "@/lib/format";
 import {
   COMPENSATION_PREFERENCE_LABELS,
   DURATION_LABELS,
@@ -29,6 +31,8 @@ export type DimensionScore = {
   score: number | null;
   weight: number;
   reason: string | null;
+  /** True when the reason is something to flag rather than a point in favour. */
+  caveat?: boolean;
 };
 
 export type MatchResult = {
@@ -84,6 +88,53 @@ export function compensationBuckets(opportunity: {
   return [...buckets];
 }
 
+/**
+ * How much credit a near miss earns on each dimension. Matching used to be all
+ * or nothing, which meant a student interested in Neuroscience scored zero on a
+ * Neurology listing and a student who could give eight hours scored zero on a
+ * ten-hour one. Neither is a bad fit, and both fell off the list. A near miss
+ * now earns part of the weight and is still named as a caveat.
+ */
+export const PARTIAL_CREDIT = {
+  /** A listing field in the same discipline as one of the student's interests. */
+  relatedField: 0.5,
+  /** A length one step away from one the student asked for. */
+  nearbyDuration: 0.5,
+  /** A different kind of compensation from the one the student wanted. */
+  otherCompensation: 0.3,
+  /** Listed skills, none of which this listing names. Skills are learnable. */
+  noSharedSkill: 0.25,
+  /** The lowest share of a listing's minimum hours that still earns credit. */
+  hoursFloor: 0.75,
+} as const;
+
+/** Points taken off for no prior research on a listing that requires it. */
+export const PRIOR_RESEARCH_PENALTY = 6;
+
+const DISCIPLINES_BY_AREA = (() => {
+  const map = new Map<string, Set<string>>();
+  for (const discipline of DISCIPLINES) {
+    for (const area of discipline.areas) {
+      const key = slugify(area);
+      map.set(key, new Set([...(map.get(key) ?? []), discipline.slug]));
+    }
+  }
+  return map;
+})();
+
+function disciplinesOf(fieldName: string): Set<string> {
+  return DISCIPLINES_BY_AREA.get(slugify(fieldName)) ?? new Set();
+}
+
+/** Lengths a step apart. A one-semester student is a reasonable ask for a two-semester project. */
+const NEARBY_DURATIONS: Record<DurationOption, DurationOption[]> = {
+  one_semester: ["two_semesters", "summer_only"],
+  summer_only: ["one_semester"],
+  two_semesters: ["one_semester", "one_year"],
+  one_year: ["two_semesters", "multi_year"],
+  multi_year: ["one_year"],
+};
+
 function listPhrase(values: string[]): string {
   if (values.length <= 1) return values[0] ?? "";
   if (values.length === 2) return `${values[0]} and ${values[1]}`;
@@ -120,61 +171,98 @@ export type OpportunityMatchInput = {
 export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityMatchInput): MatchResult {
   const dimensions: DimensionScore[] = [];
 
-  // Research interest.
+  // Research interest. An exact field counts in full; a field in the same
+  // discipline as one the student named counts for part of it.
   if (student.fieldNames.length > 0 && opportunity.fieldNames.length > 0) {
     const studentFields = lowerSet(student.fieldNames);
+    const studentDisciplines = new Set(student.fieldNames.flatMap((name) => [...disciplinesOf(name)]));
     const matched = opportunity.fieldNames.filter((name) => studentFields.has(name.toLowerCase()));
-    const ratio = Math.min(matched.length / Math.min(opportunity.fieldNames.length, 2), 1);
+    const related = opportunity.fieldNames.filter(
+      (name) =>
+        !studentFields.has(name.toLowerCase()) && [...disciplinesOf(name)].some((slug) => studentDisciplines.has(slug)),
+    );
+    const credit = matched.length + related.length * PARTIAL_CREDIT.relatedField;
+    const ratio = Math.min(credit / Math.min(opportunity.fieldNames.length, 2), 1);
     dimensions.push({
       dimension: "interest",
       score: ratio * MATCH_WEIGHTS.interest,
       weight: MATCH_WEIGHTS.interest,
-      reason: matched.length > 0 ? `Matches your interest in ${listPhrase(matched.slice(0, 2))}` : null,
+      reason:
+        matched.length > 0
+          ? `Matches your interest in ${listPhrase(matched.slice(0, 2))}`
+          : related.length > 0
+            ? `Close to your research interests: ${listPhrase(related.slice(0, 2))}`
+            : null,
     });
   } else {
     dimensions.push({ dimension: "interest", score: null, weight: MATCH_WEIGHTS.interest, reason: null });
   }
 
   // Duration. Overlap on any single value is a full match: a student wanting one
-  // term and a supervisor open to one term or a year want the same thing.
+  // term and a supervisor open to one term or a year want the same thing. A
+  // length one step away is a partial match rather than none.
   if (student.durations.length > 0 && opportunity.durations.length > 0) {
     const shared = overlap(opportunity.durations, student.durations);
-    dimensions.push({
-      dimension: "duration",
-      score: shared.length > 0 ? MATCH_WEIGHTS.duration : 0,
-      weight: MATCH_WEIGHTS.duration,
-      reason:
-        shared.length > 0
-          ? `Runs for ${listPhrase(shared.map((value) => DURATION_LABELS[value].toLowerCase()))}, which you are looking for`
-          : "Runs for a different length than you are looking for",
-    });
+    const nearby = opportunity.durations.filter((value) =>
+      student.durations.some((wanted) => NEARBY_DURATIONS[wanted]?.includes(value)),
+    );
+    if (shared.length > 0) {
+      dimensions.push({
+        dimension: "duration",
+        score: MATCH_WEIGHTS.duration,
+        weight: MATCH_WEIGHTS.duration,
+        reason: `Runs for ${listPhrase(shared.map((value) => DURATION_LABELS[value].toLowerCase()))}, which you are looking for`,
+      });
+    } else if (nearby.length > 0) {
+      dimensions.push({
+        dimension: "duration",
+        score: MATCH_WEIGHTS.duration * PARTIAL_CREDIT.nearbyDuration,
+        weight: MATCH_WEIGHTS.duration,
+        reason: `Runs for ${listPhrase(nearby.map((value) => DURATION_LABELS[value].toLowerCase()))}, a different length than you are looking for but close to it`,
+        caveat: true,
+      });
+    } else {
+      dimensions.push({
+        dimension: "duration",
+        score: 0,
+        weight: MATCH_WEIGHTS.duration,
+        reason: "Runs for a different length than you are looking for",
+        caveat: true,
+      });
+    }
   } else {
     dimensions.push({ dimension: "duration", score: null, weight: MATCH_WEIGHTS.duration, reason: null });
   }
 
   // Paid, volunteer, or for credit. A listing can sit in more than one bucket,
-  // and matching any single one the student asked for is a full match.
+  // and matching any single one the student asked for is a full match. A
+  // different kind still earns a little: plenty of students would take an
+  // unpaid position in the right lab, and only they can decide that.
   const buckets = compensationBuckets(opportunity);
   if (student.compensationPreferences.length > 0 && buckets.length > 0) {
     const matchedBuckets = overlap(buckets, student.compensationPreferences);
+    const matched = matchedBuckets.length > 0;
     dimensions.push({
       dimension: "compensation",
-      score: matchedBuckets.length > 0 ? MATCH_WEIGHTS.compensation : 0,
+      score: matched ? MATCH_WEIGHTS.compensation : MATCH_WEIGHTS.compensation * PARTIAL_CREDIT.otherCompensation,
       weight: MATCH_WEIGHTS.compensation,
-      reason:
-        matchedBuckets.length > 0
-          ? listPhrase(matchedBuckets.map((value) => COMPENSATION_PREFERENCE_LABELS[value]))
-          : "Not the kind of position you said you were looking for",
+      reason: matched
+        ? listPhrase(matchedBuckets.map((value) => COMPENSATION_PREFERENCE_LABELS[value]))
+        : "Not the kind of position you said you were looking for",
+      caveat: !matched,
     });
   } else {
     dimensions.push({ dimension: "compensation", score: null, weight: MATCH_WEIGHTS.compensation, reason: null });
   }
 
-  // Skills.
+  // Skills. Someone who listed skills, just not these ones, can learn them.
   if (student.skillNames.length > 0 && opportunity.skillNames.length > 0) {
     const studentSkills = lowerSet(student.skillNames);
     const matched = opportunity.skillNames.filter((name) => studentSkills.has(name.toLowerCase()));
-    const ratio = Math.min(matched.length / Math.min(opportunity.skillNames.length, 3), 1);
+    const ratio = Math.max(
+      Math.min(matched.length / Math.min(opportunity.skillNames.length, 3), 1),
+      PARTIAL_CREDIT.noSharedSkill,
+    );
     dimensions.push({
       dimension: "skills",
       score: ratio * MATCH_WEIGHTS.skills,
@@ -185,13 +273,14 @@ export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityM
     dimensions.push({ dimension: "skills", score: null, weight: MATCH_WEIGHTS.skills, reason: null });
   }
 
-  // Hours and location.
+  // Hours and location. A student a few hours short of the minimum is close
+  // enough to be worth a conversation, so hours earn credit in proportion.
   const availabilityChecks: number[] = [];
   let availabilityReason: string | null = null;
-  if (student.weeklyHours !== null && opportunity.hoursPerWeekMin !== null) {
-    const fits = student.weeklyHours >= opportunity.hoursPerWeekMin;
-    availabilityChecks.push(fits ? 1 : 0);
-    if (fits) availabilityReason = `Fits your ${student.weeklyHours} hours per week`;
+  if (student.weeklyHours !== null && opportunity.hoursPerWeekMin !== null && opportunity.hoursPerWeekMin > 0) {
+    const share = student.weeklyHours / opportunity.hoursPerWeekMin;
+    availabilityChecks.push(share >= 1 ? 1 : share >= PARTIAL_CREDIT.hoursFloor ? share : 0);
+    if (share >= 1) availabilityReason = `Fits your ${student.weeklyHours} hours per week`;
   }
   if (student.locationPreference) {
     const fits = opportunity.locationMode === student.locationPreference || opportunity.locationMode === "hybrid";
@@ -215,19 +304,17 @@ export function scoreMatch(student: StudentMatchInput, opportunity: OpportunityM
   // Experience fit is a nudge rather than a dimension: it moves a listing up or
   // down the page without ever being the reason one is shown.
   const reasons = dimensions
-    .filter((entry) => entry.score !== null && entry.score > 0 && entry.reason)
+    .filter((entry) => !entry.caveat && entry.score !== null && entry.score > 0 && entry.reason)
     .map((entry) => entry.reason as string);
 
-  const caveats = dimensions
-    .filter((entry) => entry.score === 0 && entry.reason)
-    .map((entry) => entry.reason as string);
+  const caveats = dimensions.filter((entry) => entry.caveat && entry.reason).map((entry) => entry.reason as string);
 
   if (!student.hasExperience && opportunity.beginnerFriendly) {
     points += 4;
     reasons.push("Open to students without previous research");
   }
   if (!student.hasExperience && opportunity.priorResearchRequired) {
-    points -= 10;
+    points -= PRIOR_RESEARCH_PENALTY;
   }
 
   const percent = applicableWeight > 0 ? Math.max(0, Math.min(100, Math.round((points / applicableWeight) * 100))) : null;
