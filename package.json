@@ -25,7 +25,8 @@
     "db:demo:applicants": "tsx scripts/demo-applicants.ts",
     "digest:weekly": "tsx scripts/weekly-digest.ts",
     "db:rescore-criteria": "tsx scripts/rescore-criteria.ts",
-    "db:refresh-evidence": "tsx scripts/refresh-evidence.ts"
+    "db:refresh-evidence": "tsx scripts/refresh-evidence.ts",
+    "db:rerun-matching": "tsx scripts/rerun-matching.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",

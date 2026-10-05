@@ -138,6 +138,59 @@ function sameResult(stored: { status: string; score: string | null; evidence: st
   );
 }
 
+export type SubmittedRow = { applicationId: string; studentId: string; profile: unknown };
+
+/**
+ * The evidence each submitted application is judged on: the snapshot the
+ * student submitted, with the current reading of their resume when it is the
+ * resume they submitted (so a model reading that finished after submission
+ * counts). Applications with no real snapshot fall back to the current profile.
+ * Written answers are not included; callers that need them add them.
+ */
+export async function loadSubmittedEvidence(rows: SubmittedRow[]): Promise<Map<string, ApplicantEvidence>> {
+  const result = new Map<string, ApplicantEvidence>();
+  if (rows.length === 0) return result;
+
+  const fieldNames = new Set<string>();
+  for (const row of rows) {
+    if (!isProfileSnapshot(row.profile)) continue;
+    for (const name of row.profile.researchFields ?? []) fieldNames.add(name);
+  }
+  const fieldSlugs = new Map<string, string>();
+  if (fieldNames.size > 0) {
+    const fieldRows = await db
+      .select({ name: researchFields.name, slug: researchFields.slug })
+      .from(researchFields)
+      .where(inArray(researchFields.name, [...fieldNames]));
+    for (const field of fieldRows) fieldSlugs.set(field.name.toLowerCase(), field.slug);
+  }
+
+  // The current reading of each student's resume. It is used for an
+  // application when the resume is the one that was submitted, which also lets
+  // a model reading that finished after submission count.
+  const current = await loadDocumentedEvidence(rows.map((row) => row.studentId));
+  const currentResume = new Map(
+    (
+      await db
+        .select({ id: studentProfiles.userId, resumeFileId: studentProfiles.resumeFileId })
+        .from(studentProfiles)
+        .where(inArray(studentProfiles.userId, [...new Set(rows.map((row) => row.studentId))]))
+    ).map((row) => [row.id, row.resumeFileId]),
+  );
+
+  for (const row of rows) {
+    if (isProfileSnapshot(row.profile)) {
+      const sameResume = (row.profile.resumeFileId ?? null) === (currentResume.get(row.studentId) ?? null);
+      const documented = sameResume || !row.profile.documented ? current.get(row.studentId) : row.profile.documented;
+      result.set(row.applicationId, evidenceFromSnapshot(row.profile, fieldSlugs, documented));
+    } else {
+      const bundle = await loadStudentProfile(row.studentId);
+      if (bundle) result.set(row.applicationId, toApplicantEvidence(bundle, []));
+    }
+  }
+  return result;
+}
+
 /**
  * Re-evaluates every rule-based criterion on every submitted application, so
  * results stored under older rules (GPA that never counted, a year of study
@@ -193,20 +246,6 @@ export async function rescoreDeterministicCriteria(options: { studentId?: string
     );
   if (rows.length === 0) return { applications: 0, evaluated: 0, changed: 0 };
 
-  const fieldNames = new Set<string>();
-  for (const row of rows) {
-    if (!isProfileSnapshot(row.profile)) continue;
-    for (const name of row.profile.researchFields ?? []) fieldNames.add(name);
-  }
-  const fieldSlugs = new Map<string, string>();
-  if (fieldNames.size > 0) {
-    const fieldRows = await db
-      .select({ name: researchFields.name, slug: researchFields.slug })
-      .from(researchFields)
-      .where(inArray(researchFields.name, [...fieldNames]));
-    for (const field of fieldRows) fieldSlugs.set(field.name.toLowerCase(), field.slug);
-  }
-
   const storedRows = await db
     .select({
       applicationId: criterionEvaluations.applicationId,
@@ -227,31 +266,12 @@ export async function rescoreDeterministicCriteria(options: { studentId?: string
     );
   const stored = new Map(storedRows.map((row) => [`${row.applicationId}:${row.criterionId}`, row]));
 
-  // The current reading of each student's resume. It is used for an
-  // application when the resume is the one that was submitted, which also lets
-  // a model reading that finished after submission count.
-  const current = await loadDocumentedEvidence(rows.map((row) => row.studentId));
-  const currentResume = new Map(
-    (
-      await db
-        .select({ id: studentProfiles.userId, resumeFileId: studentProfiles.resumeFileId })
-        .from(studentProfiles)
-        .where(inArray(studentProfiles.userId, [...new Set(rows.map((row) => row.studentId))]))
-    ).map((row) => [row.id, row.resumeFileId]),
-  );
+  const evidenceBy = await loadSubmittedEvidence(rows);
 
   let evaluated = 0;
   let changed = 0;
   for (const row of rows) {
-    let evidence: ApplicantEvidence | null = null;
-    if (isProfileSnapshot(row.profile)) {
-      const sameResume = (row.profile.resumeFileId ?? null) === (currentResume.get(row.studentId) ?? null);
-      const documented = sameResume || !row.profile.documented ? current.get(row.studentId) : row.profile.documented;
-      evidence = evidenceFromSnapshot(row.profile, fieldSlugs, documented);
-    } else {
-      const bundle = await loadStudentProfile(row.studentId);
-      if (bundle) evidence = toApplicantEvidence(bundle, []);
-    }
+    const evidence = evidenceBy.get(row.applicationId);
     if (!evidence) continue;
 
     const results = evaluateDeterministic(criteriaByOpportunity.get(row.opportunityId) ?? [], evidence);

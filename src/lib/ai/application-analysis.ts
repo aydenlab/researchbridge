@@ -25,7 +25,7 @@ import {
 } from "./schemas";
 import { singleFlight } from "./single-flight";
 
-const ANALYSIS_TYPE = "application_criteria_evidence";
+export const ANALYSIS_TYPE = "application_criteria_evidence";
 
 export type AnalysisState =
   | { state: "ready"; analysis: ApplicationAnalysis; model: string | null; createdAt: Date }
@@ -368,4 +368,3 @@ export function analysisToCriterionResults(
   return results;
 }
 
-export { ANALYSIS_TYPE };
