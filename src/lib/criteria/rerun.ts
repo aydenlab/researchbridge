@@ -1,12 +1,13 @@
 import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
-import { aiAnalyses, applicationSnapshots, applications, db } from "@/db";
+import { aiAnalyses, applicationSnapshots, applications, criterionEvaluations, db, opportunityCriteria } from "@/db";
 import { ANALYSIS_TYPE, analysisInputHash, runApplicationAnalysis } from "@/lib/ai/application-analysis";
-import { refreshStaleEvidence } from "@/lib/evidence/refresh";
+import { refreshStaleEvidence, staleEvidenceStudentIds } from "@/lib/evidence/refresh";
+import { loadRankedApplicants } from "@/lib/queries/admin-ranking";
 import { PAID_COMPENSATION } from "@/lib/labels";
 import { log } from "@/lib/log";
 import { loadApplication, loadCriteria } from "@/lib/queries/applications";
 import { loadSubmittedEvidence, rescoreDeterministicCriteria } from "./rescore";
-import { AI_ASSISTED_TYPES, type Criterion } from "./types";
+import { AI_ASSISTED_TYPES, DETERMINISTIC_TYPES, type Criterion } from "./types";
 
 /** Failures that mean "stop calling the model for now", not "this one input is bad". */
 const STOP_REASONS = new Set(["throttled", "budget_exceeded", "provider_unavailable", "missing_api_key", "invalid_api_key"]);
@@ -21,7 +22,9 @@ const STOP_REASONS = new Set(["throttled", "budget_exceeded", "provider_unavaila
  * inputs are unchanged costs nothing. It stops at the first sign of throttling
  * or an exhausted budget and picks up from there on the next run.
  */
-export async function rerunApplicationAnalyses(options: { limit?: number } = {}) {
+export async function rerunApplicationAnalyses(
+  options: { limit?: number; opportunityId?: string; studentId?: string; dryRun?: boolean } = {},
+) {
   const rows = await db
     .select({
       applicationId: applications.id,
@@ -31,7 +34,13 @@ export async function rerunApplicationAnalyses(options: { limit?: number } = {})
     })
     .from(applications)
     .leftJoin(applicationSnapshots, eq(applicationSnapshots.applicationId, applications.id))
-    .where(notInArray(applications.status, ["draft", "withdrawn"]));
+    .where(
+      and(
+        notInArray(applications.status, ["draft", "withdrawn"]),
+        options.opportunityId ? eq(applications.opportunityId, options.opportunityId) : undefined,
+        options.studentId ? eq(applications.studentId, options.studentId) : undefined,
+      ),
+    );
   if (rows.length === 0) return { applications: 0, stale: 0, rerun: 0, stopped: null as string | null };
 
   const evidenceBy = await loadSubmittedEvidence(rows);
@@ -90,6 +99,7 @@ export async function rerunApplicationAnalyses(options: { limit?: number } = {})
     if (latest.get(row.applicationId) === analysisInputHash(input)) continue;
 
     stale += 1;
+    if (options.dryRun) continue;
     const state = await runApplicationAnalysis({
       applicationId: row.applicationId,
       criteria,
@@ -128,4 +138,58 @@ export async function rerunAllMatching(options: { useModel: boolean; analysisLim
   const analyses = options.useModel ? await rerunApplicationAnalyses({ limit: options.analysisLimit }) : null;
   log.info("matching_rerun_completed", { evidence, criteria, analyses });
   return { evidence, criteria, analyses };
+}
+
+/**
+ * Counts anything matching has left out of date, without changing it. Every
+ * number should be zero once the background pass has caught up; it is logged
+ * after each pass so production can be checked without database access.
+ */
+export async function matchingHealth() {
+  const submitted = await db
+    .select({ id: applications.id, opportunityId: applications.opportunityId, studentId: applications.studentId })
+    .from(applications)
+    .where(notInArray(applications.status, ["draft", "withdrawn"]));
+
+  const deterministic = await db
+    .select({ id: opportunityCriteria.id, opportunityId: opportunityCriteria.opportunityId })
+    .from(opportunityCriteria)
+    .where(inArray(opportunityCriteria.type, DETERMINISTIC_TYPES));
+  const graded = new Set(
+    (
+      await db
+        .select({ applicationId: criterionEvaluations.applicationId, criterionId: criterionEvaluations.criterionId })
+        .from(criterionEvaluations)
+        .where(eq(criterionEvaluations.source, "deterministic"))
+    ).map((row) => `${row.applicationId}:${row.criterionId}`),
+  );
+  const criteriaFor = new Map<string, string[]>();
+  for (const row of deterministic) criteriaFor.set(row.opportunityId, [...(criteriaFor.get(row.opportunityId) ?? []), row.id]);
+  const ungraded = submitted.filter((application) =>
+    (criteriaFor.get(application.opportunityId) ?? []).some((criterionId) => !graded.has(`${application.id}:${criterionId}`)),
+  ).length;
+
+  const analyses = await rerunApplicationAnalyses({ dryRun: true });
+  const pendingResumes = (await staleEvidenceStudentIds({ includeModelPending: true })).length;
+
+  // Every applicant on every position gets a fit figure; count any that fail.
+  let fitsComputed = 0;
+  let fitFailures = 0;
+  for (const opportunityId of new Set(submitted.map((row) => row.opportunityId))) {
+    try {
+      const ranked = await loadRankedApplicants(opportunityId);
+      fitsComputed += ranked?.ranked.filter((row) => Number.isFinite(row.fit.percent)).length ?? 0;
+    } catch {
+      fitFailures += 1;
+    }
+  }
+
+  return {
+    applications: submitted.length,
+    ungradedApplications: ungraded,
+    staleAnalyses: analyses.stale,
+    resumesAwaitingReading: pendingResumes,
+    fitsComputed,
+    fitFailures,
+  };
 }

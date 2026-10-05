@@ -40,6 +40,7 @@ import { PROJECT_OUTCOME_LABELS } from "@/lib/labels";
 import { log } from "@/lib/log";
 import { isEnabled } from "@/lib/flags";
 
+import { queueOpportunityRegrade } from "@/lib/evidence/queue";
 import { activeFutureOpportunity } from "@/lib/queries/researcher";
 import { ensureResearchField, ensureSkill } from "@/lib/queries/taxonomy";
 import {
@@ -573,6 +574,8 @@ export async function saveCriteriaStepAction(_prev: ActionResult | null, formDat
       await tx.delete(opportunityCriteria).where(eq(opportunityCriteria.opportunityId, opportunity.id));
       if (rows.length > 0) await tx.insert(opportunityCriteria).values(rows);
     });
+    // Replacing criteria drops existing applicants' stored results with them.
+    queueOpportunityRegrade(opportunity.id);
 
     await db.delete(opportunitySkills).where(eq(opportunitySkills.opportunityId, opportunity.id));
     const seen = new Set<string>();

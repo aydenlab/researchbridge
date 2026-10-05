@@ -1,4 +1,4 @@
-import { rerunApplicationAnalyses } from "@/lib/criteria/rerun";
+import { matchingHealth, rerunApplicationAnalyses } from "@/lib/criteria/rerun";
 import { rescoreDeterministicCriteria } from "@/lib/criteria/rescore";
 import { log } from "@/lib/log";
 import { refreshStaleEvidence } from "./refresh";
@@ -22,12 +22,17 @@ export async function runEvidenceBackfill(): Promise<void> {
   running = true;
   try {
     const result = await refreshStaleEvidence({ useModel: true, limit: BATCH });
-    if (result.updated > 0) await rescoreDeterministicCriteria();
     log.info("evidence_backfill_completed", result);
+    // Every pass re-grades every application. It only writes results that
+    // changed, so it is cheap, and it means nothing a missed trigger left
+    // behind (an edited posting, a late resume reading) stays wrong for long.
+    const regraded = await rescoreDeterministicCriteria();
+    log.info("criteria_backfill_completed", regraded);
     // Written-response analysis whose inputs changed (new resume readings,
     // edited criteria, a new prompt) is re-run here too, a batch at a time.
     const analyses = await rerunApplicationAnalyses({ limit: BATCH });
     log.info("analysis_backfill_completed", analyses);
+    log.info("matching_health", await matchingHealth());
   } catch (error) {
     log.error("evidence_backfill_failed", { error: String(error) });
   } finally {

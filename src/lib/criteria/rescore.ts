@@ -202,7 +202,9 @@ export async function loadSubmittedEvidence(rows: SubmittedRow[]): Promise<Map<s
  * Only rows whose result actually changed are written, so it is cheap to run
  * on every start.
  */
-export async function rescoreDeterministicCriteria(options: { studentId?: string } = {}): Promise<{
+export async function rescoreDeterministicCriteria(
+  options: { studentId?: string; opportunityId?: string } = {},
+): Promise<{
   applications: number;
   evaluated: number;
   changed: number;
@@ -210,7 +212,12 @@ export async function rescoreDeterministicCriteria(options: { studentId?: string
   const criterionRows = await db
     .select()
     .from(opportunityCriteria)
-    .where(inArray(opportunityCriteria.type, DETERMINISTIC_TYPES));
+    .where(
+      and(
+        inArray(opportunityCriteria.type, DETERMINISTIC_TYPES),
+        options.opportunityId ? eq(opportunityCriteria.opportunityId, options.opportunityId) : undefined,
+      ),
+    );
   if (criterionRows.length === 0) return { applications: 0, evaluated: 0, changed: 0 };
 
   const criteriaByOpportunity = new Map<string, Criterion[]>();
