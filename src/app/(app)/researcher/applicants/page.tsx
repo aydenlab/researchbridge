@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Video } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/app/status-pill";
@@ -22,6 +23,18 @@ export const metadata: Metadata = {
   title: "All applicants",
   robots: { index: false, follow: false },
 };
+
+function VideoMark() {
+  return (
+    <span
+      title="Sent a video response"
+      className="ml-2 inline-flex items-center gap-1 rounded-full border border-[#c9ddd0] bg-moss px-2 py-0.5 align-middle text-[10.5px] font-medium text-forest"
+    >
+      <Video className="size-3" aria-hidden="true" />
+      Video
+    </span>
+  );
+}
 
 function toArray(value: string | string[] | undefined): string[] {
   if (!value) return [];
@@ -197,6 +210,7 @@ export default async function AllApplicantsPage({
                       >
                         {row.displayName}
                       </Link>
+                      {row.hasVideo ? <VideoMark /> : null}
                       <p className="mt-0.5 text-[12.5px] text-muted">
                         {row.program ?? "Program not set"}
                         {row.yearLevel ? `, year ${row.yearLevel}` : ""}
@@ -249,6 +263,7 @@ export default async function AllApplicantsPage({
                       >
                         {row.displayName}
                       </Link>
+                      {row.hasVideo ? <VideoMark /> : null}
                     </p>
                     <p className="mt-0.5 text-[12.5px] text-muted">
                       {row.program ?? "Program not set"}

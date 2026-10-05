@@ -13,6 +13,7 @@ import {
   MapPin,
   Target,
   Users,
+  Video,
 } from "lucide-react";
 import { db, opportunities } from "@/db";
 import { Badge, Tag } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ import {
 } from "@/lib/labels";
 import { countApplications, loadOpportunityBySlug, studentOpportunityState } from "@/lib/queries/opportunities";
 import { loadStudentProfile, toApplicantEvidence } from "@/lib/queries/student";
+import { formatVideoLength, splitVideoQuestion, visibleQuestions } from "@/lib/video-links";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -122,6 +124,10 @@ export default async function OpportunityDetailPage({ params }: Params) {
   const isOwner = user?.id === detail.opportunity.researcherId;
 
   if (detail.opportunity.status !== "published" && !isOwner && user?.role !== "admin") notFound();
+
+  const { video: videoQuestion, written: writtenQuestions } = splitVideoQuestion(
+    visibleQuestions(detail.questions, detail.opportunity.videoResponseEnabled),
+  );
 
   const [applicationCount, state] = await Promise.all([
     countApplications(detail.opportunity.id),
@@ -582,9 +588,11 @@ export default async function OpportunityDetailPage({ params }: Params) {
             ) : null}
 
             <Section title="Application requirements" eyebrow="What you will be asked">
-              {detail.questions.length === 0 ? (
+              {writtenQuestions.length === 0 ? (
                 <p className="text-[14.5px] leading-7 text-muted">
-                  This position asks only for your ResearchBridge profile. There are no additional questions.
+                  {videoQuestion
+                    ? "Your ResearchBridge profile is included automatically. There are no written questions."
+                    : "This position asks only for your ResearchBridge profile. There are no additional questions."}
                 </p>
               ) : (
                 <>
@@ -592,7 +600,7 @@ export default async function OpportunityDetailPage({ params }: Params) {
                     Your ResearchBridge profile is included automatically. In addition, this researcher asks for:
                   </p>
                   <ol className="mt-3 flex flex-col gap-2">
-                    {detail.questions.map((question, index) => (
+                    {writtenQuestions.map((question, index) => (
                       <li key={question.id} className="rounded-[10px] border border-line bg-white px-4 py-3">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <p className="text-[14.5px] leading-6 text-ink">
@@ -616,12 +624,25 @@ export default async function OpportunityDetailPage({ params }: Params) {
                   </ol>
                 </>
               )}
-              {detail.opportunity.videoResponseEnabled ? (
-                <p className="mt-4 rounded-[10px] border border-[#e6d7ae] bg-gold-soft px-4 py-3 text-[13.5px] leading-6 text-warn">
-                  This researcher has enabled a short video response for this position, up to{" "}
-                  {detail.opportunity.videoMaxSeconds ?? 60} seconds. You are told before the recording step begins, and
-                  nothing about your appearance is analyzed.
-                </p>
+              {videoQuestion ? (
+                <div className="mt-4 rounded-[10px] border border-[#e6d7ae] bg-gold-soft px-4 py-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="inline-flex items-center gap-2 text-[14px] font-medium text-ink">
+                      <Video className="size-4 text-warn" aria-hidden="true" />
+                      A short video, up to {formatVideoLength(detail.opportunity.videoMaxSeconds)}
+                    </p>
+                    <Badge tone={videoQuestion.required ? "clay" : "outline"}>
+                      {videoQuestion.required ? "Required" : "Optional"}
+                    </Badge>
+                  </div>
+                  <blockquote className="mt-2 border-l-2 border-[#e6d7ae] pl-3 text-[14px] leading-6 text-ink">
+                    {videoQuestion.prompt}
+                  </blockquote>
+                  <p className="mt-2 text-[13px] leading-6 text-warn">
+                    Record on Loom or upload an unlisted YouTube video, then paste the link into your application.
+                    Nothing is uploaded to ResearchBridge, and nothing about your appearance or voice is analyzed.
+                  </p>
+                </div>
               ) : null}
             </Section>
 

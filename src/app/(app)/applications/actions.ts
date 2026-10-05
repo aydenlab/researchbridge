@@ -30,6 +30,14 @@ import { loadApplication, loadCriteria, persistCriterionResults } from "@/lib/qu
 import { loadStudentProfile, toApplicantEvidence } from "@/lib/queries/student";
 import { storeFile } from "@/lib/storage";
 import { queueEvidenceRefresh } from "@/lib/evidence/queue";
+import {
+  isVideoProvider,
+  parseVideoLink,
+  splitVideoQuestion,
+  videoLinkProblem,
+  visibleQuestions,
+  type VideoAnswer,
+} from "@/lib/video-links";
 
 async function requireOwnedDraft(applicationId: string) {
   const user = await requireStudent();
@@ -60,13 +68,16 @@ async function persistAnswers(applicationId: string, questions: (typeof opportun
     }
 
     if (question.type === "video_response") {
-      const value = optionalText(formData, key);
+      // Absent when the request is switched off, so the form never showed it.
+      // Leave whatever was saved alone rather than blanking it.
+      if (!formData.has(key)) continue;
+      const structuredAnswer = readVideoAnswer(formData, key);
       await db
         .insert(applicationAnswers)
-        .values({ applicationId, questionId: question.id, structuredAnswer: { externalUrl: value } })
+        .values({ applicationId, questionId: question.id, structuredAnswer })
         .onConflictDoUpdate({
           target: [applicationAnswers.applicationId, applicationAnswers.questionId],
-          set: { structuredAnswer: { externalUrl: value }, updatedAt: new Date() },
+          set: { structuredAnswer, updatedAt: new Date() },
         });
       continue;
     }
@@ -80,6 +91,67 @@ async function persistAnswers(applicationId: string, questions: (typeof opportun
         set: { textAnswer: value, updatedAt: new Date() },
       });
   }
+}
+
+/**
+ * A pasted video link, stored tidied up when it is a Loom or YouTube video
+ * and as typed when it is not. A draft keeps a half-pasted link so nothing is
+ * lost; the submit check is what refuses one that cannot be played.
+ */
+function readVideoAnswer(formData: FormData, key: string): VideoAnswer {
+  const raw = optionalText(formData, key);
+  const chosen = formData.get(`${key}_provider`);
+  const parsed = parseVideoLink(raw);
+  return {
+    provider: parsed?.provider ?? (isVideoProvider(chosen) ? chosen : null),
+    externalUrl: parsed?.url ?? raw,
+    videoId: parsed?.id ?? null,
+  };
+}
+
+/**
+ * What still stands between a draft and submission, by form field. Written
+ * questions are named by their number on the form; the video is named as such
+ * because it is not numbered there.
+ */
+function missingAnswers(
+  questions: (typeof opportunityQuestions.$inferSelect)[],
+  answers: Map<string, typeof applicationAnswers.$inferSelect>,
+) {
+  const { written } = splitVideoQuestion(questions);
+  const fieldErrors: Record<string, string[]> = {};
+  const needed: string[] = [];
+
+  for (const question of questions) {
+    const key = `q_${question.id}`;
+    const answer = answers.get(question.id);
+
+    if (question.type === "video_response") {
+      const stored = (answer?.structuredAnswer ?? null) as VideoAnswer | null;
+      const link = stored?.externalUrl?.trim() ?? "";
+      if (link && !parseVideoLink(link)) {
+        fieldErrors[key] = [videoLinkProblem(link, isVideoProvider(stored?.provider) ? stored.provider : null) ?? ""];
+        needed.push("a working video link");
+      } else if (!link && question.required) {
+        fieldErrors[key] = ["Add the link to your video. This researcher asks every applicant for one."];
+        needed.push("your video");
+      }
+      continue;
+    }
+
+    if (!question.required) continue;
+    const empty = !answer
+      ? true
+      : question.type === "file_upload"
+        ? !answer.fileId
+        : !answer.textAnswer || answer.textAnswer.trim().length === 0;
+    if (empty) {
+      fieldErrors[key] = ["This question is required."];
+      needed.push(`question ${written.indexOf(question) + 1}`);
+    }
+  }
+
+  return { fieldErrors, needed };
 }
 
 /**
@@ -136,25 +208,16 @@ export async function submitApplicationAction(_prev: ActionResult | null, formDa
     if (!refreshed) return { ok: false as const, error: "That application could not be found." };
 
     const answersByQuestion = new Map(refreshed.answers.map((answer) => [answer.questionId, answer]));
-    const missing = refreshed.questions.filter((question) => {
-      if (!question.required) return false;
-      const answer = answersByQuestion.get(question.id);
-      if (!answer) return true;
-      if (question.type === "file_upload") return !answer.fileId;
-      if (question.type === "video_response") {
-        const structured = answer.structuredAnswer as { externalUrl?: string } | null;
-        return !structured?.externalUrl;
-      }
-      return !answer.textAnswer || answer.textAnswer.trim().length === 0;
-    });
+    const { fieldErrors, needed } = missingAnswers(
+      visibleQuestions(refreshed.questions, refreshed.opportunity.videoResponseEnabled),
+      answersByQuestion,
+    );
 
-    if (missing.length > 0) {
+    if (needed.length > 0) {
       return {
         ok: false as const,
-        error: `Answer every required question before submitting. Still needed: ${missing
-          .map((question, index) => `question ${index + 1}`)
-          .join(", ")}. Your draft is saved.`,
-        fieldErrors: Object.fromEntries(missing.map((question) => [`q_${question.id}`, ["This question is required."]])),
+        error: `Answer every required question before submitting. Still needed: ${needed.join(", ")}. Your draft is saved.`,
+        fieldErrors,
       };
     }
 

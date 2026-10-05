@@ -1,6 +1,7 @@
 import { and, desc, eq, exists, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 import { applications, db, opportunities, studentCourseTypes, studentProfiles } from "@/db";
 import { APPLICATION_STATUSES, isActive } from "@/lib/application-status";
+import { applicationsWithVideo } from "@/lib/queries/applications";
 
 export async function researcherOpportunities(researcherId: string) {
   const rows = await db
@@ -107,6 +108,8 @@ export type AllApplicantRow = {
   locationPreference: string | null;
   /** What this student is applying as, falling back to what their profile says. */
   courseTypes: string[];
+  /** Whether a playable Loom or YouTube video came with the application. */
+  hasVideo: boolean;
 };
 
 /**
@@ -200,6 +203,8 @@ export async function listAllApplicants(researcherId: string, filters: AllApplic
         .where(inArray(studentCourseTypes.studentId, studentIds))
     : [];
 
+  const withVideo = new Set(await applicationsWithVideo(rows.map((row) => row.id)));
+
   const profileBy = new Map<string, string[]>();
   for (const row of profileCourseTypes) {
     profileBy.set(row.studentId, [...(profileBy.get(row.studentId) ?? []), row.courseType]);
@@ -219,6 +224,7 @@ export async function listAllApplicants(researcherId: string, filters: AllApplic
     weeklyHours: row.weeklyHours,
     locationPreference: row.locationPreference,
     courseTypes: row.appliedCourseType ? [row.appliedCourseType] : profileBy.get(row.studentId) ?? [],
+    hasVideo: withVideo.has(row.id),
   }));
 
   return { items, total, page, perPage, pageCount: Math.max(1, Math.ceil(total / perPage)) };

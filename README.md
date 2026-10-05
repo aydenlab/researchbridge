@@ -79,7 +79,7 @@ Open http://localhost:3000.
 | `FILE_STORAGE_BUCKET` | No | Bucket name for object storage. |
 | `FILE_STORAGE_PUBLIC_URL` | No | Public base URL for object storage. |
 | `AI_ANALYSIS_ENABLED` | No | Initial value of the feature flag. |
-| `VIDEO_RESPONSES_ENABLED` | No | Initial value of the feature flag. Off by default. |
+| `VIDEO_RESPONSES_ENABLED` | No | Initial value of the feature flag that lets researchers ask for a Loom or YouTube video. On by default. Videos are never uploaded to ResearchBridge. |
 | `WAITLIST_ENABLED` | No | Initial value of the feature flag. |
 | `PUBLIC_SIGNUP_ENABLED` | No | Initial value of the feature flag. |
 | `RESEARCHER_SIGNUP_ENABLED` | No | Initial value of the feature flag. |

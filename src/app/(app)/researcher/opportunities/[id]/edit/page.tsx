@@ -20,6 +20,7 @@ import { loadOpportunityDetail } from "@/lib/queries/opportunities";
 import { listDepartments, listResearchFields, listSkills } from "@/lib/queries/taxonomy";
 import { CriteriaStep, LogisticsStep, PaperStep, ProjectStep, PublishStep, QuestionsStep, RoleStep, VideoStep } from "./step-forms";
 import { arrangementLabel } from "@/lib/future-opportunity";
+import { visibleQuestions } from "@/lib/video-links";
 
 export const metadata: Metadata = {
   title: "Edit opportunity",
@@ -33,7 +34,7 @@ const STEPS: Step[] = [
   { number: 4, label: "Candidate criteria", description: "What matters for this project, and how much each item counts." },
   { number: 5, label: "Application questions", description: "Questions written for this project rather than a generic form." },
   { number: 6, label: "Research paper", description: "Optionally attach a paper and ask applicants to respond to it." },
-  { number: 7, label: "Video response", description: "Optional. Off by default and never a platform requirement." },
+  { number: 7, label: "Video response", description: "Optional. Ask applicants for a short Loom or YouTube video." },
   { number: 8, label: "Preview", description: "Exactly what a student sees before they apply." },
   { number: 9, label: "Publish", description: "Confirm and make the listing live." },
 ];
@@ -81,6 +82,8 @@ export default async function EditOpportunityPage({
 
   const material = detail.materials[0];
   const paperQuestion = detail.questions.find((question) => question.type === "paper_response");
+  const videoQuestion = detail.questions.find((question) => question.type === "video_response");
+  const previewQuestions = visibleQuestions(detail.questions, detail.opportunity.videoResponseEnabled);
   const openQuestions = detail.questions.filter(
     (question) => question.type !== "paper_response" && question.type !== "video_response",
   );
@@ -200,9 +203,10 @@ export default async function EditOpportunityPage({
         <VideoStep
           id={id}
           draft={{
-            videoResponseEnabled: detail.opportunity.videoResponseEnabled,
-            videoPrompt: detail.opportunity.videoPrompt ?? "",
-            videoMaxSeconds: detail.opportunity.videoMaxSeconds ?? 60,
+            enabled: detail.opportunity.videoResponseEnabled,
+            prompt: detail.opportunity.videoPrompt ?? "",
+            required: videoQuestion?.required ?? true,
+            maxSeconds: detail.opportunity.videoMaxSeconds ?? 60,
           }}
           featureEnabled={videoFeature}
         />
@@ -293,11 +297,11 @@ export default async function EditOpportunityPage({
               </p>
             )}
 
-            {detail.questions.length > 0 ? (
+            {previewQuestions.length > 0 ? (
               <div className="mt-5">
                 <p className="text-[12px] font-medium text-subtle">Application questions</p>
                 <ol className="mt-2 flex flex-col gap-1.5">
-                  {detail.questions.map((question, index) => (
+                  {previewQuestions.map((question, index) => (
                     <li key={question.id} className="rounded-[8px] border border-line px-3 py-2">
                       <p className="text-[13.5px] leading-6 text-ink">
                         <span className="mr-2 font-mono text-[11.5px] text-subtle">{String(index + 1).padStart(2, "0")}</span>

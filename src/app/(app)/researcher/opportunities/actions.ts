@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -53,7 +53,9 @@ import {
   roleStepSchema,
   simpleOpportunitySchema,
   videoStepSchema,
+  type VideoRequestInput,
 } from "@/lib/validation/opportunity";
+import { VIDEO_PROMPT_SUGGESTIONS } from "@/lib/video-links";
 
 const TOTAL_STEPS = 9;
 
@@ -71,6 +73,63 @@ async function uniqueSlug(title: string, opportunityId: string): Promise<string>
     counter += 1;
     candidate = `${base}-${counter}`;
   }
+}
+
+/** Questions that are written by their own wizard step rather than the open question list. */
+const STEP_OWNED_QUESTIONS = ["paper_response", "video_response"] as const;
+
+/**
+ * Records whether a position asks for a video and what it should cover.
+ *
+ * The opportunity columns say whether the request is live; the question row is
+ * what a student's answer hangs off. Switching the request off leaves that row
+ * in place, because deleting it would cascade away videos students already
+ * sent, and turning it back on picks the same row up again.
+ */
+async function applyVideoRequest(opportunityId: string, input: VideoRequestInput) {
+  const prompt = input.videoPrompt ?? VIDEO_PROMPT_SUGGESTIONS[0];
+  await db.transaction(async (tx) => {
+    await tx
+      .update(opportunities)
+      .set({
+        videoResponseEnabled: input.videoResponseEnabled,
+        // Kept while switched off so turning it back on restores what was written.
+        ...(input.videoResponseEnabled ? { videoPrompt: prompt, videoMaxSeconds: input.videoMaxSeconds } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(opportunities.id, opportunityId));
+
+    if (!input.videoResponseEnabled) return;
+
+    const [existing] = await tx
+      .select({ id: opportunityQuestions.id })
+      .from(opportunityQuestions)
+      .where(and(eq(opportunityQuestions.opportunityId, opportunityId), eq(opportunityQuestions.type, "video_response")))
+      .limit(1);
+
+    const values = {
+      prompt,
+      helpText: null,
+      required: input.videoRequired,
+      config: { maxSeconds: input.videoMaxSeconds },
+    };
+
+    if (existing) {
+      await tx.update(opportunityQuestions).set(values).where(eq(opportunityQuestions.id, existing.id));
+      return;
+    }
+
+    const [{ count }] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(opportunityQuestions)
+      .where(eq(opportunityQuestions.opportunityId, opportunityId));
+    await tx.insert(opportunityQuestions).values({
+      opportunityId,
+      type: "video_response",
+      sortOrder: count,
+      ...values,
+    });
+  });
 }
 
 /**
@@ -181,6 +240,10 @@ export async function createSimpleOpportunityAction(
         .insert(opportunitySkills)
         .values({ opportunityId: row.id, skillId, requirementLevel: "preferred" })
         .onConflictDoNothing();
+    }
+
+    if (data.videoResponseEnabled && (await isEnabled("VIDEO_RESPONSES_ENABLED"))) {
+      await applyVideoRequest(row.id, data);
     }
 
     await recordEvent({
@@ -616,12 +679,6 @@ export async function saveQuestionsStepAction(_prev: ActionResult | null, formDa
     const options = formData.getAll("questionOptions").map(String);
     const maxLengths = formData.getAll("questionMaxLength").map(String);
 
-    const existing = await db
-      .select()
-      .from(opportunityQuestions)
-      .where(eq(opportunityQuestions.opportunityId, opportunity.id));
-    const paperQuestion = existing.find((question) => question.type === "paper_response");
-
     const rows: (typeof opportunityQuestions.$inferInsert)[] = [];
     for (let index = 0; index < prompts.length; index += 1) {
       const prompt = prompts[index]?.trim();
@@ -646,21 +703,26 @@ export async function saveQuestionsStepAction(_prev: ActionResult | null, formDa
       });
     }
 
-    if (paperQuestion) {
-      rows.push({
-        opportunityId: opportunity.id,
-        type: "paper_response",
-        prompt: paperQuestion.prompt,
-        helpText: paperQuestion.helpText,
-        required: paperQuestion.required,
-        config: paperQuestion.config,
-        sortOrder: rows.length,
-      });
-    }
-
+    // The paper and video questions belong to their own steps. Deleting and
+    // recreating them here would cascade away every answer students gave to
+    // them, so only the open questions are rewritten and those two keep their
+    // rows, moved after the new list.
     await db.transaction(async (tx) => {
-      await tx.delete(opportunityQuestions).where(eq(opportunityQuestions.opportunityId, opportunity.id));
+      await tx
+        .delete(opportunityQuestions)
+        .where(
+          and(
+            eq(opportunityQuestions.opportunityId, opportunity.id),
+            notInArray(opportunityQuestions.type, [...STEP_OWNED_QUESTIONS]),
+          ),
+        );
       if (rows.length > 0) await tx.insert(opportunityQuestions).values(rows);
+      for (const [offset, type] of STEP_OWNED_QUESTIONS.entries()) {
+        await tx
+          .update(opportunityQuestions)
+          .set({ sortOrder: rows.length + offset })
+          .where(and(eq(opportunityQuestions.opportunityId, opportunity.id), eq(opportunityQuestions.type, type)));
+      }
     });
 
     await advance(opportunity.id, 5);
@@ -741,49 +803,16 @@ export async function saveVideoStepAction(_prev: ActionResult | null, formData: 
 
   try {
     const { opportunity } = await requireManagedOpportunity(opportunityId);
-    await db
-      .update(opportunities)
-      .set({
-        videoResponseEnabled: parsed.data.videoResponseEnabled,
-        videoPrompt: parsed.data.videoPrompt,
-        videoMaxSeconds: parsed.data.videoMaxSeconds,
-        updatedAt: new Date(),
-      })
-      .where(eq(opportunities.id, opportunity.id));
-
-    const existing = await db
-      .select()
-      .from(opportunityQuestions)
-      .where(and(eq(opportunityQuestions.opportunityId, opportunity.id), eq(opportunityQuestions.type, "video_response")));
-
-    if (parsed.data.videoResponseEnabled) {
-      const prompt = parsed.data.videoPrompt ?? "Record a short introduction describing why this project interests you.";
-      if (existing[0]) {
-        await db.update(opportunityQuestions).set({ prompt }).where(eq(opportunityQuestions.id, existing[0].id));
-      } else {
-        const [{ count }] = await db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(opportunityQuestions)
-          .where(eq(opportunityQuestions.opportunityId, opportunity.id));
-        await db.insert(opportunityQuestions).values({
-          opportunityId: opportunity.id,
-          type: "video_response",
-          prompt,
-          helpText: "Record it wherever you like and paste a link the researcher can open.",
-          required: false,
-          config: { maxSeconds: parsed.data.videoMaxSeconds },
-          sortOrder: count,
-        });
-      }
-    } else if (existing[0]) {
-      await db.delete(opportunityQuestions).where(eq(opportunityQuestions.id, existing[0].id));
+    if (parsed.data.videoResponseEnabled && !(await isEnabled("VIDEO_RESPONSES_ENABLED"))) {
+      return { ok: false as const, error: "Video responses are switched off on ResearchBridge at the moment." };
     }
-
+    await applyVideoRequest(opportunity.id, parsed.data);
     await advance(opportunity.id, 7);
   } catch (error) {
     return toActionError(error, "save_video_step_failed");
   }
 
+  revalidatePath(`/researcher/opportunities/${opportunityId}/applicants`, "layout");
   redirect(`/researcher/opportunities/${opportunityId}/edit?step=8`);
 }
 

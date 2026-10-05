@@ -6,6 +6,7 @@ import { CheckCircle2 } from "lucide-react";
 import { db, placementOutcomes } from "@/db";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/app/status-pill";
+import { VideoEmbed } from "@/components/app/video-embed";
 import { Badge } from "@/components/ui/badge";
 import { requireStudent } from "@/lib/auth/permissions";
 import { STATUS_LABELS, STUDENT_STATUS_DESCRIPTION, type ApplicationStatus } from "@/lib/application-status";
@@ -16,6 +17,7 @@ import { listReferences, MAX_REFERENCES_PER_APPLICATION } from "@/lib/queries/re
 import { OutcomeForm, WithdrawForm } from "./client-forms";
 import { ReferenceSection } from "./reference-section";
 import { arrangementLabel } from "@/lib/future-opportunity";
+import { splitVideoQuestion, videoFromAnswer, type VideoAnswer } from "@/lib/video-links";
 
 export const metadata: Metadata = {
   title: "Application",
@@ -41,6 +43,10 @@ export default async function ApplicationDetailPage({
 
   const references = await listReferences(id);
   const answersByQuestion = new Map(bundle.answers.map((answer) => [answer.questionId, answer]));
+  const { video: videoQuestion, written } = splitVideoQuestion(bundle.questions);
+  const videoAnswer = videoQuestion ? (answersByQuestion.get(videoQuestion.id)?.structuredAnswer ?? null) : null;
+  const sentVideo = videoFromAnswer(videoAnswer);
+  const sentLink = (videoAnswer as VideoAnswer | null)?.externalUrl ?? null;
   const status = bundle.application.status as ApplicationStatus;
   const canWithdraw = !["withdrawn", "declined", "position_filled", "draft"].includes(status);
   const showOutcomePrompt =
@@ -90,13 +96,13 @@ export default async function ApplicationDetailPage({
             <h2 className="font-display text-[19px] text-ink" style={{ letterSpacing: "-0.4px" }}>
               What you sent
             </h2>
-            {bundle.questions.length === 0 ? (
+            {written.length === 0 && !sentLink ? (
               <p className="mt-3 text-[14.5px] leading-7 text-muted">
                 This position asked only for your ResearchBridge profile.
               </p>
             ) : (
               <ol className="mt-4 flex flex-col gap-5">
-                {bundle.questions.map((question, index) => {
+                {written.map((question, index) => {
                   const answer = answersByQuestion.get(question.id);
                   const external = (answer?.structuredAnswer as { externalUrl?: string } | null)?.externalUrl;
                   return (
@@ -133,6 +139,26 @@ export default async function ApplicationDetailPage({
                 })}
               </ol>
             )}
+            {videoQuestion && sentLink ? (
+              <div className="mt-5 border-t border-line pt-4">
+                <p className="text-[14.5px] leading-6 text-ink">{videoQuestion.prompt}</p>
+                <p className="mt-1 text-[11.5px] text-subtle">{labelOr(QUESTION_TYPE_LABELS, videoQuestion.type)}</p>
+                <div className="mt-2.5">
+                  {sentVideo ? (
+                    <VideoEmbed video={sentVideo} title="Your video response" />
+                  ) : (
+                    <a
+                      href={sentLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[13.5px] text-forest underline decoration-line-strong underline-offset-4"
+                    >
+                      {sentLink}
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <ReferenceSection

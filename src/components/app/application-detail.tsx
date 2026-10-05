@@ -1,11 +1,13 @@
 import { FileText } from "lucide-react";
 import { Tag } from "@/components/ui/badge";
 import { DocumentedEvidenceSummary } from "@/components/app/documented-evidence";
+import { VideoEmbed } from "@/components/app/video-embed";
 import { formatDate, formatMonth } from "@/lib/format";
 import { formatMetric } from "@/lib/gpa";
 import { COURSE_STATUS_LABELS, LOCATION_LABELS, PROFICIENCY_LABELS, QUESTION_TYPE_LABELS, labelOr } from "@/lib/labels";
 import type { ApplicationBundle } from "@/lib/queries/applications";
 import { loadStudentProfile, toAcademicMetrics } from "@/lib/queries/student";
+import { splitVideoQuestion, videoFromAnswer, type VideoAnswer } from "@/lib/video-links";
 
 export function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
@@ -33,17 +35,59 @@ export function ApplicationDetail({
 }) {
   const answersByQuestion = new Map(bundle.answers.map((answer) => [answer.questionId, answer]));
   const metrics = profile ? toAcademicMetrics(profile.academicRecords) : [];
+  const { video: videoQuestion, written } = splitVideoQuestion(bundle.questions);
+  const videoAnswer = videoQuestion ? answersByQuestion.get(videoQuestion.id)?.structuredAnswer ?? null : null;
+  const video = videoFromAnswer(videoAnswer);
+  const unplayableLink = !video ? (videoAnswer as VideoAnswer | null)?.externalUrl ?? null : null;
+  // A video sent before the request was switched off is still shown; an empty
+  // panel for a request that is no longer live is not.
+  const showVideo = Boolean(videoQuestion) && (bundle.opportunity.videoResponseEnabled || Boolean(video || unplayableLink));
 
   return (
     <>
+      {showVideo && videoQuestion ? (
+        <Panel
+          title="Video response"
+          subtitle="Hosted on the student's own Loom or YouTube account. Not analyzed, and not part of the fit figure."
+        >
+          <figure className="mb-4 rounded-[8px] border border-line bg-shell/60 px-3.5 py-2.5">
+            <figcaption className="text-[11.5px] text-subtle">
+              You asked{videoQuestion.required ? "" : " (optional)"}
+            </figcaption>
+            <blockquote className="mt-0.5 text-[14px] leading-6 text-ink">{videoQuestion.prompt}</blockquote>
+          </figure>
+          {video ? (
+            <VideoEmbed video={video} title={`Video response from ${bundle.student.preferredName ?? bundle.student.firstName}`} />
+          ) : unplayableLink ? (
+            <p className="text-[13.5px] leading-6 text-muted">
+              The link sent cannot be played here.{" "}
+              <a
+                href={unplayableLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-forest underline decoration-line-strong underline-offset-4"
+              >
+                Open it directly
+              </a>
+              .
+            </p>
+          ) : (
+            <p className="text-[13.5px] leading-6 text-muted">
+              {videoQuestion.required ? "No video was attached." : "This applicant chose not to send a video."}
+            </p>
+          )}
+        </Panel>
+      ) : null}
+
       <Panel title="Application responses" subtitle="Written for this position, in the order the questions were asked.">
-        {bundle.questions.length === 0 ? (
+        {written.length === 0 ? (
           <p className="text-[13.5px] leading-6 text-muted">
-            This position asked only for the student profile, so there are no written responses.
+            This position asked only for the student profile{showVideo ? " and a video" : ""}, so there are no written
+            responses.
           </p>
         ) : (
           <ol className="flex flex-col gap-5">
-            {bundle.questions.map((question, position) => {
+            {written.map((question, position) => {
               const answer = answersByQuestion.get(question.id);
               const external = (answer?.structuredAnswer as { externalUrl?: string } | null)?.externalUrl;
               return (

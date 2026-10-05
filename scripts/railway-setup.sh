@@ -56,7 +56,7 @@ railway variables \
   --set "EMAIL_FROM=ResearchBridge <hello@myresearchbridge.com>" \
   --set "FILE_STORAGE_PROVIDER=local" \
   --set "AI_ANALYSIS_ENABLED=true" \
-  --set "VIDEO_RESPONSES_ENABLED=false" \
+  --set "VIDEO_RESPONSES_ENABLED=true" \
   --set "WAITLIST_ENABLED=true" \
   --set "PUBLIC_SIGNUP_ENABLED=true" \
   --set "RESEARCHER_SIGNUP_ENABLED=true"

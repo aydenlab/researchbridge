@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { TokenField } from "@/components/app/inputs";
 import { ResearchAreaPicker, type PickerField } from "@/components/app/research-area-picker";
+import { VideoRequestFields } from "@/components/app/video-request-fields";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CheckboxRow, Field, FormError, FormNote, Input, Textarea } from "@/components/ui/field";
 import type { FormValues, ResubmitResult } from "@/lib/action-utils";
@@ -88,6 +89,7 @@ export function SimpleOpportunityForm({
   skillGroups,
   department,
   verified,
+  videoFeature,
 }: {
   fields: PickerField[];
   /** The researcher's own disciplines, so the field list starts narrowed to their work. */
@@ -96,6 +98,8 @@ export function SimpleOpportunityForm({
   department: string;
   /** An unverified account can still post; the listing waits for a reviewer. */
   verified: boolean;
+  /** Whether ResearchBridge currently lets a posting ask for a video. */
+  videoFeature: boolean;
 }) {
   const [state, action] = useActionState<ResubmitResult | null, FormData>(createSimpleOpportunityAction, null);
   const fieldErrors = state?.ok === false ? state.fieldErrors : undefined;
@@ -301,9 +305,26 @@ export function SimpleOpportunityForm({
         <WeightSliders initial={submitted} />
       </Section>
 
+      {videoFeature ? (
+        <Section
+          title="Video response"
+          description="Optional. Ask applicants for a short Loom or YouTube video when hearing from them would help you choose, and say exactly what you want them to cover."
+        >
+          <VideoRequestFields
+            initial={{
+              enabled: checked("videoResponseEnabled"),
+              prompt: text("videoPrompt"),
+              required: text("videoRequired", "true") !== "false",
+              maxSeconds: Number(text("videoMaxSeconds", "60")) || 60,
+            }}
+            errors={fieldErrors}
+          />
+        </Section>
+      ) : null}
+
       <FormNote>
         {verified
-          ? "Posting publishes the listing straight away. Application questions, screening criteria, a paper to respond to, and a video prompt are all added afterwards by editing the position."
+          ? "Posting publishes the listing straight away. Application questions, screening criteria, and a paper to respond to are added afterwards by editing the position."
           : "Your account is still being verified, so this listing is submitted for review rather than published. You do not have to wait here for that; you can keep editing it in the meantime."}
       </FormNote>
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search, Video, X } from "lucide-react";
 import { StatusPill } from "@/components/app/status-pill";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/components/ui/cn";
@@ -41,6 +41,18 @@ function FitChip({ fit }: { fit: RailFit }) {
       )}
     >
       {fit.percent}%
+    </span>
+  );
+}
+
+function VideoChip() {
+  return (
+    <span
+      title="Sent a video response"
+      className="inline-flex items-center gap-1 rounded-full border border-[#c9ddd0] bg-moss px-2 py-0.5 text-[10.5px] font-medium text-forest"
+    >
+      <Video className="size-3" aria-hidden="true" />
+      Video
     </span>
   );
 }
@@ -271,6 +283,7 @@ export function ApplicantRail({
 
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <StatusPill status={applicant.status as ApplicationStatus} />
+                      {applicant.hasVideo ? <VideoChip /> : null}
                       {applicant.noteCount > 0 ? (
                         <span className="text-[11.5px] text-subtle">
                           {applicant.noteCount} {applicant.noteCount === 1 ? "note" : "notes"}

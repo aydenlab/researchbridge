@@ -119,6 +119,33 @@ export const reviewPostingSchema = z.object({
 });
 
 /**
+ * A researcher's request for a video response. Shared by the one-page posting
+ * form and the edit wizard. "Required" arrives as a "true"/"false" radio rather
+ * than a checkbox, so it is read literally: coercing the string "false" to a
+ * boolean would make every video mandatory.
+ */
+const videoRequestFields = {
+  videoResponseEnabled: z.coerce.boolean().default(false),
+  videoPrompt: optionalText(600),
+  videoRequired: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  videoMaxSeconds: z.coerce
+    .number()
+    .int()
+    .min(15, "Choose a length of at least 15 seconds.")
+    .max(300, "Keep it to five minutes or less.")
+    .default(60),
+};
+
+const VIDEO_PROMPT_REQUIRED = "Tell applicants what the video should cover.";
+
+function videoPromptGiven(value: { videoResponseEnabled: boolean; videoPrompt: string | null }) {
+  return !value.videoResponseEnabled || Boolean(value.videoPrompt);
+}
+
+/**
  * The one-page posting form, and the only way a listing is created. It asks
  * only for what a listing cannot be published without, so a supervisor who
  * already knows what they want is not walked through nine screens to say it.
@@ -142,7 +169,9 @@ export const simpleOpportunitySchema = z
     academicCreditAvailable: z.coerce.boolean().default(false),
     beginnerFriendly: z.coerce.boolean().default(false),
     priorResearchRequired: z.coerce.boolean().default(false),
+    ...videoRequestFields,
   })
+  .refine(videoPromptGiven, { message: VIDEO_PROMPT_REQUIRED, path: ["videoPrompt"] })
   .refine((value) => value.researchFieldId === OTHER_CHOICE || uuidValue.safeParse(value.researchFieldId).success, {
     message: "Choose a research field.",
     path: ["researchFieldId"],
@@ -231,11 +260,11 @@ export const paperStepSchema = z.object({
   includePaperQuestion: z.coerce.boolean().default(false),
 });
 
-export const videoStepSchema = z.object({
-  videoResponseEnabled: z.coerce.boolean().default(false),
-  videoPrompt: optionalText(600),
-  videoMaxSeconds: z.coerce.number().int().min(15).max(180).default(60),
-});
+export const videoStepSchema = z
+  .object(videoRequestFields)
+  .refine(videoPromptGiven, { message: VIDEO_PROMPT_REQUIRED, path: ["videoPrompt"] });
+
+export type VideoRequestInput = z.infer<typeof videoStepSchema>;
 
 export const DEFAULT_PAPER_PROMPT =
   "After reviewing the research provided, describe one aspect you found particularly interesting and one direction you would be interested in exploring further.";

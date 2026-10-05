@@ -6,6 +6,7 @@ import { MultiSelectGrid } from "@/components/app/inputs";
 import { ResearchAreaPicker, type PickerField } from "@/components/app/research-area-picker";
 import { CriterionRows, OpportunitySkillRows, QuestionRows, type CriterionDraft, type QuestionDraft, type SkillDraft } from "@/components/app/builder-inputs";
 import { StepActions } from "@/components/app/onboarding-shell";
+import { VideoRequestFields, type VideoRequestDraft } from "@/components/app/video-request-fields";
 import { Field, FormError, FormNote, Input, RadioRow, Select, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
 import { COMPENSATION_LABELS, COMPENSATION_ORDER, DURATION_LABELS, DURATION_ORDER } from "@/lib/labels";
@@ -437,11 +438,10 @@ export function VideoStep({
   featureEnabled,
 }: {
   id: string;
-  draft: { videoResponseEnabled: boolean; videoPrompt: string; videoMaxSeconds: number };
+  draft: VideoRequestDraft;
   featureEnabled: boolean;
 }) {
   const [state, action] = useActionState<ActionResult | null, FormData>(saveVideoStepAction, null);
-  const [enabled, setEnabled] = useState(draft.videoResponseEnabled);
 
   return (
     <form action={action} className="flex flex-col gap-5">
@@ -450,30 +450,13 @@ export function VideoStep({
 
       <FormNote>
         {featureEnabled
-          ? "Video is off by default and is never a ResearchBridge requirement. Students record wherever they like and share a link. Nothing about appearance, delivery, or voice is analyzed, and no automated assessment is produced from it."
-          : "Video responses are switched off for this pilot. The question type exists in the data model, so it can be enabled later without changing existing listings."}
+          ? "Optional. Use it when a short video would genuinely help you choose, for example to hear why a student wants this project in particular. Students record on Loom or upload an unlisted YouTube video and paste the link, so nothing is uploaded to ResearchBridge."
+          : "Video responses are switched off on ResearchBridge at the moment. An administrator can turn them back on from the system page."}
       </FormNote>
 
-      <label className="flex cursor-pointer items-start gap-2.5 rounded-[8px] border border-line bg-white px-3 py-2.5">
-        <input
-          type="checkbox"
-          name="videoResponseEnabled"
-          value="true"
-          checked={enabled}
-          disabled={!featureEnabled}
-          onChange={(event) => setEnabled(event.target.checked)}
-          className="mt-0.5 size-4 accent-[#1d4436]"
-        />
-        <span className="text-[13.5px] text-ink">Ask applicants for a short video response</span>
-      </label>
-
-      <Field label="Video prompt" htmlFor="videoPrompt">
-        <Textarea id="videoPrompt" name="videoPrompt" rows={3} defaultValue={draft.videoPrompt} maxLength={600} disabled={!enabled} />
-      </Field>
-
-      <Field label="Target length in seconds" htmlFor="videoMaxSeconds" hint="Between 15 and 180 seconds. Around 30 to 60 works well.">
-        <Input id="videoMaxSeconds" name="videoMaxSeconds" type="number" min={15} max={180} defaultValue={draft.videoMaxSeconds} disabled={!enabled} />
-      </Field>
+      {featureEnabled ? (
+        <VideoRequestFields initial={draft} errors={state?.ok === false ? state.fieldErrors : undefined} />
+      ) : null}
 
       <Actions backHref={base(id, 6)} />
     </form>

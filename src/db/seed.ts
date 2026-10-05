@@ -7,6 +7,7 @@ import { evaluateDeterministic } from "../lib/criteria/engine";
 import type { Criterion } from "../lib/criteria/types";
 import { loadStudentProfile, toApplicantEvidence } from "../lib/queries/student";
 import { persistCriterionResults } from "../lib/queries/applications";
+import { parseVideoLink } from "../lib/video-links";
 
 type Ids = Record<string, string>;
 
@@ -215,7 +216,7 @@ async function main() {
 
   await db.insert(s.featureFlags).values([
     { key: "AI_ANALYSIS_ENABLED", enabled: true, description: "Claude evidence analysis on applications." },
-    { key: "VIDEO_RESPONSES_ENABLED", enabled: false, description: "Allow researchers to request a video response." },
+    { key: "VIDEO_RESPONSES_ENABLED", enabled: true, description: "Allow researchers to request a Loom or YouTube video on a position." },
     { key: "WAITLIST_ENABLED", enabled: true, description: "Public waitlist forms accept submissions." },
     { key: "PUBLIC_SIGNUP_ENABLED", enabled: true, description: "Students can create accounts directly." },
     { key: "RESEARCHER_SIGNUP_ENABLED", enabled: true, description: "Researchers can create accounts directly." },
@@ -1808,12 +1809,41 @@ async function main() {
     note: "Jordan volunteered with our reading group for two terms and did the unglamorous half of the work without being asked twice. I would take them in the lab.",
   });
 
-  const applicationSeeds = [
+  // One listing asks for an optional video, so the request, the student's link,
+  // and the embedded player on the review screen can all be seen locally.
+  const cardioVideoPrompt = "Introduce yourself and tell us why you want to join this project specifically.";
+  await db
+    .update(s.opportunities)
+    .set({ videoResponseEnabled: true, videoPrompt: cardioVideoPrompt, videoMaxSeconds: 90 })
+    .where(eq(s.opportunities.id, opportunityIds.cardio));
+  const [cardioVideoQuestion] = await db
+    .insert(s.opportunityQuestions)
+    .values({
+      opportunityId: opportunityIds.cardio,
+      type: "video_response",
+      prompt: cardioVideoPrompt,
+      required: false,
+      config: { maxSeconds: 90 },
+      sortOrder: questionIds.cardio.length,
+    })
+    .returning();
+
+  const applicationSeeds: {
+    opportunity: string;
+    student: string;
+    status: (typeof s.applicationStatus.enumValues)[number];
+    daysAgo: number;
+    answers: string[];
+    /** A YouTube or Loom link for a listing that asks for a video. */
+    video?: string;
+  }[] = [
     {
       opportunity: "cardio",
       student: "adeyemij@example.edu",
       status: "under_review" as const,
       daysAgo: 5,
+      // The first video ever uploaded to YouTube: public, short, and stable.
+      video: "https://youtu.be/jNQXAC9IVRw",
       answers: [
         "I keep coming back to the same question from a first-year seminar: two patients leave hospital with the same diagnosis and the same medications, and one is readmitted within a month while the other is not. Most of the explanations I have read point at things that are already written down somewhere in the chart, which makes it feel tractable rather than mysterious.\n\nLast year I spent two terms merging longitudinal spreadsheets for a reading group, which is where I learned that the interesting part is not the analysis. Half of our disagreements were about whether a blank cell meant a test was not done or the result was not entered. I would like to work somewhere that treats that decision as part of the research rather than a nuisance.",
         "The limitation I would pick is the handling of incomplete discharge records in section three. Records missing more than two documentation fields were excluded, which is described as a conservative choice, but exclusion is only conservative if the missingness is unrelated to the outcome. If busier units document less thoroughly and also discharge sicker patients faster, then the excluded records are not a random subset and the association would be understated.\n\nThe follow-up I would want to study is whether documentation completeness varies systematically by unit and time of day, and then whether the reported association survives a sensitivity analysis that imputes rather than excludes. That would tell you whether the finding is about documentation or about the units doing the documenting.",
@@ -1970,6 +2000,15 @@ async function main() {
         textAnswer: text,
       })),
     );
+
+    const video = parseVideoLink(seed.video);
+    if (video && seed.opportunity === "cardio") {
+      await db.insert(s.applicationAnswers).values({
+        applicationId: application.id,
+        questionId: cardioVideoQuestion.id,
+        structuredAnswer: { provider: video.provider, externalUrl: video.url, videoId: video.id },
+      });
+    }
 
     await db.insert(s.applicationSnapshots).values({
       applicationId: application.id,

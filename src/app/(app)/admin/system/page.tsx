@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
 const FLAG_DESCRIPTIONS: Record<string, string> = {
   AI_ANALYSIS_ENABLED: "Claude evidence analysis on submitted applications. Deterministic criteria keep working when this is off.",
-  VIDEO_RESPONSES_ENABLED: "Allow researchers to request a short video response on a position.",
+  VIDEO_RESPONSES_ENABLED: "Allow researchers to ask applicants for a Loom or YouTube video on a position.",
   WAITLIST_ENABLED: "Public waitlist and researcher interest forms accept submissions.",
   PUBLIC_SIGNUP_ENABLED: "New accounts can be created directly from an institutional email.",
   OPPORTUNITY_REVIEW_REQUIRED:

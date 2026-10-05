@@ -7,6 +7,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { db, researcherFields, researcherProfiles } from "@/db";
 import { isVerifiedResearcher, requireResearcher } from "@/lib/auth/permissions";
 import { OTHER_DISCIPLINE_SLUG } from "@/lib/disciplines";
+import { isEnabled } from "@/lib/flags";
 import { FUTURE_OPPORTUNITY_LABEL } from "@/lib/future-opportunity";
 import { activeFutureOpportunity } from "@/lib/queries/researcher";
 import { listResearchFields, listSkills } from "@/lib/queries/taxonomy";
@@ -44,8 +45,9 @@ export default async function NewOpportunityPage({
 
   if (path === "choose") return <ChoosePath />;
 
-  const [fields, profileRows] = await Promise.all([
+  const [fields, videoFeature, profileRows] = await Promise.all([
     listResearchFields(),
+    isEnabled("VIDEO_RESPONSES_ENABLED"),
     db
       .select({
         firstName: researcherProfiles.firstName,
@@ -155,6 +157,7 @@ export default async function NewOpportunityPage({
         skillGroups={skillGroups}
         department={profile?.department ?? ""}
         verified={verified}
+        videoFeature={videoFeature}
       />
     </div>
   );

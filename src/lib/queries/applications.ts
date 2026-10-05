@@ -174,7 +174,7 @@ export async function listApplicantsForOpportunity(opportunityId: string) {
 
   const ids = rows.map((row) => row.id);
   const studentIds = [...new Set(rows.map((row) => row.studentId))];
-  const [answerCounts, noteCounts, courseTypeRows, durationRows] = await Promise.all([
+  const [answerCounts, noteCounts, courseTypeRows, durationRows, videoRows] = await Promise.all([
     db
       .select({ applicationId: applicationAnswers.applicationId, count: sql<number>`count(*)::int` })
       .from(applicationAnswers)
@@ -193,10 +193,12 @@ export async function listApplicantsForOpportunity(opportunityId: string) {
       .select({ studentId: studentDurations.studentId, duration: studentDurations.duration })
       .from(studentDurations)
       .where(inArray(studentDurations.studentId, studentIds)),
+    applicationsWithVideo(ids),
   ]);
 
   const answerMap = new Map(answerCounts.map((row) => [row.applicationId, row.count]));
   const noteMap = new Map(noteCounts.map((row) => [row.applicationId, row.count]));
+  const withVideo = new Set(videoRows);
 
   const courseTypeMap = new Map<string, string[]>();
   for (const row of courseTypeRows) {
@@ -217,7 +219,28 @@ export async function listApplicantsForOpportunity(opportunityId: string) {
     courseTypes: row.appliedCourseType ? [row.appliedCourseType] : courseTypeMap.get(row.studentId) ?? [],
     profileCourseTypes: courseTypeMap.get(row.studentId) ?? [],
     durations: durationMap.get(row.studentId) ?? [],
+    hasVideo: withVideo.has(row.id),
   }));
+}
+
+/**
+ * Which of these applications carry a video response that can be played, so
+ * an applicant list can flag them without loading every answer.
+ */
+export async function applicationsWithVideo(applicationIds: string[]): Promise<string[]> {
+  if (applicationIds.length === 0) return [];
+  const rows = await db
+    .select({ applicationId: applicationAnswers.applicationId })
+    .from(applicationAnswers)
+    .innerJoin(opportunityQuestions, eq(opportunityQuestions.id, applicationAnswers.questionId))
+    .where(
+      and(
+        inArray(applicationAnswers.applicationId, applicationIds),
+        eq(opportunityQuestions.type, "video_response"),
+        sql`${applicationAnswers.structuredAnswer}->>'videoId' is not null`,
+      ),
+    );
+  return rows.map((row) => row.applicationId);
 }
 
 export type ApplicantRow = Awaited<ReturnType<typeof listApplicantsForOpportunity>>[number];

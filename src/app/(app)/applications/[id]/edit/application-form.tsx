@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Field, FormError, FormNote, Input, Select, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
 import { COURSE_TYPE_LABELS, COURSE_TYPE_ORDER } from "@/lib/labels";
+import type { VideoProvider } from "@/lib/video-links";
 import { saveDraftAction, submitApplicationAction } from "../../actions";
+import { VideoResponseField } from "./video-response-field";
 
 export type Question = {
   id: string;
@@ -60,9 +62,7 @@ export function ApplicationForm({
   profileSummary,
   courseType,
   profileCourseTypes,
-  videoEnabled,
-  videoPrompt,
-  videoMaxSeconds,
+  video,
 }: {
   applicationId: string;
   opportunityTitle: string;
@@ -70,15 +70,21 @@ export function ApplicationForm({
   researcherName: string;
   questions: Question[];
   materials: Material[];
-  answers: Record<string, { textAnswer: string | null; fileId: string | null; externalUrl: string | null }>;
+  answers: Record<string, { textAnswer: string | null; fileId: string | null }>;
   profileSummary: { label: string; value: string }[];
   /** Already recorded on this application, if the draft has been saved before. */
   courseType: string | null;
   /** Course types from the profile, listed first so the usual answer is one click. */
   profileCourseTypes: string[];
-  videoEnabled: boolean;
-  videoPrompt: string | null;
-  videoMaxSeconds: number;
+  /** The position's video request, when it has a live one. Kept out of the numbered questions. */
+  video: {
+    questionId: string;
+    prompt: string;
+    required: boolean;
+    maxSeconds: number | null;
+    url: string | null;
+    provider: VideoProvider | null;
+  } | null;
 }) {
   const [state, action] = useActionState<ActionResult | null, FormData>(submitApplicationAction, null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -216,149 +222,136 @@ export function ApplicationForm({
         </section>
       ) : null}
 
-      <section className="rounded-[12px] border border-line bg-white p-5">
-        <h2 className="font-display text-[20px] text-ink" style={{ letterSpacing: "-0.4px" }}>
-          Questions from {researcherName}
-        </h2>
-        <p className="mt-2 text-[13.5px] leading-6 text-muted">
-          These questions were written for this project. Your draft saves automatically as you type.
-        </p>
-
-        {questions.length === 0 ? (
-          <p className="mt-4 rounded-[10px] border border-line bg-shell/60 px-4 py-3 text-[14px] text-muted">
-            This position asks only for your profile. There is nothing else to answer.
+      {questions.length > 0 || !video ? (
+        <section className="rounded-[12px] border border-line bg-white p-5">
+          <h2 className="font-display text-[20px] text-ink" style={{ letterSpacing: "-0.4px" }}>
+            Questions from {researcherName}
+          </h2>
+          <p className="mt-2 text-[13.5px] leading-6 text-muted">
+            These questions were written for this project. Your draft saves automatically as you type.
           </p>
-        ) : null}
 
-        <div className="mt-5 flex flex-col gap-6">
-          {questions.map((question, index) => {
-            const key = `q_${question.id}`;
-            const answer = answers[question.id];
-            const maxLength = maxLengthOf(question.config);
-            const label = `${String(index + 1).padStart(2, "0")}. ${question.prompt}`;
+          {questions.length === 0 ? (
+            <p className="mt-4 rounded-[10px] border border-line bg-shell/60 px-4 py-3 text-[14px] text-muted">
+              This position asks only for your profile. There is nothing else to answer.
+            </p>
+          ) : null}
 
-            if (question.type === "yes_no") {
+          <div className="mt-5 flex flex-col gap-6">
+            {questions.map((question, index) => {
+              const key = `q_${question.id}`;
+              const answer = answers[question.id];
+              const maxLength = maxLengthOf(question.config);
+              const label = `${String(index + 1).padStart(2, "0")}. ${question.prompt}`;
+
+              if (question.type === "yes_no") {
+                return (
+                  <Field key={question.id} label={label} htmlFor={key} required={question.required} hint={question.helpText ?? undefined} error={errors?.[key]?.[0]}>
+                    <Select id={key} name={key} defaultValue={answer?.textAnswer ?? ""} required={question.required}>
+                      <option value="">Choose an answer</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </Select>
+                  </Field>
+                );
+              }
+
+              if (question.type === "multiple_choice") {
+                return (
+                  <Field key={question.id} label={label} htmlFor={key} required={question.required} hint={question.helpText ?? undefined} error={errors?.[key]?.[0]}>
+                    <Select id={key} name={key} defaultValue={answer?.textAnswer ?? ""} required={question.required}>
+                      <option value="">Choose an answer</option>
+                      {optionsOf(question.config).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                );
+              }
+
+              if (question.type === "numeric") {
+                return (
+                  <Field key={question.id} label={label} htmlFor={key} required={question.required} hint={question.helpText ?? undefined} error={errors?.[key]?.[0]}>
+                    <Input
+                      id={key}
+                      name={key}
+                      type="number"
+                      defaultValue={answer?.textAnswer ?? ""}
+                      required={question.required}
+                      min={typeof question.config.min === "number" ? question.config.min : undefined}
+                      max={typeof question.config.max === "number" ? question.config.max : undefined}
+                    />
+                  </Field>
+                );
+              }
+
+              if (question.type === "file_upload") {
+                return (
+                  <Field key={question.id} label={label} htmlFor={key} required={question.required} hint={question.helpText ?? "PDF, PNG, JPEG, or plain text up to 12 MB."} error={errors?.[key]?.[0]}>
+                    <Input id={key} name={key} type="file" accept="application/pdf,image/png,image/jpeg,text/plain" className="py-1.5" />
+                    {answer?.fileId ? (
+                      <p className="mt-1.5 inline-flex items-center gap-1.5 text-[12.5px] text-ok">
+                        <Check className="size-3.5" aria-hidden="true" />A file is already attached. Uploading again
+                        replaces it.
+                      </p>
+                    ) : null}
+                  </Field>
+                );
+              }
+
+              if (question.type === "short_text") {
+                return (
+                  <Field key={question.id} label={label} htmlFor={key} required={question.required} hint={question.helpText ?? undefined} error={errors?.[key]?.[0]}>
+                    <Input id={key} name={key} defaultValue={answer?.textAnswer ?? ""} maxLength={maxLength} required={question.required} />
+                  </Field>
+                );
+              }
+
               return (
-                <Field key={question.id} label={label} htmlFor={key} required={question.required} hint={question.helpText ?? undefined} error={errors?.[key]?.[0]}>
-                  <Select id={key} name={key} defaultValue={answer?.textAnswer ?? ""} required={question.required}>
-                    <option value="">Choose an answer</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </Select>
-                </Field>
-              );
-            }
-
-            if (question.type === "multiple_choice") {
-              return (
-                <Field key={question.id} label={label} htmlFor={key} required={question.required} hint={question.helpText ?? undefined} error={errors?.[key]?.[0]}>
-                  <Select id={key} name={key} defaultValue={answer?.textAnswer ?? ""} required={question.required}>
-                    <option value="">Choose an answer</option>
-                    {optionsOf(question.config).map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              );
-            }
-
-            if (question.type === "numeric") {
-              return (
-                <Field key={question.id} label={label} htmlFor={key} required={question.required} hint={question.helpText ?? undefined} error={errors?.[key]?.[0]}>
-                  <Input
-                    id={key}
-                    name={key}
-                    type="number"
-                    defaultValue={answer?.textAnswer ?? ""}
+                <div key={question.id}>
+                  <Field
+                    label={label}
+                    htmlFor={key}
                     required={question.required}
-                    min={typeof question.config.min === "number" ? question.config.min : undefined}
-                    max={typeof question.config.max === "number" ? question.config.max : undefined}
-                  />
-                </Field>
-              );
-            }
-
-            if (question.type === "file_upload") {
-              return (
-                <Field key={question.id} label={label} htmlFor={key} required={question.required} hint={question.helpText ?? "PDF, PNG, JPEG, or plain text up to 12 MB."} error={errors?.[key]?.[0]}>
-                  <Input id={key} name={key} type="file" accept="application/pdf,image/png,image/jpeg,text/plain" className="py-1.5" />
-                  {answer?.fileId ? (
-                    <p className="mt-1.5 inline-flex items-center gap-1.5 text-[12.5px] text-ok">
-                      <Check className="size-3.5" aria-hidden="true" />A file is already attached. Uploading again
-                      replaces it.
+                    hint={question.helpText ?? undefined}
+                    error={errors?.[key]?.[0]}
+                  >
+                    {question.type === "paper_response" ? <Badge tone="gold" className="mb-1.5">Paper response</Badge> : null}
+                    <Textarea
+                      id={key}
+                      name={key}
+                      rows={9}
+                      maxLength={maxLength}
+                      defaultValue={answer?.textAnswer ?? ""}
+                      required={question.required}
+                      onChange={(event) => setCounts((current) => ({ ...current, [question.id]: event.target.value.length }))}
+                    />
+                  </Field>
+                  {maxLength ? (
+                    <p className="mt-1 text-right text-[12px] text-subtle">
+                      {counts[question.id] ?? 0} of {maxLength} characters
                     </p>
                   ) : null}
-                </Field>
+                </div>
               );
-            }
-
-            if (question.type === "video_response") {
-              return (
-                <Field
-                  key={question.id}
-                  label={label}
-                  htmlFor={key}
-                  required={question.required}
-                  hint={question.helpText ?? "Record elsewhere and paste a link the researcher can open."}
-                  error={errors?.[key]?.[0]}
-                >
-                  <Input id={key} name={key} type="url" placeholder="https://" defaultValue={answer?.externalUrl ?? ""} />
-                </Field>
-              );
-            }
-
-            if (question.type === "short_text") {
-              return (
-                <Field key={question.id} label={label} htmlFor={key} required={question.required} hint={question.helpText ?? undefined} error={errors?.[key]?.[0]}>
-                  <Input id={key} name={key} defaultValue={answer?.textAnswer ?? ""} maxLength={maxLength} required={question.required} />
-                </Field>
-              );
-            }
-
-            return (
-              <div key={question.id}>
-                <Field
-                  label={label}
-                  htmlFor={key}
-                  required={question.required}
-                  hint={question.helpText ?? undefined}
-                  error={errors?.[key]?.[0]}
-                >
-                  {question.type === "paper_response" ? <Badge tone="gold" className="mb-1.5">Paper response</Badge> : null}
-                  <Textarea
-                    id={key}
-                    name={key}
-                    rows={9}
-                    maxLength={maxLength}
-                    defaultValue={answer?.textAnswer ?? ""}
-                    required={question.required}
-                    onChange={(event) => setCounts((current) => ({ ...current, [question.id]: event.target.value.length }))}
-                  />
-                </Field>
-                {maxLength ? (
-                  <p className="mt-1 text-right text-[12px] text-subtle">
-                    {counts[question.id] ?? 0} of {maxLength} characters
-                  </p>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {videoEnabled ? (
-        <section className="rounded-[12px] border border-[#e6d7ae] bg-gold-soft p-5">
-          <h2 className="font-display text-[19px] text-warn" style={{ letterSpacing: "-0.4px" }}>
-            This position includes a short video response
-          </h2>
-          <p className="mt-2 text-[13.5px] leading-6 text-warn">
-            {videoPrompt ?? "Record a short response to the prompt this researcher provided."} Keep it under{" "}
-            {videoMaxSeconds} seconds. Record it wherever you like and paste a link the researcher can open. Nothing
-            about your appearance, delivery, or voice is analyzed.
-          </p>
+            })}
+          </div>
         </section>
+      ) : null}
+
+      {video ? (
+        <VideoResponseField
+          name={`q_${video.questionId}`}
+          prompt={video.prompt}
+          required={video.required}
+          maxSeconds={video.maxSeconds}
+          researcherName={researcherName}
+          initialUrl={video.url}
+          initialProvider={video.provider}
+          error={errors?.[`q_${video.questionId}`]?.[0]}
+        />
       ) : null}
 
       <section className="rounded-[12px] border border-line bg-white p-5">
@@ -381,7 +374,8 @@ export function ApplicationForm({
           <div className="grid gap-1 py-2.5 sm:grid-cols-[180px_1fr] sm:gap-4">
             <dt className="text-[12.5px] text-subtle">Information shared</dt>
             <dd className="text-[13.5px] leading-6 text-ink">
-              Your profile as shown above, your answers to the questions on this page, and any files you attached.
+              Your profile as shown above, your answers to the questions on this page, and any files you attached
+              {video ? ", including the link to your video" : ""}.
             </dd>
           </div>
         </dl>

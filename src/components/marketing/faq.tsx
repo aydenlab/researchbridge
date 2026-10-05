@@ -30,7 +30,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Will I have to record a video?",
     answer: [
-      "Only if a researcher enables a video response for that particular position. It is not a general ResearchBridge requirement, and you are told before you begin the application.",
+      "Only if a researcher asks for one on that particular position. It is not a general ResearchBridge requirement, and the listing shows what the researcher wants you to cover before you start. You record on Loom or upload an unlisted YouTube video and paste the link; nothing is uploaded to ResearchBridge, and nothing about your appearance or voice is analyzed.",
     ],
   },
   {

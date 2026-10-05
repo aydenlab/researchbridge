@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/format";
 import { DEGREE_LABELS, LOCATION_LABELS, labelOr } from "@/lib/labels";
 import { loadApplication } from "@/lib/queries/applications";
 import { loadStudentProfile } from "@/lib/queries/student";
+import { isVideoProvider, splitVideoQuestion, visibleQuestions, type VideoAnswer } from "@/lib/video-links";
 import { ApplicationForm } from "./application-form";
 import { ResumeGate } from "./resume-gate";
 
@@ -36,15 +37,15 @@ export default async function EditApplicationPage({ params }: { params: Promise<
   if (!profile) redirect("/onboarding/student");
 
   const answers = Object.fromEntries(
-    bundle.answers.map((answer) => [
-      answer.questionId,
-      {
-        textAnswer: answer.textAnswer,
-        fileId: answer.fileId,
-        externalUrl: (answer.structuredAnswer as { externalUrl?: string } | null)?.externalUrl ?? null,
-      },
-    ]),
+    bundle.answers.map((answer) => [answer.questionId, { textAnswer: answer.textAnswer, fileId: answer.fileId }]),
   );
+
+  const { video: videoQuestion, written } = splitVideoQuestion(
+    visibleQuestions(bundle.questions, bundle.opportunity.videoResponseEnabled),
+  );
+  const videoAnswer = videoQuestion
+    ? ((bundle.answers.find((answer) => answer.questionId === videoQuestion.id)?.structuredAnswer ?? null) as VideoAnswer | null)
+    : null;
 
   const profileSummary = [
     {
@@ -110,7 +111,7 @@ export default async function EditApplicationPage({ params }: { params: Promise<
         opportunityTitle={bundle.opportunity.title}
         opportunitySlug={bundle.opportunity.slug}
         researcherName={`${bundle.researcher.firstName} ${bundle.researcher.lastName}`}
-        questions={bundle.questions.map((question) => ({
+        questions={written.map((question) => ({
           id: question.id,
           type: question.type,
           prompt: question.prompt,
@@ -131,9 +132,18 @@ export default async function EditApplicationPage({ params }: { params: Promise<
         profileSummary={profileSummary}
         courseType={bundle.application.courseType}
         profileCourseTypes={profile.courseTypes}
-        videoEnabled={bundle.opportunity.videoResponseEnabled}
-        videoPrompt={bundle.opportunity.videoPrompt}
-        videoMaxSeconds={bundle.opportunity.videoMaxSeconds ?? 60}
+        video={
+          videoQuestion
+            ? {
+                questionId: videoQuestion.id,
+                prompt: videoQuestion.prompt,
+                required: videoQuestion.required,
+                maxSeconds: bundle.opportunity.videoMaxSeconds,
+                url: videoAnswer?.externalUrl ?? null,
+                provider: isVideoProvider(videoAnswer?.provider) ? videoAnswer.provider : null,
+              }
+            : null
+        }
       />
     </div>
   );
