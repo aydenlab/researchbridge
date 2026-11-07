@@ -216,7 +216,7 @@ async function main() {
 
   await db.insert(s.featureFlags).values([
     { key: "AI_ANALYSIS_ENABLED", enabled: true, description: "Claude evidence analysis on applications." },
-    { key: "VIDEO_RESPONSES_ENABLED", enabled: true, description: "Allow researchers to request a Loom or YouTube video on a position." },
+    { key: "VIDEO_RESPONSES_ENABLED", enabled: true, description: "Allow researchers to request a video on a position, as a Loom or YouTube link or an uploaded file." },
     { key: "WAITLIST_ENABLED", enabled: true, description: "Public waitlist forms accept submissions." },
     { key: "PUBLIC_SIGNUP_ENABLED", enabled: true, description: "Students can create accounts directly." },
     { key: "RESEARCHER_SIGNUP_ENABLED", enabled: true, description: "Researchers can create accounts directly." },
@@ -1987,6 +1987,7 @@ async function main() {
         contactedAt: ["researcher_contacted", "interview", "accepted"].includes(seed.status)
           ? new Date(submittedAt.getTime() + 2 * 86400000)
           : null,
+        acceptedAt: seed.status === "accepted" ? new Date(submittedAt.getTime() + 3 * 86400000) : null,
         createdAt: submittedAt,
         updatedAt: submittedAt,
       })

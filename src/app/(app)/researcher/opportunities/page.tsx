@@ -129,7 +129,7 @@ export default async function ResearcherOpportunitiesPage() {
                         <span className="font-medium">{row.shortlistedCount}</span> shortlisted
                       </span>
                       <span className="text-ink">
-                        <span className="font-medium">{row.acceptedCount}</span> offers
+                        <span className="font-medium">{row.acceptedCount}</span> accepted
                       </span>
                       <span className="text-muted">{row.viewCount} views</span>
                     </div>

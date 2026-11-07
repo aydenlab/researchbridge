@@ -16,7 +16,9 @@ const nextConfig: NextConfig = {
   // Must stay above the largest FILE_RULES entry in src/lib/storage/index.ts.
   // A server action rejects an oversized body before any of our own validation
   // runs, so a lower value here silently breaks video and writing-sample
-  // uploads no matter what those rules say.
+  // uploads no matter what those rules say. A video sent with an application is
+  // larger than this and skips it, through the streaming route in
+  // app/api/applications/[id]/video.
   experimental: { serverActions: { bodySizeLimit: "64mb" } },
   /**
    * instrumentation.ts guards its digest import with a NEXT_RUNTIME check, which

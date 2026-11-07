@@ -14,15 +14,19 @@ import {
 import { getSessionUser } from "@/lib/auth/session";
 import { recordAudit } from "@/lib/events";
 import { log } from "@/lib/log";
+import { adminAcceptances } from "@/lib/queries/admin";
 
 export const dynamic = "force-dynamic";
 
-const DATASETS = ["waitlist", "researchers", "opportunities", "applications", "placements", "users"] as const;
+const DATASETS = ["waitlist", "researchers", "opportunities", "applications", "acceptances", "placements", "users"] as const;
 type Dataset = (typeof DATASETS)[number];
 
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return "";
-  const text = value instanceof Date ? value.toISOString() : String(value);
+  const raw = value instanceof Date ? value.toISOString() : String(value);
+  // Names and titles are typed by users, and a spreadsheet runs a cell opening with
+  // one of these as a formula when an admin opens the export.
+  const text = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
   return text;
 }
@@ -202,6 +206,44 @@ async function buildDataset(dataset: Dataset): Promise<{ headers: string[]; rows
         "institution",
       ],
       rows: rows.map((row) => Object.values(row)),
+    };
+  }
+
+  if (dataset === "acceptances") {
+    const rows = await adminAcceptances();
+    return {
+      headers: [
+        "accepted_at",
+        "current_status",
+        "student_first_name",
+        "student_last_name",
+        "student_preferred_name",
+        "student_email",
+        "student_program",
+        "student_year",
+        "opportunity_title",
+        "compensation_type",
+        "researcher_first_name",
+        "researcher_last_name",
+        "researcher_email",
+        "institution",
+      ],
+      rows: rows.map((row) => [
+        row.acceptedAt,
+        row.status,
+        row.studentFirst,
+        row.studentLast,
+        row.studentPreferred,
+        row.studentEmail,
+        row.studentProgram,
+        row.studentYear,
+        row.opportunityTitle,
+        row.compensationType,
+        row.researcherFirst,
+        row.researcherLast,
+        row.researcherEmail,
+        row.institutionName,
+      ]),
     };
   }
 

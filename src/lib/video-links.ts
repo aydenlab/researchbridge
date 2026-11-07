@@ -1,7 +1,8 @@
 /**
- * Video responses are never hosted by ResearchBridge. A student records on
- * Loom or uploads to YouTube and pastes the share link; everything here turns
- * that link into something the review screen can embed.
+ * A video response is either a Loom or YouTube link or a file uploaded with the
+ * application. Most of this turns a pasted link into something the review screen
+ * can embed; `readVideoResponse` is the one place both forms are told apart. The
+ * upload itself is in `app/api/applications/[id]/video`.
  *
  * Pure functions with no server imports, so the application form can check a
  * link as it is pasted using the same rules the submit action applies.
@@ -25,10 +26,31 @@ export type VideoLink = {
 
 /** What an answer row stores in `structuredAnswer` for a video question. */
 export type VideoAnswer = {
-  provider?: VideoProvider | null;
+  /** "file" records that the student chose to upload; the file itself is the answer row's `fileId`. */
+  provider?: VideoProvider | typeof VIDEO_FILE_SOURCE | null;
   externalUrl?: string | null;
   videoId?: string | null;
 };
+
+export const VIDEO_FILE_SOURCE = "file";
+
+/** Everything a stored video answer can turn out to be, for the pages that show one. */
+export type VideoResponse =
+  | { kind: "file"; fileId: string }
+  | { kind: "link"; video: VideoLink }
+  | { kind: "unplayable"; url: string };
+
+/** Reads an answer row back into what to show. An uploaded file wins; null is nothing sent. */
+export function readVideoResponse(
+  answer: { structuredAnswer?: unknown; fileId?: string | null } | null | undefined,
+): VideoResponse | null {
+  if (!answer) return null;
+  if (answer.fileId) return { kind: "file", fileId: answer.fileId };
+  const video = videoFromAnswer(answer.structuredAnswer ?? null);
+  if (video) return { kind: "link", video };
+  const url = (answer.structuredAnswer as VideoAnswer | null)?.externalUrl;
+  return url ? { kind: "unplayable", url } : null;
+}
 
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
 // Loom ids are 32 hex characters. Newer share links put a title slug in front

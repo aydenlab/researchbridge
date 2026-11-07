@@ -450,7 +450,7 @@ export function VideoStep({
 
       <FormNote>
         {featureEnabled
-          ? "Optional. Use it when a short video would genuinely help you choose, for example to hear why a student wants this project in particular. Students record on Loom or upload an unlisted YouTube video and paste the link, so nothing is uploaded to ResearchBridge."
+          ? "Optional. Use it when a short video would genuinely help you choose, for example to hear why a student wants this project in particular. Students upload a video file or paste a Loom or YouTube link, and you watch it on their application."
           : "Video responses are switched off on ResearchBridge at the moment. An administrator can turn them back on from the system page."}
       </FormNote>
 

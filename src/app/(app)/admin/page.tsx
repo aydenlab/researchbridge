@@ -35,6 +35,9 @@ export default async function AdminOverviewPage() {
         lede="Signup count is not the goal here. Confirmed research placements are."
         actions={
           <>
+            <ButtonLink href="/admin/acceptances" variant="outline">
+              Acceptances
+            </ButtonLink>
             <ButtonLink href="/admin/system" variant="outline">
               System
             </ButtonLink>

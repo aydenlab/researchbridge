@@ -16,7 +16,7 @@ function Pending({ label, pendingLabel, variant = "primary" }: { label: string; 
   );
 }
 
-export function WithdrawForm({ applicationId }: { applicationId: string }) {
+export function WithdrawForm({ applicationId, accepted = false }: { applicationId: string; accepted?: boolean }) {
   const [state, action] = useActionState<ActionResult | null, FormData>(withdrawApplicationAction, null);
 
   if (state?.ok) {
@@ -26,7 +26,7 @@ export function WithdrawForm({ applicationId }: { applicationId: string }) {
   return (
     <form action={action}>
       <input type="hidden" name="applicationId" value={applicationId} />
-      <Pending label="Withdraw application" pendingLabel="Withdrawing" variant="danger" />
+      <Pending label={accepted ? "Turn down this position" : "Withdraw application"} pendingLabel="Withdrawing" variant="danger" />
       <p className="mt-2 text-[12px] leading-5 text-subtle">
         The researcher is told that you withdrew. This cannot be undone.
       </p>

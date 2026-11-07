@@ -34,7 +34,7 @@ const STEPS: Step[] = [
   { number: 4, label: "Candidate criteria", description: "What matters for this project, and how much each item counts." },
   { number: 5, label: "Application questions", description: "Questions written for this project rather than a generic form." },
   { number: 6, label: "Research paper", description: "Optionally attach a paper and ask applicants to respond to it." },
-  { number: 7, label: "Video response", description: "Optional. Ask applicants for a short Loom or YouTube video." },
+  { number: 7, label: "Video response", description: "Optional. Ask applicants for a short video." },
   { number: 8, label: "Preview", description: "Exactly what a student sees before they apply." },
   { number: 9, label: "Publish", description: "Confirm and make the listing live." },
 ];

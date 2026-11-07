@@ -22,7 +22,7 @@ import { loadOpportunityMatchInput } from "@/lib/queries/fit";
 import { studentMatchInput } from "@/lib/queries/recommendations";
 import { loadStudentProfile } from "@/lib/queries/student";
 import { listConfirmedProfileReferences, listReferences } from "@/lib/queries/references";
-import { ContactControl, NotesPanel, PlacementForm, RefreshEvidence, StatusActions } from "./review-controls";
+import { AcceptControl, AcceptedSummary, ContactControl, NotesPanel, PlacementForm, RefreshEvidence, StatusActions } from "./review-controls";
 
 export const metadata: Metadata = {
   title: "Candidate review",
@@ -93,6 +93,8 @@ export default async function CandidateReviewPage({
   const match = profile && matchInput ? scoreMatch(studentMatchInput(profile), matchInput) : null;
   const fit = applicantFit(criteria, [...scoringResults.values()], match);
   const status = (bundle.application.status === "submitted" ? "under_review" : bundle.application.status) as ApplicationStatus;
+  const allowed = allowedTransitions(status, "researcher");
+  const canAccept = allowed.includes("accepted");
   const isPaid = PAID_COMPENSATION.has(bundle.opportunity.compensationType);
   const outcome = outcomeRows[0] ?? null;
 
@@ -189,14 +191,39 @@ export default async function CandidateReviewPage({
               <h2 className="font-display text-[17px] text-ink">Move this application</h2>
             </div>
             <div className="flex flex-col gap-4 px-5 py-4">
-              <StatusActions
-                applicationId={applicationId}
-                currentStatus={status}
-                allowed={allowedTransitions(status, "researcher")}
-              />
-              <div className="border-t border-line pt-4">
-                <ContactControl applicationId={applicationId} alreadyContacted={Boolean(bundle.application.contactedAt)} />
-              </div>
+              {status === "accepted" ? (
+                <AcceptedSummary
+                  applicationId={applicationId}
+                  studentName={displayName}
+                  acceptedAt={formatDate(bundle.application.acceptedAt)}
+                  message={bundle.application.acceptanceMessage}
+                />
+              ) : (
+                <>
+                  {canAccept ? <AcceptControl applicationId={applicationId} studentName={displayName} /> : null}
+                  <div className={canAccept ? "border-t border-line pt-4" : undefined}>
+                    <StatusActions
+                      applicationId={applicationId}
+                      currentStatus={status}
+                      allowed={allowed.filter((next) => next !== "accepted")}
+                    />
+                  </div>
+                </>
+              )}
+              {status === "accepted" ? (
+                <div className="border-t border-line pt-4">
+                  <Link
+                    href={`/messages/${bundle.application.studentId}`}
+                    className="text-[13px] text-forest underline decoration-line-strong underline-offset-4 hover:text-ink"
+                  >
+                    Message {displayName}
+                  </Link>
+                </div>
+              ) : (
+                <div className="border-t border-line pt-4">
+                  <ContactControl applicationId={applicationId} alreadyContacted={Boolean(bundle.application.contactedAt)} />
+                </div>
+              )}
             </div>
           </section>
 

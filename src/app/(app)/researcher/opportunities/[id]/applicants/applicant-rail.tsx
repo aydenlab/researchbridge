@@ -61,6 +61,7 @@ const FILTERS = [
   { value: "all", label: "All applicants" },
   { value: "unreviewed", label: "Not yet opened" },
   { value: "shortlisted", label: "Shortlisted and beyond" },
+  { value: "accepted", label: "Accepted" },
   { value: "declined", label: "Not moving forward" },
 ];
 
@@ -103,6 +104,7 @@ export function ApplicantRail({
       if (filter === "shortlisted" && !["shortlisted", "researcher_contacted", "interview", "accepted"].includes(applicant.status)) {
         return false;
       }
+      if (filter === "accepted" && applicant.status !== "accepted") return false;
       if (filter === "declined" && !["declined", "withdrawn", "position_filled"].includes(applicant.status)) return false;
       if (courseTypes.length > 0 && !courseTypes.some((value) => applicant.courseTypes.includes(value))) return false;
       if (programs.length > 0 && !(applicant.programCategory && programs.includes(applicant.programCategory))) return false;

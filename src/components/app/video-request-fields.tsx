@@ -48,7 +48,7 @@ export function VideoRequestFields({
             Ask applicants for a short video
           </span>
           <span className="mt-0.5 block text-[12px] leading-5 text-muted">
-            Students record on Loom or upload to YouTube and paste the link. You watch it on their application.
+            Students upload a video file or paste a Loom or YouTube link. You watch it on their application.
           </span>
         </span>
       </label>
@@ -124,8 +124,8 @@ export function VideoRequestFields({
             </fieldset>
           </div>
           <p className="text-[12px] leading-5 text-subtle">
-            ResearchBridge does not host or analyze the video. Nothing about a student&apos;s appearance, voice, or
-            delivery is scored, and it does not change their fit figure.
+            ResearchBridge does not analyze the video. Nothing about a student&apos;s appearance, voice, or delivery is
+            scored, and it does not change their fit figure.
           </p>
         </div>
       ) : null}

@@ -108,7 +108,7 @@ export type AllApplicantRow = {
   locationPreference: string | null;
   /** What this student is applying as, falling back to what their profile says. */
   courseTypes: string[];
-  /** Whether a playable Loom or YouTube video came with the application. */
+  /** Whether a playable video came with the application, linked or uploaded. */
   hasVideo: boolean;
 };
 

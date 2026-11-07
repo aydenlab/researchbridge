@@ -2,12 +2,13 @@ import { FileText } from "lucide-react";
 import { Tag } from "@/components/ui/badge";
 import { DocumentedEvidenceSummary } from "@/components/app/documented-evidence";
 import { VideoEmbed } from "@/components/app/video-embed";
+import { VideoFilePlayer } from "@/components/app/video-file-player";
 import { formatDate, formatMonth } from "@/lib/format";
 import { formatMetric } from "@/lib/gpa";
 import { COURSE_STATUS_LABELS, LOCATION_LABELS, PROFICIENCY_LABELS, QUESTION_TYPE_LABELS, labelOr } from "@/lib/labels";
 import type { ApplicationBundle } from "@/lib/queries/applications";
 import { loadStudentProfile, toAcademicMetrics } from "@/lib/queries/student";
-import { splitVideoQuestion, videoFromAnswer, type VideoAnswer } from "@/lib/video-links";
+import { readVideoResponse, splitVideoQuestion } from "@/lib/video-links";
 
 export function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
@@ -36,19 +37,18 @@ export function ApplicationDetail({
   const answersByQuestion = new Map(bundle.answers.map((answer) => [answer.questionId, answer]));
   const metrics = profile ? toAcademicMetrics(profile.academicRecords) : [];
   const { video: videoQuestion, written } = splitVideoQuestion(bundle.questions);
-  const videoAnswer = videoQuestion ? answersByQuestion.get(videoQuestion.id)?.structuredAnswer ?? null : null;
-  const video = videoFromAnswer(videoAnswer);
-  const unplayableLink = !video ? (videoAnswer as VideoAnswer | null)?.externalUrl ?? null : null;
+  const video = videoQuestion ? readVideoResponse(answersByQuestion.get(videoQuestion.id)) : null;
+  const videoTitle = `Video response from ${bundle.student.preferredName ?? bundle.student.firstName}`;
   // A video sent before the request was switched off is still shown; an empty
   // panel for a request that is no longer live is not.
-  const showVideo = Boolean(videoQuestion) && (bundle.opportunity.videoResponseEnabled || Boolean(video || unplayableLink));
+  const showVideo = Boolean(videoQuestion) && (bundle.opportunity.videoResponseEnabled || Boolean(video));
 
   return (
     <>
       {showVideo && videoQuestion ? (
         <Panel
           title="Video response"
-          subtitle="Hosted on the student's own Loom or YouTube account. Not analyzed, and not part of the fit figure."
+          subtitle="Plays here, whether the student uploaded a file or shared a Loom or YouTube link. Not analyzed, and not part of the fit figure."
         >
           <figure className="mb-4 rounded-[8px] border border-line bg-shell/60 px-3.5 py-2.5">
             <figcaption className="text-[11.5px] text-subtle">
@@ -56,13 +56,15 @@ export function ApplicationDetail({
             </figcaption>
             <blockquote className="mt-0.5 text-[14px] leading-6 text-ink">{videoQuestion.prompt}</blockquote>
           </figure>
-          {video ? (
-            <VideoEmbed video={video} title={`Video response from ${bundle.student.preferredName ?? bundle.student.firstName}`} />
-          ) : unplayableLink ? (
+          {video?.kind === "file" ? (
+            <VideoFilePlayer fileId={video.fileId} title={videoTitle} />
+          ) : video?.kind === "link" ? (
+            <VideoEmbed video={video.video} title={videoTitle} />
+          ) : video?.kind === "unplayable" ? (
             <p className="text-[13.5px] leading-6 text-muted">
               The link sent cannot be played here.{" "}
               <a
-                href={unplayableLink}
+                href={video.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-forest underline decoration-line-strong underline-offset-4"

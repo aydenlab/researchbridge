@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, MessageSquare, PartyPopper } from "lucide-react";
 import { db, placementOutcomes } from "@/db";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/app/status-pill";
 import { VideoEmbed } from "@/components/app/video-embed";
+import { VideoFilePlayer } from "@/components/app/video-file-player";
 import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
 import { requireStudent } from "@/lib/auth/permissions";
 import { STATUS_LABELS, STUDENT_STATUS_DESCRIPTION, type ApplicationStatus } from "@/lib/application-status";
 import { formatDate, formatShortDate } from "@/lib/format";
@@ -17,7 +19,7 @@ import { listReferences, MAX_REFERENCES_PER_APPLICATION } from "@/lib/queries/re
 import { OutcomeForm, WithdrawForm } from "./client-forms";
 import { ReferenceSection } from "./reference-section";
 import { arrangementLabel } from "@/lib/future-opportunity";
-import { splitVideoQuestion, videoFromAnswer, type VideoAnswer } from "@/lib/video-links";
+import { readVideoResponse, splitVideoQuestion } from "@/lib/video-links";
 
 export const metadata: Metadata = {
   title: "Application",
@@ -44,9 +46,7 @@ export default async function ApplicationDetailPage({
   const references = await listReferences(id);
   const answersByQuestion = new Map(bundle.answers.map((answer) => [answer.questionId, answer]));
   const { video: videoQuestion, written } = splitVideoQuestion(bundle.questions);
-  const videoAnswer = videoQuestion ? (answersByQuestion.get(videoQuestion.id)?.structuredAnswer ?? null) : null;
-  const sentVideo = videoFromAnswer(videoAnswer);
-  const sentLink = (videoAnswer as VideoAnswer | null)?.externalUrl ?? null;
+  const sentVideo = videoQuestion ? readVideoResponse(answersByQuestion.get(videoQuestion.id)) : null;
   const status = bundle.application.status as ApplicationStatus;
   const canWithdraw = !["withdrawn", "declined", "position_filled", "draft"].includes(status);
   const showOutcomePrompt =
@@ -73,6 +73,37 @@ export default async function ApplicationDetailPage({
         </div>
       ) : null}
 
+      {status === "accepted" ? (
+        <section className="mb-7 rounded-[12px] border border-[#c2dccc] bg-moss px-5 py-5">
+          <div className="flex items-start gap-3">
+            <PartyPopper className="mt-0.5 size-5 shrink-0 text-ok" aria-hidden="true" />
+            <div className="min-w-0">
+              <h2 className="font-display text-[22px] leading-tight text-forest" style={{ letterSpacing: "-0.4px" }}>
+                Congratulations, you have been accepted
+              </h2>
+              <p className="mt-1.5 text-[14.5px] leading-6 text-forest/85">
+                {bundle.researcher.firstName} {bundle.researcher.lastName} accepted you for {bundle.opportunity.title}
+                {bundle.application.acceptedAt ? ` on ${formatDate(bundle.application.acceptedAt)}` : ""}.
+              </p>
+              {bundle.application.acceptanceMessage ? (
+                <figure className="mt-3 rounded-[10px] border border-[#c2dccc] bg-white/70 px-4 py-3">
+                  <figcaption className="text-[12px] text-subtle">
+                    {bundle.researcher.firstName} {bundle.researcher.lastName} wrote
+                  </figcaption>
+                  <blockquote className="mt-1 whitespace-pre-wrap text-[14.5px] leading-6 text-ink">
+                    {bundle.application.acceptanceMessage}
+                  </blockquote>
+                </figure>
+              ) : null}
+              <ButtonLink href={`/messages/${bundle.opportunity.researcherId}`} size="sm" className="mt-3.5">
+                <MessageSquare aria-hidden="true" />
+                Message {bundle.researcher.firstName} {bundle.researcher.lastName}
+              </ButtonLink>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <PageHeader
         eyebrow="Application"
         title={bundle.opportunity.title}
@@ -96,7 +127,7 @@ export default async function ApplicationDetailPage({
             <h2 className="font-display text-[19px] text-ink" style={{ letterSpacing: "-0.4px" }}>
               What you sent
             </h2>
-            {written.length === 0 && !sentLink ? (
+            {written.length === 0 && !sentVideo ? (
               <p className="mt-3 text-[14.5px] leading-7 text-muted">
                 This position asked only for your ResearchBridge profile.
               </p>
@@ -139,21 +170,23 @@ export default async function ApplicationDetailPage({
                 })}
               </ol>
             )}
-            {videoQuestion && sentLink ? (
+            {videoQuestion && sentVideo ? (
               <div className="mt-5 border-t border-line pt-4">
                 <p className="text-[14.5px] leading-6 text-ink">{videoQuestion.prompt}</p>
                 <p className="mt-1 text-[11.5px] text-subtle">{labelOr(QUESTION_TYPE_LABELS, videoQuestion.type)}</p>
                 <div className="mt-2.5">
-                  {sentVideo ? (
-                    <VideoEmbed video={sentVideo} title="Your video response" />
+                  {sentVideo.kind === "file" ? (
+                    <VideoFilePlayer fileId={sentVideo.fileId} title="Your video response" />
+                  ) : sentVideo.kind === "link" ? (
+                    <VideoEmbed video={sentVideo.video} title="Your video response" />
                   ) : (
                     <a
-                      href={sentLink}
+                      href={sentVideo.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[13.5px] text-forest underline decoration-line-strong underline-offset-4"
                     >
-                      {sentLink}
+                      {sentVideo.url}
                     </a>
                   )}
                 </div>
@@ -222,7 +255,7 @@ export default async function ApplicationDetailPage({
 
             {canWithdraw ? (
               <div className="mt-4 border-t border-line pt-4">
-                <WithdrawForm applicationId={id} />
+                <WithdrawForm applicationId={id} accepted={status === "accepted"} />
               </div>
             ) : null}
           </div>

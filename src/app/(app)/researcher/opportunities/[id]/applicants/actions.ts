@@ -20,7 +20,7 @@ import type { ActionResult } from "@/lib/errors";
 import { recordAudit, recordEvent } from "@/lib/events";
 import { PAID_COMPENSATION } from "@/lib/labels";
 import { log } from "@/lib/log";
-import { sendResearcherContact, sendStatusChange } from "@/lib/email";
+import { sendApplicationAccepted, sendResearcherContact, sendStatusChange } from "@/lib/email";
 import { loadApplication, loadCriteria, persistCriterionResults } from "@/lib/queries/applications";
 import { loadStudentProfile, toApplicantEvidence } from "@/lib/queries/student";
 
@@ -36,14 +36,126 @@ async function guard(applicationId: string) {
   return { error: null, user, bundle };
 }
 
-export async function updateApplicationStatusAction(_prev: ActionResult | null, formData: FormData) {
+/**
+ * Accepts a student onto a position. This is what the platform counts as an
+ * acceptance, so it is the only route to that status: the student is told, here
+ * and by email, and the record of who was accepted is written once.
+ */
+export async function acceptApplicantAction(_prev: ActionResult | null, formData: FormData) {
   const applicationId = String(formData.get("applicationId") ?? "");
-  const next = String(formData.get("status") ?? "") as ApplicationStatus;
+  const message = optionalText(formData, "message")?.slice(0, 1500) ?? null;
 
   const { error, user, bundle } = await guard(applicationId);
   if (error || !user || !bundle) return { ok: false as const, error: error ?? "Not found." };
 
   const current = bundle.application.status as ApplicationStatus;
+  if (!canTransition(current, "accepted", "researcher")) {
+    return {
+      ok: false as const,
+      error: `An application at ${STATUS_LABELS[current].toLowerCase()} cannot be accepted.`,
+    };
+  }
+
+  try {
+    const now = new Date();
+    const researcherName = `${bundle.researcher.firstName} ${bundle.researcher.lastName}`;
+
+    const moved = await db.transaction(async (tx) => {
+      // Conditional on the status just checked, so a double click or a second tab
+      // cannot record, and email, the same acceptance twice.
+      const updated = await tx
+        .update(applications)
+        .set({
+          status: "accepted",
+          acceptedAt: bundle.application.acceptedAt ?? now,
+          acceptedBy: user.id,
+          acceptanceMessage: message,
+          reviewedAt: bundle.application.reviewedAt ?? now,
+          updatedAt: now,
+        })
+        .where(and(eq(applications.id, applicationId), eq(applications.status, current)))
+        .returning({ id: applications.id });
+      if (updated.length === 0) return false;
+
+      await tx.insert(applicationStatusHistory).values({
+        applicationId,
+        previousStatus: current,
+        newStatus: "accepted",
+        changedBy: user.id,
+      });
+      await tx.insert(notifications).values({
+        userId: bundle.application.studentId,
+        type: "application_accepted",
+        title: `You have been accepted: ${bundle.opportunity.title}`,
+        body: `${researcherName} accepted your application.`,
+        link: `/applications/${applicationId}`,
+      });
+      return true;
+    });
+
+    if (!moved) {
+      return { ok: false as const, error: "This application has just changed. Reload the page and check where it stands." };
+    }
+
+    await recordAudit({
+      actorId: user.id,
+      action: "application_accepted",
+      subjectType: "application",
+      subjectId: applicationId,
+      detail: { from: current, studentId: bundle.application.studentId },
+    });
+    await recordEvent({
+      name: "application_accepted",
+      userId: user.id,
+      institutionId: bundle.opportunity.institutionId,
+      subjectType: "application",
+      subjectId: applicationId,
+      properties: { status: "accepted", from: current },
+    });
+
+    const researcherEmailRows = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, bundle.opportunity.researcherId))
+      .limit(1);
+    // The acceptance has happened by this point and the student can see it, so an
+    // email failure is logged by the provider layer rather than reported as if it had not.
+    await sendApplicationAccepted({
+      to: bundle.studentEmail,
+      applicationId,
+      projectTitle: bundle.opportunity.title,
+      researcherName,
+      researcherEmail: researcherEmailRows[0]?.email ?? null,
+      message,
+    }).catch((caught) => log.error("acceptance_email_failed", { applicationId, error: caught }));
+
+    revalidatePath(`/researcher/opportunities/${bundle.opportunity.id}/applicants`, "layout");
+    revalidatePath("/researcher/applicants");
+    revalidatePath(`/applications/${applicationId}`);
+    revalidatePath("/applications");
+    return { ok: true as const, data: undefined, message: "Accepted. The student has been notified." };
+  } catch (caught) {
+    return toActionError(caught, "accept_applicant_failed");
+  }
+}
+
+export async function updateApplicationStatusAction(_prev: ActionResult | null, formData: FormData) {
+  const applicationId = String(formData.get("applicationId") ?? "");
+  const next = String(formData.get("status") ?? "") as ApplicationStatus;
+
+  // One path to an acceptance, so nothing can reach the status without its record.
+  if (next === "accepted") return acceptApplicantAction(_prev, formData);
+
+  const { error, user, bundle } = await guard(applicationId);
+  if (error || !user || !bundle) return { ok: false as const, error: error ?? "Not found." };
+
+  const current = bundle.application.status as ApplicationStatus;
+  // What the page showed when the button was pressed. A tab left open from before
+  // an acceptance must not reject a student the researcher has since accepted.
+  const expected = formData.get("expectedStatus");
+  if (expected && expected !== current) {
+    return { ok: false as const, error: "This application has just changed. Reload the page and check where it stands." };
+  }
   if (!canTransition(current, next, "researcher")) {
     return {
       ok: false as const,
@@ -53,15 +165,17 @@ export async function updateApplicationStatusAction(_prev: ActionResult | null, 
 
   try {
     const now = new Date();
-    await db.transaction(async (tx) => {
-      await tx
+    const moved = await db.transaction(async (tx) => {
+      const updated = await tx
         .update(applications)
         .set({
           status: next,
           reviewedAt: bundle.application.reviewedAt ?? now,
           updatedAt: now,
         })
-        .where(and(eq(applications.id, applicationId), eq(applications.status, current)));
+        .where(and(eq(applications.id, applicationId), eq(applications.status, current)))
+        .returning({ id: applications.id });
+      if (updated.length === 0) return false;
 
       await tx.insert(applicationStatusHistory).values({
         applicationId,
@@ -78,7 +192,11 @@ export async function updateApplicationStatusAction(_prev: ActionResult | null, 
         body: `${bundle.opportunity.title}.`,
         link: `/applications/${applicationId}`,
       });
+      return true;
     });
+    if (!moved) {
+      return { ok: false as const, error: "This application has just changed. Reload the page and check where it stands." };
+    }
 
     await recordAudit({
       actorId: user.id,
@@ -88,7 +206,7 @@ export async function updateApplicationStatusAction(_prev: ActionResult | null, 
       detail: { from: current, to: next },
     });
     await recordEvent({
-      name: next === "accepted" ? "application_accepted" : "application_reviewed",
+      name: "application_reviewed",
       userId: user.id,
       institutionId: bundle.opportunity.institutionId,
       subjectType: "application",
@@ -98,7 +216,7 @@ export async function updateApplicationStatusAction(_prev: ActionResult | null, 
 
     await sendStatusChange(bundle.studentEmail, bundle.opportunity.title, STATUS_LABELS[next].toLowerCase());
 
-    revalidatePath(`/researcher/opportunities/${bundle.opportunity.id}/applicants`);
+    revalidatePath(`/researcher/opportunities/${bundle.opportunity.id}/applicants`, "layout");
     return { ok: true as const, data: undefined, message: `Marked ${STATUS_LABELS[next].toLowerCase()}` };
   } catch (caught) {
     return toActionError(caught, "update_application_status_failed");
@@ -158,11 +276,13 @@ export async function contactStudentAction(_prev: ActionResult | null, formData:
 
   try {
     const now = new Date();
-    await db.transaction(async (tx) => {
-      await tx
+    const moved = await db.transaction(async (tx) => {
+      const updated = await tx
         .update(applications)
         .set({ status: "researcher_contacted", contactedAt: now, reviewedAt: bundle.application.reviewedAt ?? now, updatedAt: now })
-        .where(eq(applications.id, applicationId));
+        .where(and(eq(applications.id, applicationId), eq(applications.status, current)))
+        .returning({ id: applications.id });
+      if (updated.length === 0) return false;
 
       await tx.insert(applicationStatusHistory).values({
         applicationId,
@@ -178,7 +298,11 @@ export async function contactStudentAction(_prev: ActionResult | null, formData:
         body: `About ${bundle.opportunity.title}.`,
         link: `/applications/${applicationId}`,
       });
+      return true;
     });
+    if (!moved) {
+      return { ok: false as const, error: "This application has just changed. Reload the page and check where it stands." };
+    }
 
     const researcherEmailRows = await db.select({ email: users.email }).from(users).where(eq(users.id, user.id)).limit(1);
 

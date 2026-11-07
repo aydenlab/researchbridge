@@ -308,7 +308,7 @@ export function SimpleOpportunityForm({
       {videoFeature ? (
         <Section
           title="Video response"
-          description="Optional. Ask applicants for a short Loom or YouTube video when hearing from them would help you choose, and say exactly what you want them to cover."
+          description="Optional. Ask applicants for a short video when hearing from them would help you choose, and say exactly what you want them to cover."
         >
           <VideoRequestFields
             initial={{

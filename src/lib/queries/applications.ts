@@ -237,7 +237,7 @@ export async function applicationsWithVideo(applicationIds: string[]): Promise<s
       and(
         inArray(applicationAnswers.applicationId, applicationIds),
         eq(opportunityQuestions.type, "video_response"),
-        sql`${applicationAnswers.structuredAnswer}->>'videoId' is not null`,
+        sql`(${applicationAnswers.fileId} is not null or ${applicationAnswers.structuredAnswer}->>'videoId' is not null)`,
       ),
     );
   return rows.map((row) => row.applicationId);
