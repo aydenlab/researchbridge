@@ -2,13 +2,14 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { CheckCircle2, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormError, RadioRow, Textarea } from "@/components/ui/field";
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-status";
 import type { ActionResult } from "@/lib/errors";
 import { formatShortDate } from "@/lib/format";
 import {
+  acceptApplicantAction,
   addNoteAction,
   contactStudentAction,
   deleteNoteAction,
@@ -23,6 +24,117 @@ function Pending({ label, pendingLabel, variant = "primary", size = "md" }: { la
     <Button type="submit" variant={variant} size={size} disabled={pending}>
       {pending ? pendingLabel : label}
     </Button>
+  );
+}
+
+/**
+ * The decision itself. It emails the student, so one click is not enough: the
+ * researcher sees who it goes to and what happens, and can say something with it.
+ */
+export function AcceptControl({ applicationId, studentName }: { applicationId: string; studentName: string }) {
+  const [state, action] = useActionState<ActionResult | null, FormData>(acceptApplicantAction, null);
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <div className="flex flex-col gap-2">
+        <Button type="button" onClick={() => setOpen(true)}>
+          <CheckCircle2 aria-hidden="true" />
+          Accept {studentName}
+        </Button>
+        <p className="text-[12px] leading-5 text-subtle">
+          Offering them a place? Accept here instead of emailing separately, so they see it on ResearchBridge too.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form action={action} className="flex flex-col gap-3 rounded-[10px] border border-[#c2dccc] bg-moss/50 p-3.5">
+      <input type="hidden" name="applicationId" value={applicationId} />
+      <FormError>{state?.ok === false ? state.error : null}</FormError>
+      <p className="text-[13.5px] leading-6 text-ink">
+        Accept <span className="font-medium">{studentName}</span> for this position? They are told right away, on
+        ResearchBridge and by email.
+      </p>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="accept-message" className="text-[13px] font-medium text-ink">
+          A note to them <span className="text-[11.5px] font-normal text-subtle">Optional</span>
+        </label>
+        <Textarea
+          id="accept-message"
+          name="message"
+          rows={3}
+          maxLength={1500}
+          placeholder="Next steps, when to start, who to talk to first."
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Pending label="Confirm and accept" pendingLabel="Accepting" size="sm" />
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** Where an accepted application stands, with the one way back if it was a mistake. */
+export function AcceptedSummary({
+  applicationId,
+  studentName,
+  acceptedAt,
+  message,
+}: {
+  applicationId: string;
+  studentName: string;
+  acceptedAt: string;
+  message: string | null;
+}) {
+  const [state, action] = useActionState<ActionResult | null, FormData>(updateApplicationStatusAction, null);
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start gap-2.5 rounded-[10px] border border-[#c2dccc] bg-moss px-3.5 py-3">
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-[13.5px] font-medium text-forest">You accepted {studentName}</p>
+          <p className="mt-0.5 text-[12.5px] text-forest/85">On {acceptedAt}. They have been notified.</p>
+          {message ? <p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-ink">{message}</p> : null}
+        </div>
+      </div>
+
+      {confirming ? (
+        <form action={action} className="flex flex-col gap-2.5">
+          <input type="hidden" name="applicationId" value={applicationId} />
+          <input type="hidden" name="status" value="declined" />
+          <input type="hidden" name="expectedStatus" value="accepted" />
+          <p className="text-[12.5px] leading-5 text-muted">
+            {studentName} will be told you are not moving forward with their application. This cannot be undone.
+          </p>
+          {state?.ok === false ? (
+            <p role="alert" className="text-[12.5px] text-bad">
+              {state.error}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Pending label="Withdraw the acceptance" pendingLabel="Saving" size="sm" variant="danger" />
+            <Button type="button" variant="outline" size="sm" onClick={() => setConfirming(false)}>
+              Keep it
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="w-fit text-[12.5px] text-muted underline decoration-line-strong underline-offset-4 hover:text-bad"
+        >
+          Accepted by mistake?
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -52,6 +164,7 @@ export function StatusActions({
           <form key={status} action={action}>
             <input type="hidden" name="applicationId" value={applicationId} />
             <input type="hidden" name="status" value={status} />
+            <input type="hidden" name="expectedStatus" value={currentStatus} />
             <Pending
               label={STATUS_LABELS[status]}
               pendingLabel="Saving"

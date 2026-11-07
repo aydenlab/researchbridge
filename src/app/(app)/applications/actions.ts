@@ -28,12 +28,13 @@ import { log } from "@/lib/log";
 import { sendApplicationReceived, sendNewApplicantNotice } from "@/lib/email";
 import { loadApplication, loadCriteria, persistCriterionResults } from "@/lib/queries/applications";
 import { loadStudentProfile, toApplicantEvidence } from "@/lib/queries/student";
-import { storeFile } from "@/lib/storage";
+import { removeApplicationVideo, storeFile } from "@/lib/storage";
 import { queueEvidenceRefresh } from "@/lib/evidence/queue";
 import {
   isVideoProvider,
   parseVideoLink,
   splitVideoQuestion,
+  VIDEO_FILE_SOURCE,
   videoLinkProblem,
   visibleQuestions,
   type VideoAnswer,
@@ -68,10 +69,42 @@ async function persistAnswers(applicationId: string, questions: (typeof opportun
     }
 
     if (question.type === "video_response") {
+      // Selecting "upload" changes nothing by itself. A file is attached by its own
+      // route, which clears any link at that moment, so looking at the option cannot
+      // cost a student the link they already saved.
+      if (formData.get(`${key}_provider`) === VIDEO_FILE_SOURCE) continue;
       // Absent when the request is switched off, so the form never showed it.
       // Leave whatever was saved alone rather than blanking it.
       if (!formData.has(key)) continue;
+
       const structuredAnswer = readVideoAnswer(formData, key);
+      const [saved] = await db
+        .select({ fileId: applicationAnswers.fileId })
+        .from(applicationAnswers)
+        .where(and(eq(applicationAnswers.applicationId, applicationId), eq(applicationAnswers.questionId, question.id)))
+        .limit(1);
+
+      if (saved?.fileId) {
+        // Only a link that works replaces an uploaded video. Half a link, or an empty
+        // box while trying another option, must not delete the file: this runs on
+        // autosave, seconds after a keystroke.
+        if (!structuredAnswer.videoId) continue;
+        // Conditional on the file read above, in case a new upload landed since.
+        const replaced = await db
+          .update(applicationAnswers)
+          .set({ structuredAnswer, fileId: null, updatedAt: new Date() })
+          .where(
+            and(
+              eq(applicationAnswers.applicationId, applicationId),
+              eq(applicationAnswers.questionId, question.id),
+              eq(applicationAnswers.fileId, saved.fileId),
+            ),
+          )
+          .returning({ id: applicationAnswers.id });
+        if (replaced.length > 0) await removeApplicationVideo(saved.fileId);
+        continue;
+      }
+
       await db
         .insert(applicationAnswers)
         .values({ applicationId, questionId: question.id, structuredAnswer })
@@ -127,13 +160,14 @@ function missingAnswers(
     const answer = answers.get(question.id);
 
     if (question.type === "video_response") {
+      if (answer?.fileId) continue;
       const stored = (answer?.structuredAnswer ?? null) as VideoAnswer | null;
       const link = stored?.externalUrl?.trim() ?? "";
       if (link && !parseVideoLink(link)) {
         fieldErrors[key] = [videoLinkProblem(link, isVideoProvider(stored?.provider) ? stored.provider : null) ?? ""];
         needed.push("a working video link");
       } else if (!link && question.required) {
-        fieldErrors[key] = ["Add the link to your video. This researcher asks every applicant for one."];
+        fieldErrors[key] = ["Add your video, as a link or an upload. This researcher asks every applicant for one."];
         needed.push("your video");
       }
       continue;
@@ -403,11 +437,13 @@ export async function withdrawApplicationAction(_prev: ActionResult | null, form
     }
 
     const now = new Date();
-    await db.transaction(async (tx) => {
-      await tx
+    const moved = await db.transaction(async (tx) => {
+      const updated = await tx
         .update(applications)
         .set({ status: "withdrawn", withdrawnAt: now, updatedAt: now })
-        .where(eq(applications.id, applicationId));
+        .where(and(eq(applications.id, applicationId), eq(applications.status, bundle.application.status)))
+        .returning({ id: applications.id });
+      if (updated.length === 0) return false;
       await tx.insert(applicationStatusHistory).values({
         applicationId,
         previousStatus: bundle.application.status,
@@ -421,7 +457,9 @@ export async function withdrawApplicationAction(_prev: ActionResult | null, form
         body: `${bundle.student.firstName} ${bundle.student.lastName} withdrew from ${bundle.opportunity.title}.`,
         link: `/researcher/opportunities/${bundle.opportunity.id}/applicants`,
       });
+      return true;
     });
+    if (!moved) return { ok: false as const, error: "This application has just changed. Reload the page and check where it stands." };
 
     await recordAudit({
       actorId: user.id,
@@ -451,7 +489,14 @@ export async function deleteDraftAction(_prev: ActionResult | null, formData: Fo
     if (row.status !== "draft") {
       return { ok: false as const, error: "Submitted applications are withdrawn rather than deleted." };
     }
+    // The answers cascade away with the draft, and an uploaded video would be left behind on disk.
+    const uploaded = await db
+      .select({ fileId: applicationAnswers.fileId })
+      .from(applicationAnswers)
+      .innerJoin(opportunityQuestions, eq(opportunityQuestions.id, applicationAnswers.questionId))
+      .where(and(eq(applicationAnswers.applicationId, applicationId), eq(opportunityQuestions.type, "video_response")));
     await db.delete(applications).where(eq(applications.id, applicationId));
+    for (const answer of uploaded) await removeApplicationVideo(answer.fileId);
   } catch (caught) {
     return toActionError(caught, "delete_draft_failed");
   }

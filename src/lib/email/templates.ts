@@ -61,6 +61,30 @@ export async function sendStatusChange(to: string, projectTitle: string, statusL
   });
 }
 
+export async function sendApplicationAccepted(input: {
+  to: string;
+  applicationId: string;
+  projectTitle: string;
+  researcherName: string;
+  researcherEmail: string | null;
+  message: string | null;
+}) {
+  return sendEmail({
+    to: input.to,
+    replyTo: input.researcherEmail ?? undefined,
+    subject: `You have been accepted: ${input.projectTitle}`,
+    text: [
+      `Congratulations. ${input.researcherName} has accepted you for "${input.projectTitle}".`,
+      ...(input.message ? ["", input.message] : []),
+      "",
+      ...(input.researcherEmail ? [`You can reply to this email to reach ${input.researcherEmail}.`, ""] : []),
+      `See the details at ${env.APP_URL}/applications/${input.applicationId}.`,
+      "",
+      SIGNATURE,
+    ].join("\n"),
+  });
+}
+
 export async function sendResearcherContact(to: string, projectTitle: string, researcherName: string, researcherEmail: string, message: string) {
   return sendEmail({
     to,

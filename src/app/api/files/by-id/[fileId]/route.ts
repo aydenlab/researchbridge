@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, ne, or } from "drizzle-orm";
 import {
   applicationAnswers,
   applications,
@@ -13,6 +13,7 @@ import {
 import { getSessionUser } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { storage } from "@/lib/storage";
+import { lazyWebStream, parseByteRange } from "@/lib/storage/range";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,8 @@ async function isAuthorized(fileId: string, userId: string, role: string | null)
     .from(applicationAnswers)
     .innerJoin(applications, eq(applications.id, applicationAnswers.applicationId))
     .innerJoin(opportunities, eq(opportunities.id, applications.opportunityId))
-    .where(and(eq(applicationAnswers.fileId, fileId), eq(opportunities.researcherId, userId)))
+    // A file on an unsent draft is still the student's own, whoever the position belongs to.
+    .where(and(eq(applicationAnswers.fileId, fileId), eq(opportunities.researcherId, userId), ne(applications.status, "draft")))
     .limit(1);
   if (viaAnswer.length > 0) return true;
 
@@ -68,6 +70,7 @@ async function isAuthorized(fileId: string, userId: string, role: string | null)
     .where(
       and(
         eq(opportunities.researcherId, userId),
+        ne(applications.status, "draft"),
         or(
           eq(studentProfiles.resumeFileId, fileId),
           eq(studentProfiles.transcriptFileId, fileId),
@@ -81,7 +84,7 @@ async function isAuthorized(fileId: string, userId: string, role: string | null)
   return viaProfile.length > 0;
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ fileId: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ fileId: string }> }) {
   const { fileId } = await context.params;
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Sign in to open this file." }, { status: 401 });
@@ -95,16 +98,35 @@ export async function GET(_request: Request, context: { params: Promise<{ fileId
   const record = rows[0];
   if (!record) return NextResponse.json({ error: "That file could not be found." }, { status: 404 });
 
-  const body = await storage().get(record.storageKey);
-  if (!body) return NextResponse.json({ error: "That file is no longer stored." }, { status: 404 });
+  const object = await storage().open(record.storageKey);
+  if (!object) return NextResponse.json({ error: "That file is no longer stored." }, { status: 404 });
 
-  return new NextResponse(new Uint8Array(body), {
-    headers: {
-      "Content-Type": record.contentType,
-      "Content-Length": String(record.byteSize),
-      "Content-Disposition": `inline; filename="${record.fileName.replace(/"/g, "")}"`,
-      "Cache-Control": "private, no-store",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": record.contentType,
+    "Content-Disposition": `inline; filename="${record.fileName.replace(/"/g, "")}"`,
+    "Cache-Control": "private, no-store",
+    "X-Content-Type-Options": "nosniff",
+    "Accept-Ranges": "bytes",
+  };
+
+  const range = parseByteRange(request.headers.get("range"), object.size);
+  if (range === "unsatisfiable") {
+    return new NextResponse(null, { status: 416, headers: { ...headers, "Content-Range": `bytes */${object.size}` } });
+  }
+
+  // Streamed, because holding a video in memory per request (and a player makes
+  // many) is what would actually take this process down.
+  const body = (from?: { start: number; end: number }) => lazyWebStream(() => object.read(from));
+
+  if (range) {
+    return new NextResponse(body(range), {
+      status: 206,
+      headers: {
+        ...headers,
+        "Content-Length": String(range.end - range.start + 1),
+        "Content-Range": `bytes ${range.start}-${range.end}/${object.size}`,
+      },
+    });
+  }
+  return new NextResponse(body(), { headers: { ...headers, "Content-Length": String(object.size) } });
 }

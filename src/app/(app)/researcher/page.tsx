@@ -57,7 +57,7 @@ export default async function ResearcherDashboardPage() {
           { label: "Active positions", value: String(published.length), hint: drafts.length > 0 ? `${drafts.length} draft not published` : "No drafts open" },
           { label: "Awaiting your review", value: String(awaiting), hint: awaiting > 0 ? "Applications you have not opened" : "Nothing waiting" },
           { label: "Applications received", value: String(totalApplications) },
-          { label: "Offers made", value: String(filled) },
+          { label: "Students accepted", value: String(filled) },
         ]}
       />
 

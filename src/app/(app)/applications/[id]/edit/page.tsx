@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
-import { db, opportunityResearchMaterials } from "@/db";
+import { db, opportunityResearchMaterials, storedFiles } from "@/db";
 import { requireStudent } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format";
 import { DEGREE_LABELS, LOCATION_LABELS, labelOr } from "@/lib/labels";
 import { loadApplication } from "@/lib/queries/applications";
 import { loadStudentProfile } from "@/lib/queries/student";
-import { isVideoProvider, splitVideoQuestion, visibleQuestions, type VideoAnswer } from "@/lib/video-links";
+import { isVideoProvider, splitVideoQuestion, VIDEO_FILE_SOURCE, visibleQuestions, type VideoAnswer } from "@/lib/video-links";
 import { ApplicationForm } from "./application-form";
 import { ResumeGate } from "./resume-gate";
 
@@ -43,9 +43,15 @@ export default async function EditApplicationPage({ params }: { params: Promise<
   const { video: videoQuestion, written } = splitVideoQuestion(
     visibleQuestions(bundle.questions, bundle.opportunity.videoResponseEnabled),
   );
-  const videoAnswer = videoQuestion
-    ? ((bundle.answers.find((answer) => answer.questionId === videoQuestion.id)?.structuredAnswer ?? null) as VideoAnswer | null)
-    : null;
+  const videoRow = videoQuestion ? bundle.answers.find((answer) => answer.questionId === videoQuestion.id) : undefined;
+  const videoAnswer = (videoRow?.structuredAnswer ?? null) as VideoAnswer | null;
+  const [videoFile] = videoRow?.fileId
+    ? await db
+        .select({ id: storedFiles.id, fileName: storedFiles.fileName, byteSize: storedFiles.byteSize })
+        .from(storedFiles)
+        .where(eq(storedFiles.id, videoRow.fileId))
+        .limit(1)
+    : [];
 
   const profileSummary = [
     {
@@ -140,7 +146,13 @@ export default async function EditApplicationPage({ params }: { params: Promise<
                 required: videoQuestion.required,
                 maxSeconds: bundle.opportunity.videoMaxSeconds,
                 url: videoAnswer?.externalUrl ?? null,
-                provider: isVideoProvider(videoAnswer?.provider) ? videoAnswer.provider : null,
+                provider:
+                  videoAnswer?.provider === VIDEO_FILE_SOURCE
+                    ? VIDEO_FILE_SOURCE
+                    : isVideoProvider(videoAnswer?.provider)
+                      ? videoAnswer.provider
+                      : null,
+                file: videoFile ?? null,
               }
             : null
         }

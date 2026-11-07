@@ -739,6 +739,15 @@ export const applications = pgTable(
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     withdrawnAt: timestamp("withdrawn_at", { withTimezone: true }),
     contactedAt: timestamp("contacted_at", { withTimezone: true }),
+    /**
+     * When a researcher accepted this student, and who did it. Set once and kept
+     * if the student later turns the position down or the acceptance is withdrawn,
+     * so "who was ever accepted" stays answerable. `status` says where it stands now.
+     */
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedBy: uuid("accepted_by").references(() => users.id, { onDelete: "set null" }),
+    /** The researcher's note to the student, shown on their application. */
+    acceptanceMessage: text("acceptance_message"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Field, FormError, FormNote, Input, Select, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/errors";
 import { COURSE_TYPE_LABELS, COURSE_TYPE_ORDER } from "@/lib/labels";
-import type { VideoProvider } from "@/lib/video-links";
+import type { VIDEO_FILE_SOURCE, VideoProvider } from "@/lib/video-links";
 import { saveDraftAction, submitApplicationAction } from "../../actions";
-import { VideoResponseField } from "./video-response-field";
+import { VideoResponseField, type UploadedVideo } from "./video-response-field";
 
 export type Question = {
   id: string;
@@ -32,11 +32,11 @@ export type Material = {
   context: string | null;
 };
 
-function SubmitButton() {
+function SubmitButton({ blocked }: { blocked: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" size="lg" disabled={pending}>
-      {pending ? "Submitting" : "Submit application"}
+    <Button type="submit" size="lg" disabled={pending || blocked}>
+      {pending ? "Submitting" : blocked ? "Waiting for your video" : "Submit application"}
     </Button>
   );
 }
@@ -83,7 +83,8 @@ export function ApplicationForm({
     required: boolean;
     maxSeconds: number | null;
     url: string | null;
-    provider: VideoProvider | null;
+    provider: VideoProvider | typeof VIDEO_FILE_SOURCE | null;
+    file: UploadedVideo | null;
   } | null;
 }) {
   const [state, action] = useActionState<ActionResult | null, FormData>(submitApplicationAction, null);
@@ -93,6 +94,7 @@ export function ApplicationForm({
     Object.fromEntries(questions.map((question) => [question.id, answers[question.id]?.textAnswer?.length ?? 0])),
   );
   const timer = useRef<number | null>(null);
+  const [videoUploading, setVideoUploading] = useState(false);
 
   const saveDraft = useCallback(async () => {
     const form = formRef.current;
@@ -343,6 +345,7 @@ export function ApplicationForm({
 
       {video ? (
         <VideoResponseField
+          applicationId={applicationId}
           name={`q_${video.questionId}`}
           prompt={video.prompt}
           required={video.required}
@@ -350,6 +353,8 @@ export function ApplicationForm({
           researcherName={researcherName}
           initialUrl={video.url}
           initialProvider={video.provider}
+          initialFile={video.file}
+          onUploadingChange={setVideoUploading}
           error={errors?.[`q_${video.questionId}`]?.[0]}
         />
       ) : null}
@@ -375,7 +380,7 @@ export function ApplicationForm({
             <dt className="text-[12.5px] text-subtle">Information shared</dt>
             <dd className="text-[13.5px] leading-6 text-ink">
               Your profile as shown above, your answers to the questions on this page, and any files you attached
-              {video ? ", including the link to your video" : ""}.
+              {video ? ", including your video" : ""}.
             </dd>
           </div>
         </dl>
@@ -385,7 +390,7 @@ export function ApplicationForm({
         </FormNote>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <SubmitButton />
+          <SubmitButton blocked={videoUploading} />
           <Button type="button" variant="outline" onClick={() => void saveDraft()}>
             Save draft
           </Button>

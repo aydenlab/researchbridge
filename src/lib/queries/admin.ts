@@ -1,4 +1,5 @@
 import { and, count, desc, eq, isNotNull, ne, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import {
   applications,
   applicationStatusHistory,
@@ -138,7 +139,7 @@ export async function pilotMetrics(): Promise<{
     ],
     outcomes: [
       { label: "Students contacted by a researcher", value: String(contactedApplications), known: true },
-      { label: "Offers made", value: String(acceptedApplications), known: true },
+      { label: "Students accepted", value: String(acceptedApplications), known: true },
       { label: "Confirmed placements", value: String(confirmedPlacements), known: true },
       { label: "Paid placements", value: String(paidPlacements), detail: "Of the confirmed placements", known: true },
       {
@@ -288,6 +289,44 @@ export async function adminApplications() {
     .where(ne(applications.status, "draft"))
     .orderBy(desc(applications.submittedAt))
     .limit(300);
+}
+
+/**
+ * Everyone a researcher has ever accepted, with how to reach both sides, for
+ * pilot follow-up such as asking for a testimonial. Includes acceptances that were
+ * later declined or withdrawn; `status` says where each one stands now.
+ */
+export async function adminAcceptances() {
+  const student = alias(users, "student_user");
+  const researcher = alias(users, "researcher_user");
+  return db
+    .select({
+      id: applications.id,
+      status: applications.status,
+      acceptedAt: applications.acceptedAt,
+      studentFirst: studentProfiles.firstName,
+      studentLast: studentProfiles.lastName,
+      studentPreferred: studentProfiles.preferredName,
+      studentEmail: student.email,
+      studentProgram: studentProfiles.program,
+      studentYear: studentProfiles.yearLevel,
+      opportunityId: opportunities.id,
+      opportunityTitle: opportunities.title,
+      compensationType: opportunities.compensationType,
+      researcherFirst: researcherProfiles.firstName,
+      researcherLast: researcherProfiles.lastName,
+      researcherEmail: researcher.email,
+      institutionName: institutions.name,
+    })
+    .from(applications)
+    .innerJoin(opportunities, eq(opportunities.id, applications.opportunityId))
+    .innerJoin(researcherProfiles, eq(researcherProfiles.userId, opportunities.researcherId))
+    .innerJoin(researcher, eq(researcher.id, opportunities.researcherId))
+    .innerJoin(studentProfiles, eq(studentProfiles.userId, applications.studentId))
+    .innerJoin(student, eq(student.id, applications.studentId))
+    .leftJoin(institutions, eq(institutions.id, opportunities.institutionId))
+    .where(isNotNull(applications.acceptedAt))
+    .orderBy(desc(applications.acceptedAt));
 }
 
 export async function statusDistribution() {

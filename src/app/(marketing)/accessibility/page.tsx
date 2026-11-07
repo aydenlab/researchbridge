@@ -83,7 +83,7 @@ export default function AccessibilityPage() {
               "Screen reader testing has been done against the markup rather than as a full certification pass across every assistive technology.",
               "Files that students and researchers upload, such as papers, resumes, and transcripts, are not remediated by ResearchBridge. Their accessibility depends on the original document.",
               "Papers attached to a listing open on the publisher's own site, which we do not control.",
-              "Where a researcher asks for a video response, it is recorded on Loom or YouTube and played from there, so its accessibility, including captions, depends on that service.",
+              "Where a researcher asks for a video response, a student can upload a file or share a Loom or YouTube link. A linked video plays from that service, so its accessibility, including captions, depends on that service. Uploaded videos play in the browser's own player and do not carry captions.",
             ]}
           />
         </LegalSection>

@@ -639,8 +639,8 @@ export default async function OpportunityDetailPage({ params }: Params) {
                     {videoQuestion.prompt}
                   </blockquote>
                   <p className="mt-2 text-[13px] leading-6 text-warn">
-                    Record on Loom or upload an unlisted YouTube video, then paste the link into your application.
-                    Nothing is uploaded to ResearchBridge, and nothing about your appearance or voice is analyzed.
+                    Upload a video file with your application, or paste a Loom or unlisted YouTube link. Nothing about
+                    your appearance or voice is analyzed.
                   </p>
                 </div>
               ) : null}

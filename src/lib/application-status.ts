@@ -17,12 +17,16 @@ export type Actor = "student" | "researcher" | "admin";
 
 const RESEARCHER_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
   draft: [],
-  submitted: ["under_review", "shortlisted", "declined", "position_filled"],
-  under_review: ["shortlisted", "researcher_contacted", "declined", "position_filled"],
-  shortlisted: ["researcher_contacted", "interview", "declined", "position_filled"],
+  // A researcher can accept from any open stage: plenty of decisions are made
+  // from the application alone, without a recorded contact or meeting first.
+  submitted: ["under_review", "shortlisted", "accepted", "declined", "position_filled"],
+  under_review: ["shortlisted", "researcher_contacted", "accepted", "declined", "position_filled"],
+  shortlisted: ["researcher_contacted", "interview", "accepted", "declined", "position_filled"],
   researcher_contacted: ["interview", "accepted", "declined", "position_filled"],
   interview: ["accepted", "declined", "position_filled"],
-  accepted: ["position_filled"],
+  // Withdrawing an acceptance is the only way out. "Position filled" would tell
+  // the very student who filled it that the position had gone to someone else.
+  accepted: ["declined"],
   declined: [],
   withdrawn: [],
   position_filled: [],
@@ -67,7 +71,7 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   shortlisted: "Shortlisted",
   researcher_contacted: "Researcher reached out",
   interview: "Meeting scheduled",
-  accepted: "Offer made",
+  accepted: "Accepted",
   declined: "Not moving forward",
   withdrawn: "Withdrawn",
   position_filled: "Position filled",
@@ -93,7 +97,7 @@ export const STUDENT_STATUS_DESCRIPTION: Record<ApplicationStatus, string> = {
   shortlisted: "The researcher has shortlisted your application for this project.",
   researcher_contacted: "The researcher has asked to be in touch with you.",
   interview: "A meeting has been arranged for this project.",
-  accepted: "The researcher has offered you this position.",
+  accepted: "The researcher has accepted you for this position.",
   declined: "The researcher is not moving forward with this application.",
   withdrawn: "You withdrew this application.",
   position_filled: "This position has been filled.",

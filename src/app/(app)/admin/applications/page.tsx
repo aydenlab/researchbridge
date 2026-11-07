@@ -30,9 +30,14 @@ export default async function AdminApplicationsPage() {
             : "Aggregate visibility for pilot operations. Written responses and private researcher notes are not shown here."
         }
         actions={
-          <ButtonLink href="/api/admin/export?dataset=applications" variant="outline">
-            Export CSV
-          </ButtonLink>
+          <>
+            <ButtonLink href="/admin/acceptances" variant="outline">
+              Who was accepted
+            </ButtonLink>
+            <ButtonLink href="/api/admin/export?dataset=applications" variant="outline">
+              Export CSV
+            </ButtonLink>
+          </>
         }
       />
 

@@ -79,7 +79,7 @@ Open http://localhost:3000.
 | `FILE_STORAGE_BUCKET` | No | Bucket name for object storage. |
 | `FILE_STORAGE_PUBLIC_URL` | No | Public base URL for object storage. |
 | `AI_ANALYSIS_ENABLED` | No | Initial value of the feature flag. |
-| `VIDEO_RESPONSES_ENABLED` | No | Initial value of the feature flag that lets researchers ask for a Loom or YouTube video. On by default. Videos are never uploaded to ResearchBridge. |
+| `VIDEO_RESPONSES_ENABLED` | No | Initial value of the feature flag that lets researchers ask applicants for a video, sent as a Loom or YouTube link or an uploaded file. On by default. |
 | `WAITLIST_ENABLED` | No | Initial value of the feature flag. |
 | `PUBLIC_SIGNUP_ENABLED` | No | Initial value of the feature flag. |
 | `RESEARCHER_SIGNUP_ENABLED` | No | Initial value of the feature flag. |
@@ -112,7 +112,7 @@ Integrity is enforced in the database as well as in application code: unique use
 ## Testing
 
 ```bash
-npm run test         # 352 tests
+npm run test         # 563 tests
 npm run typecheck
 npm run check        # typecheck, tests, and a production build
 ```
@@ -156,7 +156,7 @@ Notes:
 - SSL is chosen from the connection string. Railway private networking (`*.railway.internal`) does not accept SSL and is connected without it; public hosts use SSL. An explicit `sslmode` in the URL always wins.
 - `tsx` is a runtime dependency because the pre-deploy migration runs through it.
 - No production URL is hardcoded anywhere. Everything derives from `APP_URL`.
-- Local file storage is not durable on Railway. Connect object storage before students upload resumes in production.
+- Local file storage is only durable on Railway with a volume mounted at `/app/.storage`. Without one, every deploy deletes uploaded resumes and videos.
 - To load demo data into a fresh non-production environment, run `npm run db:seed` once from a Railway shell.
 
 ---
@@ -310,7 +310,9 @@ Not implemented, and worth revisiting if volume grows: the Message Batches API h
 
 **Requirements are disclosed before applying.** Every criterion a researcher sets, and its importance, appears on the public listing.
 
-**Prior research is never a platform-wide requirement.** Nor is video, which is off by default and enabled per position.
+**Prior research is never a platform-wide requirement.** Nor is video, which is off by default and enabled per position. Where a researcher asks for one, they say whether it is required, and the student sends a Loom link, a YouTube link, or an uploaded file. All three play inside the review screen and none is analyzed or scored.
+
+**Acceptance is one explicit action, and it is kept.** A researcher accepts a student from any open stage, with a confirmation and an optional note. The student is notified on the platform and by email and sees it on their application. `applications.accepted_at` and `accepted_by` are set once and stay set if the student later turns it down or the researcher withdraws it, so `/admin/acceptances` and its CSV can answer who was ever accepted, while `status` says where each one stands now. A student can decline, and a researcher can withdraw an acceptance made by mistake.
 
 **Compensation is always visible** before a student begins an application.
 
@@ -326,10 +328,12 @@ Semantic HTML, keyboard reachable controls, visible focus outlines, labelled fie
 
 ## Known gaps
 
-- Video responses are modelled end to end but implemented as an externally hosted link rather than in-browser recording. The question type, storage, and flags are already in place.
+- Video responses are a Loom or YouTube link or an uploaded file, not recorded in the browser.
+- Uploaded videos live on the Railway volume alongside resumes, because object storage is still a stub. Uploads stop with a clear message while less than 1 GB would remain free (`VIDEO_DISK_RESERVE_BYTES`), which at the 200 MB limit makes a 5 GB volume good for about 19 videos. Grow the volume in Railway as that fills up. Videos are kept with their applications; only a draft's video is deleted when it is replaced or the draft is discarded. A deploy during an upload can leave a partial file behind with no database row; nothing sweeps those yet.
 - Object storage has an interface and per-purpose limits but only the local provider is implemented.
 - The SMTP email provider is a stub. `console` and `resend` work.
 - Waitlist to account invitations are stored and exportable, but the invite email is triggered manually rather than from an admin button.
+- `scripts/e2e-video-acceptance.mjs` walks video responses and acceptance through a real browser on both sides. It accepts students and sends the matching email, so it refuses to run against production.
 - The end to end suite in `scripts/run-e2e.sh` runs against `next dev` because the PGlite fallback cannot be shared across the production server's workers. Point `DATABASE_URL` at a real PostgreSQL instance to run it against `next start`.
 - Faculty prefill keeps the platform's passwordless sign-in rather than adding a password, which the original note asked for. Adding password auth would mean a second credential store, a reset flow, and its own rate limiting, all to replace a six-digit code that already arrives at the same verified address. The claim flow is otherwise exactly as described: sign in, confirm, state your needs, done.
 - The faculty importer reads a CSV. Scraping McMaster Experts and LinkedIn is not built; the expectation is that the list arrives as an export.
